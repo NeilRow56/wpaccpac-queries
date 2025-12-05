@@ -22,7 +22,7 @@ const navItems = [
 
 export function Navbar() {
   const [, setHasAdminPermission] = useState(false)
-  const { data: session, isPending: loading } = authClient.useSession()
+  const { data: session } = authClient.useSession()
   const user = session?.user
 
   useEffect(() => {
@@ -32,10 +32,6 @@ export function Navbar() {
         setHasAdminPermission(data?.success ?? false)
       })
   }, [])
-
-  if (loading) {
-    return <div>Loading...</div>
-  }
 
   return (
     <header className='bg-background/95 backdrop-blur-[backdrop-filter]:bg-background sticky top-0 z-50 w-full border-b'>

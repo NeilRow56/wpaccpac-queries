@@ -18,6 +18,23 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
+type OrgInviteData = {
+  id: string
+  email: string
+
+  inviter: {
+    user: {
+      id: string
+      name: string | null
+      email: string
+    }
+  }
+  organization: {
+    id: string
+    name: string
+  }
+}
+
 /** ----------------- Helpers ----------------- */
 function normalizeOrigin(origin: string) {
   try {
@@ -151,8 +168,9 @@ export const auth = betterAuth({
 
   plugins: [
     organization({
-      sendInvitationEmail: async data => {
+      sendInvitationEmail: async (data: OrgInviteData) => {
         const inviteLink = `${process.env.BETTER_AUTH_URL}/organization/invites/${data.id}`
+
         await resend.emails.send({
           from: `${process.env.EMAIL_SENDER_NAME} <${process.env.EMAIL_SENDER_ADDRESS}>`,
           to: data.email,
