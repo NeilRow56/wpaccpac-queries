@@ -57,11 +57,22 @@ export function AddOrganizationDialog({ setOpen, open, organization }: Props) {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const slug = values.name
-      .toLowerCase() // Convert to lowercase
-      .replace(/[^\w\s-]/g, '') // Remove non-word characters except spaces and hyphens
-      .trim() // Trim spaces
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .slice(0, 50) // Limit to 50 characters
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .slice(0, 50)
+
+    const { error } = await authClient.organization.checkSlug({ slug })
+
+    if (error) {
+      form.setError('name', {
+        type: 'manual',
+        message:
+          'Name is already in use by another business. Please choose a slightly amended name'
+      })
+      return
+    }
 
     try {
       setIsLoading(true)
@@ -69,6 +80,7 @@ export function AddOrganizationDialog({ setOpen, open, organization }: Props) {
         name: values.name,
         slug
       })
+
       if (res.error) {
         toast.error(res.error.message || 'Failed to create organization')
       } else {
@@ -83,7 +95,6 @@ export function AddOrganizationDialog({ setOpen, open, organization }: Props) {
       setIsLoading(false)
       setOpen(false)
       form.reset()
-
       router.refresh()
     }
   }
