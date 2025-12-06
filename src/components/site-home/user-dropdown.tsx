@@ -27,8 +27,11 @@ export function UserDropdown({ name, email, image }: iAppProps) {
         <Button variant='ghost' className='h-auto p-0 hover:bg-transparent'>
           <Avatar>
             <AvatarImage
-              src={image ? image : './avatar.png'}
+              src={image || '/avatar.png'}
               alt='Profile image'
+              onError={e => {
+                e.currentTarget.src = '/avatar.png'
+              }}
             />
             <AvatarFallback>{name[0].toUpperCase()}</AvatarFallback>
           </Avatar>

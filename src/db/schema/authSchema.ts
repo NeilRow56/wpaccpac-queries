@@ -7,7 +7,7 @@ import {
   index,
   pgEnum
 } from 'drizzle-orm/pg-core'
-import { categories } from './category'
+import { clientCategories } from './clientCategories'
 
 export const role = pgEnum('role', ['user', 'admin', 'owner'])
 
@@ -153,7 +153,7 @@ export const invitation = pgTable(
 
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
-  categories: many(categories),
+
   accounts: many(account),
   members: many(member),
   invitations: many(invitation)
@@ -175,6 +175,7 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 export const organizationRelations = relations(organization, ({ many }) => ({
   members: many(member),
+  clientCategories: many(clientCategories),
   invitations: many(invitation)
 }))
 

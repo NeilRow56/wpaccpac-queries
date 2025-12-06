@@ -1,8 +1,6 @@
 'use client'
 
-import React, { startTransition, useState } from 'react'
-
-import { DataTable } from '@/components/table-components/data-table'
+import { startTransition, useState } from 'react'
 
 import ConfirmationDialog from '@/components/shared/confirmation-dialog'
 
@@ -10,35 +8,38 @@ import { toast } from 'sonner'
 import { usePathname } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
 
-import AddCategoryDialog from './add-category-dialog'
-import { User } from '@/db/schema/authSchema'
-import { deleteCategory } from '@/server-actions/client-categories'
-import { AddCategoryButton } from './add-category-button'
+import { Organization } from '@/db/schema/authSchema'
+
 import { EmptyState } from '@/components/shared/empty-state'
-import { Category, columns } from './columns'
+import { ClientCategory, columns } from './columns'
+
+import AddCategoryDialog from './add-client-category-dialog'
+import { deleteClientCategory } from '@/server-actions/client-categories'
+import { AddClientCategoryButton } from './add-client-category-button'
+import { DataTable } from './data-table'
 
 type Props = {
   data: {
-    id: number
+    id: string
     name: string
   }[]
   total: number
-  user: User
+  org: Organization
 }
 
-export default function CategoriesTable({ data, total, user }: Props) {
+export default function ClientCategoriesTable({ data, total, org }: Props) {
   const [openConfirmationDialog, setOpenConfirmationDialog] = useState(false)
-  const [itemToAction, setItemToAction] = useState<Category>()
+  const [itemToAction, setItemToAction] = useState<ClientCategory>()
 
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
-  const handleRowDelete = (item: Category) => {
+  const handleRowDelete = (item: ClientCategory) => {
     setOpenConfirmationDialog(true)
     setItemToAction(item)
   }
 
-  const handleRowEdit = (item: Category) => {
+  const handleRowEdit = (item: ClientCategory) => {
     setItemToAction(item)
     setOpen(true)
   }
@@ -48,7 +49,7 @@ export default function CategoriesTable({ data, total, user }: Props) {
 
     if (itemToAction) {
       startTransition(async () => {
-        await deleteCategory(itemToAction.id, pathname)
+        await deleteClientCategory(itemToAction.id, pathname)
       })
 
       toast.warning(`Category ${itemToAction.name} deleted`, {
@@ -70,10 +71,7 @@ export default function CategoriesTable({ data, total, user }: Props) {
         </div>
 
         <div className='- mt-12 flex w-full justify-center'>
-          {/* <Button asChild size='lg' className='i flex w-[200px]'>
-            <Link href='/admin/categories/form'>Create Category</Link>
-          </Button> */}
-          <AddCategoryButton user={user} />
+          <AddClientCategoryButton organization={org} />
         </div>
       </>
     )
@@ -84,10 +82,7 @@ export default function CategoriesTable({ data, total, user }: Props) {
       <div className='mb-12 flex w-full items-center justify-between'>
         <span className='text-3xl font-bold'>Categories </span>
 
-        {/* <Button asChild size='sm' className='flex'>
-          <Link href='/admin/categories/form'>Create category</Link>
-        </Button> */}
-        <AddCategoryButton user={user} />
+        <AddClientCategoryButton organization={org} />
       </div>
       <DataTable
         data={data}
@@ -99,8 +94,8 @@ export default function CategoriesTable({ data, total, user }: Props) {
       <AddCategoryDialog
         open={open}
         setOpen={setOpen}
-        category={itemToAction}
-        user={user}
+        clientCategory={itemToAction}
+        organization={org}
       />
 
       <ConfirmationDialog

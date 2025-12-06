@@ -44,7 +44,7 @@ export function Navbar() {
             height={32}
             className='size-9'
           />
-          <span className='font-bold'>{APP_NAME}</span>
+          <span className='text-muted-foreground'>{APP_NAME}</span>
         </Link>
         {/* Desktop navigation */}
         <nav className='hidden md:flex md:flex-1 md:items-center md:justify-between'>

@@ -2,25 +2,29 @@ import { Suspense } from 'react'
 
 import { redirect } from 'next/navigation'
 
-import { db } from '@/db'
-import { categories } from '@/db/schema'
-import { count } from 'drizzle-orm'
-import { EmptyState } from '@/components/shared/empty-state'
-import { SkeletonCustomerCard } from '@/components/shared/skeleton-customer-card'
-import { SkeletonArray } from '@/components/shared/skeleton'
 import { getCurrentUserId, getUserDetails } from '@/server-actions/users'
 import { BackButton } from '@/components/shared/back-button'
-import { getCategoriesByUserId } from '@/server-actions/client-categories'
-import { AddCategoryButton } from './_components/add-category-button'
-import CategoriesTable from './_components/categories-table'
+import { getActiveOrganization } from '@/server-actions/organizations'
+import { getActiveOrganizationClientCategories } from '@/server-actions/client-categories'
+
+import { EmptyState } from '@/components/shared/empty-state'
+import { SkeletonArray } from '@/components/shared/skeleton'
+import { SkeletonCustomerCard } from '@/components/shared/skeleton-customer-card'
+
+import { OrganizationSchema } from '@/zod-schemas/organizations'
+import { AddClientCategoryButton } from './_components/add-client-category-button'
+import { db } from '@/db'
+import { count } from 'drizzle-orm'
+import { clientCategories } from '@/db/schema'
+import ClientCategoriesTable from './_components/client-categories-table'
 
 export const metadata = {
-  title: 'Category Search'
+  title: 'Client Search'
 }
 
 export default async function Categories() {
   const { userId } = await getCurrentUserId()
-  if (userId == null) return redirect('/auth/sign-in')
+  if (userId == null) return redirect('/auth')
 
   if (userId) {
     const user = await getUserDetails(userId)
@@ -38,13 +42,22 @@ export default async function Categories() {
       )
     }
 
-    const data = await getCategoriesByUserId(userId)
+    const organization = await getActiveOrganization(userId)
+
+    if (organization === null) return 'Please select the active organization'
+
+    // Validate & type it using Zod
+
+    const org = OrganizationSchema.parse(organization)
+
     type Result = { count: number }
-    const dbCount = await db.select({ count: count() }).from(categories)
+    const dbCount = await db.select({ count: count() }).from(clientCategories)
 
     const arr: Result[] = dbCount
 
     const total: number = arr.reduce((sum, result) => sum + result.count, 0)
+
+    const data = await getActiveOrganizationClientCategories(org.id)
 
     if (data.length === 0) {
       return (
@@ -57,11 +70,12 @@ export default async function Categories() {
           </div>
 
           <div className='- mt-12 flex w-full justify-center'>
-            <AddCategoryButton user={user} />
+            <AddClientCategoryButton organization={org} />
           </div>
         </>
       )
     }
+
     return (
       <>
         <div className='container mx-auto max-w-2xl py-10'>
@@ -72,7 +86,7 @@ export default async function Categories() {
               </SkeletonArray>
             }
           >
-            <CategoriesTable data={data} total={total} user={user} />
+            <ClientCategoriesTable data={data} total={total} org={org} />
           </Suspense>
         </div>
       </>
