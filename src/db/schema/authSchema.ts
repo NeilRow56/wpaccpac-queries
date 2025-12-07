@@ -21,6 +21,9 @@ export const user = pgTable('user', {
   role: role('role').default('user').notNull(),
   isSuperUser: boolean('is_super_user').default(false),
   image: text('image'),
+  // db/schema.ts
+  lastActiveOrganizationId: text('last_active_organization_id'), // ✅ nullable by default
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at')
     .defaultNow()

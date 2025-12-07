@@ -79,16 +79,6 @@ export function UserDropdown({ name, email, image }: iAppProps) {
               <span>Dashboard</span>
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link className='flex items-center' href='/categories'>
-              <BookOpenIcon
-                size={16}
-                className='opacity-60'
-                aria-hidden='true'
-              />
-              <span>Categories</span>
-            </Link>
-          </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
 

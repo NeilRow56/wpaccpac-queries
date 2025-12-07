@@ -17,6 +17,7 @@ import { db } from '@/db'
 import { count } from 'drizzle-orm'
 import { clientCategories } from '@/db/schema'
 import ClientCategoriesTable from './_components/client-categories-table'
+import { ReturnButton } from '@/components/shared/return-button'
 
 export const metadata = {
   title: 'Client Search'
@@ -44,7 +45,21 @@ export default async function Categories() {
 
     const organization = await getActiveOrganization(userId)
 
-    if (organization === null) return 'Please select the active organization'
+    if (organization === null) {
+      return (
+        <div className='container mx-auto max-w-5xl space-y-8 px-8 py-16'>
+          <div className='space-y-4'>
+            <ReturnButton href='/organization' label='Organizations' />
+
+            <h1 className='text-3xl font-bold'>
+              Please select/set the active organization
+            </h1>
+
+            <p className='rounded-md bg-red-600 p-2 text-lg font-bold text-white'></p>
+          </div>
+        </div>
+      )
+    }
 
     // Validate & type it using Zod
 

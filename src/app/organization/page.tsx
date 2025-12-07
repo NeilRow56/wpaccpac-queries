@@ -24,12 +24,9 @@ export default async function OrganizationPage() {
   })
   if (session == null) return redirect('/auth')
 
-  // type Result = { count: number }
-  // const dbCount = await db.select({ count: count() }).from(organization)
+  const role = session?.user.role
 
-  // const arr: Result[] = dbCount
-
-  // const total: number = arr.reduce((sum, result) => sum + result.count, 0)
+  if (role !== 'admin') return redirect('/auth')
 
   if (organizations.length === 0) {
     return (
@@ -50,9 +47,9 @@ export default async function OrganizationPage() {
   return (
     <>
       <div className='container mx-auto max-w-2xl py-10'>
-        <Link href='/' className='mb-6 inline-flex items-center'>
+        <Link href='/dashboard' className='mb-6 inline-flex items-center'>
           <ArrowLeft className='mr-2 size-4' />
-          <span className='text-primary'>Back to Home</span>
+          <span className='text-primary'>Back to Dashboard</span>
         </Link>
         <div className='mt-12 mb-2 space-y-2'>
           <h2 className='font-bold'>Organizations:</h2>

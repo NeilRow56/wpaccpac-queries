@@ -6,8 +6,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { SignOutButton } from '@/app/auth/_components/sign-out-button'
 
 type Props = {
   icon: LucideIcon
@@ -33,6 +35,11 @@ export function NavButtonMenu({ icon: Icon, label, choices }: Props) {
             <Link href={choice.href}>{choice.title}</Link>
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem>
+          <SignOutButton />
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

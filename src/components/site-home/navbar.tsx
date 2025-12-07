@@ -1,18 +1,15 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
-
-import Image from 'next/image'
+import { useState } from 'react'
 import Link from 'next/link'
-
-import { APP_NAME } from '@/lib/constants'
-
+import Image from 'next/image'
 import { ModeToggle } from '../mode-toggle'
-import { BookOpen, CreditCard, Zap } from 'lucide-react'
+import { BookOpen, CreditCard, Zap, Menu, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { authClient } from '@/lib/auth-client'
-
 import { UserDropdown } from './user-dropdown'
-import { useEffect, useState } from 'react'
+
+import { Session } from '@/lib/auth'
 
 const navItems = [
   { name: 'Features', href: '#features', icon: Zap },
@@ -20,79 +17,92 @@ const navItems = [
   { name: 'Pricing', href: '#pricing', icon: CreditCard }
 ]
 
-export function Navbar() {
-  const [, setHasAdminPermission] = useState(false)
-  const { data: session } = authClient.useSession()
+interface NavbarProps {
+  serverSession: Session | null
+}
+
+export function Navbar({ serverSession }: NavbarProps) {
+  // Use client session with fallback to server session
+  const { data: clientSession, isPending } = authClient.useSession()
+  const session = clientSession ?? serverSession
   const user = session?.user
 
-  useEffect(() => {
-    authClient.admin
-      .hasPermission({ permission: { project: ['update'] } })
-      .then(({ data }) => {
-        setHasAdminPermission(data?.success ?? false)
-      })
-  }, [])
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Skeleton loader
+  const RightSkeleton = (
+    <div className='flex animate-pulse items-center gap-3'>
+      <div className='bg-muted h-9 w-20 rounded-md' />
+      <div className='bg-muted h-9 w-9 rounded-full' />
+    </div>
+  )
 
   return (
-    <header className='bg-background/95 backdrop-blur-[backdrop-filter]:bg-background sticky top-0 z-50 w-full border-b'>
-      <div className='mx-auto flex min-h-16 max-w-[2040px] items-center px-4 md:px-6 lg:px-8'>
-        <Link href='/' className='mr-4 flex items-center space-x-2'>
+    <header className='bg-background/95 sticky top-0 z-50 w-full border-b backdrop-blur'>
+      <div className='mx-auto flex min-h-16 max-w-[2040px] items-center justify-between px-4 md:px-6 lg:px-8'>
+        {/* Logo */}
+        <Link href='/' className='flex items-center space-x-2'>
           <Image
-            src={'/images/logo.svg'}
+            src='/images/logo.svg'
             alt='logo'
             width={32}
             height={32}
             className='size-9'
           />
-          <span className='text-muted-foreground'>{APP_NAME}</span>
         </Link>
-        {/* Desktop navigation */}
-        <nav className='hidden md:flex md:flex-1 md:items-center md:justify-between'>
-          <div className='flex items-center gap-2'></div>
-          <div className='flex items-center gap-2'>
+
+        {/* Desktop nav */}
+        <nav className='hidden lg:flex lg:flex-1 lg:items-center lg:justify-between'>
+          <div className='ml-12 flex items-center gap-4'>
             {navItems.map(item => (
               <Link
-                className='hover:text-primary text-sm font-medium text-blue-600 transition-colors'
-                href={item.href}
                 key={item.href}
+                href={item.href}
+                className='hover:text-primary flex items-center gap-2 text-sm font-medium text-blue-600 transition-colors'
               >
                 <item.icon className='h-4 w-4' />
                 {item.name}
               </Link>
             ))}
           </div>
-          <div className='flex items-center space-x-4'>
-            <>
-              <Button variant='outline' asChild size='lg'>
-                <Link href='/organization'>Organization</Link>
-              </Button>
-            </>
 
-            {session?.user.isSuperUser === true ? (
+          {/* Right side */}
+          <div className='flex items-center gap-4'>
+            {isPending && RightSkeleton}
+
+            {!isPending && session && (
               <>
+                {user?.role === 'admin' && (
+                  <Button variant='outline' asChild size='lg'>
+                    <Link href='/organization'>Organization</Link>
+                  </Button>
+                )}
+
+                {user?.isSuperUser && (
+                  <>
+                    <Button variant='outline' asChild size='lg'>
+                      <Link href='/admin'>Admin</Link>
+                    </Button>
+                    <Button variant='outline' asChild size='lg'>
+                      <Link href='/protected'>Protected</Link>
+                    </Button>
+                  </>
+                )}
+
                 <Button variant='outline' asChild size='lg'>
-                  <Link href='/admin'>Admin</Link>
+                  <Link href='/settings'>Settings</Link>
                 </Button>
-                <Button variant='outline' asChild size='lg'>
-                  <Link href='/protected'>Protected</Link>
-                </Button>
-              </>
-            ) : (
-              ''
-            )}
-            <Button variant='outline' asChild size='lg'>
-              <Link href='/settings'>Settings</Link>
-            </Button>
-            <ModeToggle />
-            {user ? (
-              <div className='flex items-center gap-3'>
+
+                <ModeToggle />
                 <UserDropdown
                   name={session.user.name}
                   email={session.user.email}
                   image={session.user.image || ''}
                 />
-              </div>
-            ) : (
+              </>
+            )}
+
+            {!isPending && !session && (
               <Button
                 className='text-primary-foreground bg-green-500'
                 asChild
@@ -104,7 +114,78 @@ export function Navbar() {
             )}
           </div>
         </nav>
+
+        {/* Mobile menu button */}
+        <div className='flex lg:hidden'>
+          <Button
+            variant='ghost'
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label='Toggle menu'
+          >
+            {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+          </Button>
+        </div>
       </div>
+
+      {/* Mobile menu */}
+      {mobileOpen && (
+        <div className='border-muted/50 bg-background border-t p-4 md:hidden'>
+          <div className='flex flex-col gap-2'>
+            {navItems.map(item => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className='flex items-center gap-2 text-sm font-medium text-blue-600'
+              >
+                <item.icon className='h-4 w-4' />
+                {item.name}
+              </Link>
+            ))}
+
+            {!isPending && session && (
+              <div className='mt-2 flex flex-col gap-2'>
+                {user?.role === 'admin' && (
+                  <Button variant='outline' asChild size='lg'>
+                    <Link href='/organization'>Organization</Link>
+                  </Button>
+                )}
+
+                {user?.isSuperUser && (
+                  <>
+                    <Button variant='outline' asChild size='lg'>
+                      <Link href='/admin'>Admin</Link>
+                    </Button>
+                    <Button variant='outline' asChild size='lg'>
+                      <Link href='/protected'>Protected</Link>
+                    </Button>
+                  </>
+                )}
+
+                <Button variant='outline' asChild size='lg'>
+                  <Link href='/settings'>Settings</Link>
+                </Button>
+
+                <UserDropdown
+                  name={session.user.name}
+                  email={session.user.email}
+                  image={session.user.image || ''}
+                />
+              </div>
+            )}
+
+            {!isPending && !session && (
+              <Button
+                className='text-primary-foreground bg-green-500'
+                asChild
+                variant='hero'
+                size='sm'
+              >
+                <Link href='/auth'>Get Started For Free</Link>
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   )
 }

@@ -8,26 +8,42 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { authClient } from '@/lib/auth-client'
-
 import { toast } from 'sonner'
 
+/**
+ * OrganizationSelect component allows the user to switch their active organization.
+ * - Updates session via authClient
+ * - Persists the last selected organization in the database via server action
+ */
 export function OrganizationSelect() {
   const { data: activeOrganization } = authClient.useActiveOrganization()
   const { data: organizations } = authClient.useListOrganizations()
 
-  if (organizations == null || organizations.length === 0) {
-    return null
-  }
+  if (!organizations || organizations.length === 0) return null
 
-  function setActiveOrganization(organizationId: string) {
-    authClient.organization.setActive(
-      { organizationId },
-      {
-        onError: error => {
-          toast.error(error.error.message || 'Failed to switch organization')
-        }
+  async function setActiveOrganization(organizationId: string) {
+    try {
+      // 1️⃣ Update session
+      await authClient.organization.setActive({ organizationId })
+
+      // 2️⃣ Persist selection in database
+      const res = await fetch('/api/switch-org', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ organizationId })
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to save selected organization')
       }
-    )
+    } catch (err: unknown) {
+      // Proper TypeScript-safe error handling
+      if (err instanceof Error) {
+        toast.error(err.message)
+      } else {
+        toast.error('Failed to switch organization')
+      }
+    }
   }
 
   return (

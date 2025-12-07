@@ -162,7 +162,7 @@ export function ChartAreaInteractive() {
   })
 
   return (
-    <Card className='@container/card'>
+    <Card className='@container/card mb-4'>
       <CardHeader>
         <CardTitle>Total Visitors</CardTitle>
         <CardDescription>

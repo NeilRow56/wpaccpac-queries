@@ -4,8 +4,8 @@ import VerifyEmail from '@/components/emails/verify-email'
 import sendOrganizationInviteEmail from '@/components/emails/organization-invite-email'
 
 import { db } from '@/db'
-import { member } from '@/db/schema'
-import { desc, eq } from 'drizzle-orm'
+import { member, user } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
@@ -198,18 +198,42 @@ export const auth = betterAuth({
     session: {
       create: {
         before: async userSession => {
-          const membership = await db.query.member.findFirst({
+          // If already set (e.g., OAuth flow), preserve
+          if (userSession.activeOrganizationId) return { data: userSession }
+
+          // Get all memberships
+          const memberships = await db.query.member.findMany({
             where: eq(member.userId, userSession.userId),
-            orderBy: desc(member.createdAt),
             columns: { organizationId: true }
           })
 
-          return {
-            data: {
-              ...userSession,
-              activeOrganizationId: membership?.organizationId
+          // 1️⃣ Single-org users → automatically set their only org
+          if (memberships.length === 1) {
+            return {
+              data: {
+                ...userSession,
+                activeOrganizationId: memberships[0].organizationId
+              }
             }
           }
+
+          // 2️⃣ Multi-org owners → set lastActiveOrganizationId if it exists
+          const dbUser = await db.query.user.findFirst({
+            where: eq(user.id, userSession.userId),
+            columns: { lastActiveOrganizationId: true }
+          })
+
+          if (dbUser?.lastActiveOrganizationId) {
+            return {
+              data: {
+                ...userSession,
+                activeOrganizationId: dbUser.lastActiveOrganizationId
+              }
+            }
+          }
+
+          // 3️⃣ Multi-org owners with no previous selection → leave undefined
+          return { data: userSession }
         }
       }
     }

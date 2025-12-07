@@ -6,6 +6,8 @@ import { getCurrentUser } from './users'
 import { db } from '@/db'
 import { revalidatePath } from 'next/cache'
 import { member, organization } from '@/db/schema'
+import { auth } from '@/lib/auth'
+import { headers } from 'next/headers'
 
 export async function getOrganizations() {
   const { currentUser } = await getCurrentUser()
@@ -70,6 +72,22 @@ export const deleteOrganization = async (id: string, path: string) => {
   }
 }
 
+export async function getCurrentOrganization() {
+  const result = await auth.api.getSession({
+    headers: await headers()
+  })
+
+  // Check that session exists
+  if (!result?.session?.activeOrganizationId) return null
+
+  const activeOrgId = result.session.activeOrganizationId
+
+  const org = await db.query.organization.findFirst({
+    where: eq(organization.id, activeOrgId)
+  })
+
+  return org || null
+}
 // export async function createOrganization(formData: FormData) {
 //   try {
 
