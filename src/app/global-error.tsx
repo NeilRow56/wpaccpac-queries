@@ -1,9 +1,9 @@
-'use client' // Error components must be Client Components
+'use client'
 
 import * as Sentry from '@sentry/nextjs'
 import { useEffect } from 'react'
 
-export default function Error({
+export default function GlobalError({
   error,
   reset
 }: {
@@ -17,16 +17,11 @@ export default function Error({
   }, [error])
 
   return (
-    <div>
-      <h2>Something went wrong!</h2>
-      <button
-        onClick={
-          // Attempt to recover by trying to re-render the segment
-          () => reset()
-        }
-      >
-        Try again
-      </button>
-    </div>
+    <html>
+      <body>
+        <h2>Something went wrong!</h2>
+        <button onClick={() => reset()}>Try again</button>
+      </body>
+    </html>
   )
 }
