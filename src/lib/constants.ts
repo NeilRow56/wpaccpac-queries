@@ -10,3 +10,13 @@ export const APP_DESCRIPTION =
   'A modern application built with Next.js'
 
 export const EMAIL_SENDER_ADDRESS = process.env.EMAIL_SENDER_ADDRESS
+
+export const spokenLanguages = [
+  { label: 'English', value: 'en' },
+  { label: 'Spanish', value: 'es' },
+  { label: 'French', value: 'fr' },
+  { label: 'German', value: 'de' },
+  { label: 'Italian', value: 'it' },
+  { label: 'Chinese', value: 'zh' },
+  { label: 'Japanese', value: 'ja' }
+] as const

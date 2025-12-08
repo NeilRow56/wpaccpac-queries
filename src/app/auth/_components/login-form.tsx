@@ -24,7 +24,7 @@ import { LoadingSwap } from '@/components/shared/loading-swap'
 
 const loginSchema = z.object({
   email: z.email('Please enter a valid email address!'),
-  password: z.string().min(6, 'Password must be at least 6 characters')
+  password: z.string().min(8, 'Password must be at least 8 characters')
 })
 
 type LoginSchemaType = z.infer<typeof loginSchema>

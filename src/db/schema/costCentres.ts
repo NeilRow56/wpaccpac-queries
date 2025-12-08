@@ -2,7 +2,7 @@ import { pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 import { relations, sql } from 'drizzle-orm'
 import { organization } from './authSchema'
 
-export const clientCategories = pgTable('client_categories', {
+export const costCentres = pgTable('cost_centres', {
   id: text('id')
     .primaryKey()
     .default(sql`gen_random_uuid()`),
@@ -15,14 +15,11 @@ export const clientCategories = pgTable('client_categories', {
     .notNull()
 })
 
-export type ClientCategory = typeof clientCategories.$inferSelect
+export type costCentre = typeof costCentres.$inferSelect
 
-export const clientCategoryRelations = relations(
-  clientCategories,
-  ({ one }) => ({
-    organization: one(organization, {
-      fields: [clientCategories.organizationId],
-      references: [organization.id]
-    })
+export const costCentreRelations = relations(costCentres, ({ one }) => ({
+  organization: one(organization, {
+    fields: [costCentres.organizationId],
+    references: [organization.id]
   })
-)
+}))

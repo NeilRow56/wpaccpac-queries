@@ -3,7 +3,6 @@ import { ReturnButton } from '@/components/shared/return-button'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-
 import { UserTable } from './_components/user-table'
 
 export default async function AdministratorPage() {

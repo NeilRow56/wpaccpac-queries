@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUserId, getUserDetails } from '@/server-actions/users'
 import { BackButton } from '@/components/shared/back-button'
 import { getActiveOrganization } from '@/server-actions/organizations'
-import { getActiveOrganizationClientCategories } from '@/server-actions/client-categories'
+import { getActiveOrganizationCostCentres } from '@/server-actions/cost-centres'
 
 import { EmptyState } from '@/components/shared/empty-state'
 import { SkeletonArray } from '@/components/shared/skeleton'
@@ -15,15 +15,15 @@ import { OrganizationSchema } from '@/zod-schemas/organizations'
 
 import { db } from '@/db'
 import { count } from 'drizzle-orm'
-import { clientCategories } from '@/db/schema'
-import { AddClientCategoryButton } from '../(admin)/clients/categories/_components/add-client-category-button'
-import ClientCategoriesTable from '../(admin)/clients/categories/_components/client-categories-table'
+import { costCentres } from '@/db/schema'
+import { AddCostCentreButton } from './_components/add-cost-centre-button'
+import CostCentreTable from './_components/cost-centre-table'
 
 export const metadata = {
-  title: 'Client Search'
+  title: 'Cost centers'
 }
 
-export default async function Categories() {
+export default async function CostCentresPage() {
   const { userId } = await getCurrentUserId()
   if (userId == null) return redirect('/auth')
 
@@ -52,26 +52,26 @@ export default async function Categories() {
     const org = OrganizationSchema.parse(organization)
 
     type Result = { count: number }
-    const dbCount = await db.select({ count: count() }).from(clientCategories)
+    const dbCount = await db.select({ count: count() }).from(costCentres)
 
     const arr: Result[] = dbCount
 
     const total: number = arr.reduce((sum, result) => sum + result.count, 0)
 
-    const data = await getActiveOrganizationClientCategories(org.id)
+    const data = await getActiveOrganizationCostCentres(org.id)
 
     if (data.length === 0) {
       return (
         <>
           <div className='mx-auto mt-24 flex max-w-6xl flex-col gap-2'>
             <EmptyState
-              title='Categories'
-              description='You have no categories yet. Click on the button below to create your first category'
+              title='Cost centers'
+              description='You do not have any cost centers yet. Click on the button below to create your first cost center'
             />
           </div>
 
           <div className='- mt-12 flex w-full justify-center'>
-            <AddClientCategoryButton organization={org} />
+            <AddCostCentreButton organization={org} />
           </div>
         </>
       )
@@ -87,7 +87,7 @@ export default async function Categories() {
               </SkeletonArray>
             }
           >
-            <ClientCategoriesTable data={data} total={total} org={org} />
+            <CostCentreTable data={data} total={total} organization={org} />
           </Suspense>
         </div>
       </>

@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUserId, getUserDetails } from '@/server-actions/users'
 import { BackButton } from '@/components/shared/back-button'
 import { getActiveOrganization } from '@/server-actions/organizations'
-import { getActiveOrganizationClientCategories } from '@/server-actions/client-categories'
+import { getActiveOrganizationClientCategories } from '@/server-actions/cost-centres'
 
 import { EmptyState } from '@/components/shared/empty-state'
 import { SkeletonArray } from '@/components/shared/skeleton'
@@ -79,8 +79,8 @@ export default async function Categories() {
         <>
           <div className='mx-auto mt-24 flex max-w-6xl flex-col gap-2'>
             <EmptyState
-              title='Categories'
-              description='You have no categories yet. Click on the button below to create your first category'
+              title='Client - Cost Center '
+              description='You have no categories yet. Click on the button below to create your first category e.g Name of fee earner'
             />
           </div>
 

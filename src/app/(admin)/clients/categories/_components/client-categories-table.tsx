@@ -14,7 +14,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { ClientCategory, columns } from './columns'
 
 import AddCategoryDialog from './add-client-category-dialog'
-import { deleteClientCategory } from '@/server-actions/client-categories'
+import { deleteClientCategory } from '@/server-actions/cost-centres'
 import { AddClientCategoryButton } from './add-client-category-button'
 import { DataTable } from './data-table'
 
@@ -80,7 +80,7 @@ export default function ClientCategoriesTable({ data, total, org }: Props) {
   return (
     <div className='container mx-auto my-12 max-w-6xl'>
       <div className='mb-12 flex w-full items-center justify-between'>
-        <span className='text-3xl font-bold'>Categories </span>
+        <span className='text-3xl font-bold'>Client Cost Centers </span>
 
         <AddClientCategoryButton organization={org} />
       </div>

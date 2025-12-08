@@ -1,7 +1,26 @@
 import { relations, sql } from 'drizzle-orm'
-import { boolean, pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  varchar
+} from 'drizzle-orm/pg-core'
 import { user } from './authSchema'
 import { accountsPeriods } from './accountsPeriods'
+
+export const businessTypes = [
+  'Unknown',
+  'Sole Trader',
+  'Partnership',
+  'Limited company - tiny',
+  'Limited company - small',
+  'Limited company - full'
+] as const
+
+export type BusinessType = (typeof businessTypes)[number]
+export const businessTypeEnum = pgEnum('business_type_enum', businessTypes)
 
 export const clients = pgTable('clients', {
   id: text('id')
@@ -11,8 +30,8 @@ export const clients = pgTable('clients', {
   organizationId: text('organization_id')
     .notNull()
     .references(() => user.id, { onDelete: 'restrict' }),
-  entity_type: varchar('entity_type', { length: 2 }).notNull(),
-  owner: varchar('owner').notNull(),
+  cost_centre_name: text('cost_centre_id').notNull(),
+  entity_type: businessTypeEnum(),
   notes: text('notes'),
   active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at').defaultNow(),

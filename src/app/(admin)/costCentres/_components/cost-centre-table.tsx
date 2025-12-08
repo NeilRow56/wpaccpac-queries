@@ -2,43 +2,43 @@
 
 import React, { startTransition, useState } from 'react'
 
-import { DataTable } from '@/components/table-components/data-table'
-
 import ConfirmationDialog from '@/components/shared/confirmation-dialog'
 
 import { toast } from 'sonner'
 import { usePathname } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
 
-import AddCategoryDialog from './add-category-dialog'
-import { User } from '@/db/schema/authSchema'
-import { deleteCategory } from '@/server-actions/client-categories'
-import { AddCategoryButton } from './add-category-button'
+import { Organization } from '@/db/schema/authSchema'
+
 import { EmptyState } from '@/components/shared/empty-state'
-import { Category, columns } from './columns'
+import { CostCentre, columns } from './columns'
+import AddCostCentreDialog from './add-cost-centre-dialog'
+import { AddCostCentreButton } from './add-cost-centre-button'
+import { deleteCostCentre } from '@/server-actions/cost-centres'
+import { DataTable } from './data-table'
 
 type Props = {
   data: {
-    id: number
+    id: string
     name: string
   }[]
   total: number
-  user: User
+  organization: Organization
 }
 
-export default function CategoriesTable({ data, total, user }: Props) {
+export default function CostCentreTable({ data, total, organization }: Props) {
   const [openConfirmationDialog, setOpenConfirmationDialog] = useState(false)
-  const [itemToAction, setItemToAction] = useState<Category>()
+  const [itemToAction, setItemToAction] = useState<CostCentre>()
 
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
-  const handleRowDelete = (item: Category) => {
+  const handleRowDelete = (item: CostCentre) => {
     setOpenConfirmationDialog(true)
     setItemToAction(item)
   }
 
-  const handleRowEdit = (item: Category) => {
+  const handleRowEdit = (item: CostCentre) => {
     setItemToAction(item)
     setOpen(true)
   }
@@ -48,10 +48,10 @@ export default function CategoriesTable({ data, total, user }: Props) {
 
     if (itemToAction) {
       startTransition(async () => {
-        await deleteCategory(itemToAction.id, pathname)
+        await deleteCostCentre(itemToAction.id, pathname)
       })
 
-      toast.warning(`Category ${itemToAction.name} deleted`, {
+      toast.warning(`Cost center ${itemToAction.name} deleted`, {
         description: '',
         duration: 5000,
         icon: <Trash2 className='size-4 text-red-500' />
@@ -64,8 +64,8 @@ export default function CategoriesTable({ data, total, user }: Props) {
       <>
         <div className='mx-auto flex max-w-6xl flex-col gap-2'>
           <EmptyState
-            title='Categories'
-            description='You have no categories yet. Click on the button below to create your first category'
+            title='Cost centers'
+            description='You do not have any cost centers yet. Click on the button below to create your first cost center'
           />
         </div>
 
@@ -73,7 +73,7 @@ export default function CategoriesTable({ data, total, user }: Props) {
           {/* <Button asChild size='lg' className='i flex w-[200px]'>
             <Link href='/admin/categories/form'>Create Category</Link>
           </Button> */}
-          <AddCategoryButton user={user} />
+          <AddCostCentreButton organization={organization} />
         </div>
       </>
     )
@@ -82,12 +82,12 @@ export default function CategoriesTable({ data, total, user }: Props) {
   return (
     <div className='container mx-auto my-12 max-w-6xl'>
       <div className='mb-12 flex w-full items-center justify-between'>
-        <span className='text-3xl font-bold'>Categories </span>
+        <span className='text-3xl font-bold'>Cost centers </span>
 
         {/* <Button asChild size='sm' className='flex'>
           <Link href='/admin/categories/form'>Create category</Link>
         </Button> */}
-        <AddCategoryButton user={user} />
+        <AddCostCentreButton organization={organization} />
       </div>
       <DataTable
         data={data}
@@ -96,16 +96,15 @@ export default function CategoriesTable({ data, total, user }: Props) {
         onRowEdit={handleRowEdit}
       />
 
-      <AddCategoryDialog
+      <AddCostCentreDialog
         open={open}
         setOpen={setOpen}
-        category={itemToAction}
-        user={user}
+        costCentre={itemToAction}
+        organization={organization}
       />
 
       <ConfirmationDialog
-        message='This action cannot be undone. This will permanently delete the
-            category and remove your data from our servers.'
+        message='This action cannot be undone. This will permanently delete the cost center and remove your data from our servers.'
         open={openConfirmationDialog}
         onClose={() => setOpenConfirmationDialog(false)}
         onConfirm={handleConfirm}

@@ -20,10 +20,6 @@ import { useForm } from 'react-hook-form'
 
 import { toast } from 'sonner'
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-  insertCategorySchemaType,
-  insertCategorySchema
-} from '@/zod-schemas/clientCategories'
 
 import { useAction } from 'next-safe-action/hooks'
 
@@ -33,58 +29,67 @@ import { useRouter } from 'next/navigation'
 
 import { FormInput } from '@/components/form/form-base'
 import { LoadingSwap } from '@/components/shared/loading-swap'
-import { User } from '@/db/schema/authSchema'
-import { saveCategoryAction } from '@/server-actions/client-categories'
-import { Category } from './columns'
+import { Organization } from '@/db/schema/authSchema'
+import { CostCentre } from './columns'
+import { saveCostCentreAction } from '@/server-actions/cost-centres'
+import {
+  insertCostCentreSchema,
+  insertCostCentreSchemaType
+} from '@/zod-schemas/costCentre'
 
 type Props = {
   open: boolean
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
-  user: User // You must have a user to start a customer - so it is not optional
-  category?: Category
+  organization: Organization // You must have an organization to start a cost center - so it is not optional
+  costCentre?: CostCentre
 }
 
-function AddCategoryDialog({ setOpen, open, category, user }: Props) {
+function AddCostCentreDialog({
+  setOpen,
+  open,
+  costCentre,
+  organization
+}: Props) {
   // const searchParams = useSearchParams()
   const router = useRouter()
-  const hasCategoryId = category?.id
+  const hasCostCentreId = costCentre?.id
 
-  const emptyValues: insertCategorySchemaType = {
-    id: 0,
+  const emptyValues: insertCostCentreSchemaType = {
+    id: '',
     name: '',
-    userId: user.id ?? ''
+    organizationId: organization.id ?? ''
   }
 
-  const defaultValues: insertCategorySchemaType = hasCategoryId
+  const defaultValues: insertCostCentreSchemaType = hasCostCentreId
     ? {
-        id: category?.id ?? 0,
-        name: category?.name ?? '',
-        userId: user.id ?? ''
+        id: costCentre?.id ?? 0,
+        name: costCentre?.name ?? '',
+        organizationId: organization.id ?? ''
       }
     : emptyValues
 
-  const form = useForm<insertCategorySchemaType>({
-    resolver: zodResolver(insertCategorySchema),
+  const form = useForm<insertCostCentreSchemaType>({
+    resolver: zodResolver(insertCostCentreSchema),
     mode: 'onBlur',
     defaultValues
   })
 
   useEffect(() => {
-    if (category) {
-      form.setValue('id', category.id)
-      form.setValue('name', category.name)
+    if (costCentre) {
+      form.setValue('id', costCentre.id)
+      form.setValue('name', costCentre.name)
     }
-  }, [category, form])
+  }, [costCentre, form])
 
   const {
     execute: executeSave,
 
     isPending: isSaving
-  } = useAction(saveCategoryAction, {
+  } = useAction(saveCostCentreAction, {
     onSuccess({ data }) {
       if (data) {
         toast.success(
-          `Category ${category ? 'updated ' : 'added'} successfully`
+          `CostCentre ${costCentre ? 'updated ' : 'added'} successfully`
         )
         router.refresh()
         setOpen(false)
@@ -96,12 +101,12 @@ function AddCategoryDialog({ setOpen, open, category, user }: Props) {
       console.log(error)
 
       toast.error(
-        `Failed to ${category ? 'update' : 'add'} category. Category may alreay exist`
+        `Failed to ${costCentre ? 'update' : 'add'} cost center. Cost center may alreay exist`
       )
     }
   })
 
-  async function submitForm(data: insertCategorySchemaType) {
+  async function submitForm(data: insertCostCentreSchemaType) {
     executeSave(data)
   }
 
@@ -112,15 +117,16 @@ function AddCategoryDialog({ setOpen, open, category, user }: Props) {
           <DialogHeader>
             <DialogTitle>
               <div className='items-center justify-center'>
-                <h2 className='text-primary text-xl font-bold lg:text-3xl'>
-                  {category?.id ? 'Edit' : 'New'} Category{' '}
-                  {category?.id ? `#${category.id}` : 'Form'}
+                <h2 className='text-primary text-xl font-bold lg:text-2xl'>
+                  {costCentre?.id ? 'Edit' : 'New'} Cost Center{' '}
+                  {costCentre?.id ? `#${costCentre.name}` : 'Form'}
                 </h2>
               </div>
             </DialogTitle>
 
             <DialogDescription>
-              Create or edit categories here. Click save when you&apos;re done.
+              Create or edit cost centers here. Click save when you&apos;re
+              done.
             </DialogDescription>
             <Card className='mx-auto w-full border-red-200 sm:max-w-md'>
               <CardHeader className='text-center'>
@@ -129,11 +135,11 @@ function AddCategoryDialog({ setOpen, open, category, user }: Props) {
               </CardHeader>
               <CardContent>
                 <form
-                  id='create-category-form'
+                  id='create-costCentre-form'
                   onSubmit={form.handleSubmit(submitForm)}
                 >
                   <FieldGroup>
-                    <FormInput<insertCategorySchemaType>
+                    <FormInput<insertCostCentreSchemaType>
                       control={form.control}
                       name='name'
                       label='Name'
@@ -145,11 +151,11 @@ function AddCategoryDialog({ setOpen, open, category, user }: Props) {
                 <Field orientation='horizontal' className='justify-between'>
                   <Button
                     type='submit'
-                    form='create-category-form'
+                    form='create-costCentre-form'
                     className='w-full max-w-[150px] cursor-pointer dark:bg-blue-600 dark:text-white'
                     disabled={isSaving}
                   >
-                    <LoadingSwap isLoading={isSaving}>Create</LoadingSwap>
+                    <LoadingSwap isLoading={isSaving}>Save</LoadingSwap>
                   </Button>
                   <Button
                     className='border-red-500'
@@ -170,4 +176,4 @@ function AddCategoryDialog({ setOpen, open, category, user }: Props) {
   )
 }
 
-export default AddCategoryDialog
+export default AddCostCentreDialog

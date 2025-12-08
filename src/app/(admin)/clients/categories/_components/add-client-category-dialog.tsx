@@ -21,7 +21,7 @@ import { useRouter } from 'next/navigation'
 import { LoadingSwap } from '@/components/shared/loading-swap'
 import { Organization } from '@/db/schema/authSchema'
 import { ClientCategory } from './columns'
-import { saveClientCategoryAction } from '@/server-actions/client-categories'
+import { saveClientCategoryAction } from '@/server-actions/cost-centres'
 import { FormInput } from '@/components/form/form-base'
 
 type Props = {
@@ -99,7 +99,9 @@ function AddCategoryDialog({
         <DialogHeader>
           <DialogTitle>
             {clientCategory?.id ? 'Edit' : 'New'} Category{' '}
-            {clientCategory?.id ? `#${clientCategory.id}` : 'Form'}
+            {clientCategory?.id
+              ? `#${clientCategory.id.slice(0, 4)}...`
+              : 'Form'}
           </DialogTitle>
 
           <DialogDescription>

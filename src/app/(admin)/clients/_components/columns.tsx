@@ -4,11 +4,16 @@ import { CreateRowActions } from '@/components/table-components/data-table-actio
 import DataTableColumnHeader from '@/components/table-components/data-table-column-header'
 import { ColumnDef } from '@tanstack/react-table'
 
-export type Category = {
-  id: number
+export type Client = {
+  id: string
   name: string
+  entity_type: string
+  owner: string
+  notes: string
+  active: boolean
+  //   organizationId?
 }
-export const columns: ColumnDef<Category>[] = [
+export const columns: ColumnDef<Client>[] = [
   {
     accessorKey: 'name',
     header: ({ column }) => (
@@ -16,5 +21,5 @@ export const columns: ColumnDef<Category>[] = [
     )
   },
 
-  CreateRowActions<Category>()
+  CreateRowActions<Client>()
 ]
