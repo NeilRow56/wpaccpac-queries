@@ -30,7 +30,7 @@ export const clients = pgTable('clients', {
   organizationId: text('organization_id')
     .notNull()
     .references(() => user.id, { onDelete: 'restrict' }),
-  cost_centre_name: text('cost_centre_id').notNull(),
+  cost_centre_name: text('cost_centre_name').notNull(),
   entity_type: businessTypeEnum(),
   notes: text('notes'),
   active: boolean('active').notNull().default(true),

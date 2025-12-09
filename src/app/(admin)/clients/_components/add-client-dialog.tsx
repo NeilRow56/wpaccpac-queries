@@ -1,3 +1,5 @@
+'use client'
+
 import React, { useEffect } from 'react'
 import {
   Dialog,
@@ -10,18 +12,14 @@ import { Field, FieldGroup } from '@/components/ui/field'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { zodResolver } from '@hookform/resolvers/zod'
-
 import {
-  insertClientSchemaType,
-  insertClientSchema
+  insertClientSchema,
+  insertClientSchemaType
 } from '@/zod-schemas/clients'
-// import { useAction } from 'next-safe-action/hooks'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
-
 import { LoadingSwap } from '@/components/shared/loading-swap'
 import { Organization } from '@/db/schema/authSchema'
-
 import {
   FormCheckbox,
   FormInput,
@@ -30,40 +28,45 @@ import {
 } from '@/components/form/form-base'
 import { Client } from './columns'
 import { SelectItem } from '@/components/ui/select'
-import { businessTypes } from '@/db/schema'
+import { businessTypes, costCentre } from '@/db/schema'
 
 type Props = {
   open: boolean
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
   organization: Organization
+  orgCostCentres: costCentre[]
   client?: Client
 }
 
-function AddClientDialog({ setOpen, open, client, organization }: Props) {
-  const router = useRouter()
+export default function AddClientDialog({
+  setOpen,
+  open,
+  client,
+  organization,
+  orgCostCentres
+}: Props) {
+  // const router = useRouter()
   const hasClientId = client?.id
-
-  const emptyValues: insertClientSchemaType = {
-    id: '',
-    name: '',
-    organizationId: organization.id ?? '',
-    entity_type: 'Unknown',
-    cost_centre_name: '',
-    notes: '',
-    active: true
-  }
 
   const defaultValues: insertClientSchemaType = hasClientId
     ? {
-        id: client?.id ?? '',
-        name: client?.name ?? '',
-        organizationId: organization.id ?? '',
+        id: client.id,
+        name: client.name,
+        organizationId: organization.id,
+        entity_type: client.entity_type || 'Unknown',
+        cost_centre_name: client.cost_centre_name || '',
+        notes: client.notes || '',
+        active: client.active
+      }
+    : {
+        id: '',
+        name: '',
+        organizationId: organization.id,
         entity_type: 'Unknown',
         cost_centre_name: '',
         notes: '',
         active: true
       }
-    : emptyValues
 
   const form = useForm<insertClientSchemaType>({
     resolver: zodResolver(insertClientSchema),
@@ -71,23 +74,8 @@ function AddClientDialog({ setOpen, open, client, organization }: Props) {
     defaultValues
   })
 
-  const { isSubmitting } = form.formState
-
-  function onSubmit(data: insertClientSchemaType) {
-    toast('You submitted the following values:', {
-      description: (
-        <pre className='bg-code text-code-foreground mt-2 w-[320px] overflow-x-auto rounded-md p-4'>
-          <code>{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
-      position: 'bottom-right',
-      classNames: {
-        content: 'flex flex-col gap-2'
-      },
-      style: {
-        '--border-radius': 'calc(var(--radius)  + 4px)'
-      } as React.CSSProperties
-    })
+  async function onSubmit(values: insertClientSchemaType) {
+    console.log(values)
   }
 
   return (
@@ -96,12 +84,10 @@ function AddClientDialog({ setOpen, open, client, organization }: Props) {
         <DialogHeader>
           <DialogTitle>
             {client?.id ? 'Edit' : 'New'} Client{' '}
-            {client?.id ? `#${client.id}` : 'Form'}
+            {client?.id ? `#${client.id}` : ''}
           </DialogTitle>
-
           <DialogDescription>
-            Create or edit clients here. Click create/update when you&apos;re
-            done.
+            Create or edit clients. Click create/update when done.
           </DialogDescription>
         </DialogHeader>
 
@@ -111,35 +97,37 @@ function AddClientDialog({ setOpen, open, client, organization }: Props) {
           className='space-y-4'
         >
           <FieldGroup>
-            <FormInput<insertClientSchemaType>
-              control={form.control}
-              name='name'
-              label='Name'
-            />
+            <FormInput control={form.control} name='name' label='Name' />
 
-            {/* <FormSelect control={form.control} name='cost_centre_name' label='Cost Centre'>
-              {organization.costCentre?.map(item => (
-                <SelectItem key={item.id} value={String(item.cost_centre_name)}>
-                  {item.cost_centre_name}
+            <FormSelect
+              control={form.control}
+              name='cost_centre_name'
+              label='Cost Centre'
+            >
+              {orgCostCentres.map(cc => (
+                <SelectItem key={cc.id} value={cc.name}>
+                  {cc.name}
                 </SelectItem>
               ))}
-            </FormSelect> */}
+            </FormSelect>
+
             <FormSelect
               control={form.control}
               name='entity_type'
               label='Entity Type'
             >
-              {businessTypes.map(status => (
-                <SelectItem key={status} value={status}>
-                  {status}
+              {businessTypes.map(bt => (
+                <SelectItem key={bt} value={bt}>
+                  {bt}
                 </SelectItem>
               ))}
             </FormSelect>
-            <FormTextarea<insertClientSchemaType>
+
+            <FormTextarea
               control={form.control}
               name='notes'
               label='Notes'
-              description='Helpful notes for this period&pos;s accounts.'
+              description='Helpful notes.'
             />
 
             <FieldGroup data-slot='checkbox-group'>
@@ -154,9 +142,9 @@ function AddClientDialog({ setOpen, open, client, organization }: Props) {
               <Button
                 type='submit'
                 form='create-client-form'
-                disabled={isSubmitting}
+                disabled={form.formState.isSubmitting}
               >
-                <LoadingSwap isLoading={isSubmitting}>
+                <LoadingSwap isLoading={form.formState.isSubmitting}>
                   {client?.id ? 'Update' : 'Create'}
                 </LoadingSwap>
               </Button>
@@ -175,5 +163,3 @@ function AddClientDialog({ setOpen, open, client, organization }: Props) {
     </Dialog>
   )
 }
-
-export default AddClientDialog

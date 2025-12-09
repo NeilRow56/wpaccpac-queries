@@ -7,25 +7,6 @@ import { member } from '@/db/schema'
 import { isAdmin } from './permissions'
 import { db } from '@/db'
 
-// export const addMember = async (
-//   organizationId: string,
-//   userId: string,
-//   role: Role
-// ) => {
-//   try {
-//     await auth.api.addMember({
-//       body: {
-//         userId,
-//         organizationId,
-//         role,
-//       },
-//     });
-//   } catch (error) {
-//     console.error(error);
-//     throw new Error("Failed to add member.");
-//   }
-// };
-
 export const removeMember = async (memberId: string) => {
   const admin = await isAdmin()
 

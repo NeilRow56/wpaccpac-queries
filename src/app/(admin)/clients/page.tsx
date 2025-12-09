@@ -20,6 +20,7 @@ import { ReturnButton } from '@/components/shared/return-button'
 import { AddClientButton } from './_components/add-client-button'
 import { getActiveOrganizationClients } from '@/server-actions/clients'
 import { clients } from '@/db/schema'
+import { getActiveOrganizationCostCentres } from '@/server-actions/cost-centres'
 
 export const metadata = {
   title: 'Client Search'
@@ -47,6 +48,12 @@ export default async function ClientsPage() {
 
     const organization = await getActiveOrganization(userId)
 
+    if (!organization) {
+      // Handle the case where no org exists
+      // Redirect, show error, or show an empty state
+      redirect('/organization')
+    }
+
     if (organization === null) {
       return (
         <div className='container mx-auto max-w-5xl space-y-8 px-8 py-16'>
@@ -66,6 +73,10 @@ export default async function ClientsPage() {
     // Validate & type it using Zod
 
     const org = OrganizationSchema.parse(organization)
+
+    const orgCostCentres = await getActiveOrganizationCostCentres(
+      organization.id
+    )
 
     type Result = { count: number }
     const dbCount = await db.select({ count: count() }).from(clients)
@@ -87,7 +98,10 @@ export default async function ClientsPage() {
           </div>
 
           <div className='- mt-12 flex w-full justify-center'>
-            <AddClientButton organization={org} />
+            <AddClientButton
+              organization={org}
+              orgCostCentres={orgCostCentres}
+            />
           </div>
         </>
       )

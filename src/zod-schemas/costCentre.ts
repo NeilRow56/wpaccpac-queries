@@ -8,7 +8,6 @@ export const insertCostCentreSchema = createInsertSchema(costCentres, {
     schema
       .min(1, 'Name is required')
       .max(100, { error: 'Name must be at most 100 characters!' })
-  // organizationId: schema => schema.min(1, 'OrganizationId is required')
 })
 
 export const selectCostCentreSchema = createSelectSchema(costCentres)

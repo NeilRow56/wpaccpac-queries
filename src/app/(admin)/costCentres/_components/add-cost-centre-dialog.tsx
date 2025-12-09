@@ -101,7 +101,7 @@ function AddCostCentreDialog({
       console.log(error)
 
       toast.error(
-        `Failed to ${costCentre ? 'update' : 'add'} cost center. Cost center may alreay exist`
+        `Failed to ${costCentre ? 'update' : 'add'} cost center. Cost center may already exist`
       )
     }
   })
