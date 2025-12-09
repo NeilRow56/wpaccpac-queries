@@ -11,12 +11,12 @@ export const APP_DESCRIPTION =
 
 export const EMAIL_SENDER_ADDRESS = process.env.EMAIL_SENDER_ADDRESS
 
-export const spokenLanguages = [
-  { label: 'English', value: 'en' },
-  { label: 'Spanish', value: 'es' },
-  { label: 'French', value: 'fr' },
-  { label: 'German', value: 'de' },
-  { label: 'Italian', value: 'it' },
-  { label: 'Chinese', value: 'zh' },
-  { label: 'Japanese', value: 'ja' }
+export const entity_types = [
+  { id: 'U', description: 'Unknown' },
+  { id: 'ST', description: 'Sole Trader' },
+  { id: 'P', description: 'Partnership' },
+  { id: 'LCT', description: 'Limited company - tiny' },
+  { id: 'LCS', description: 'Limited company - small' },
+  { id: 'LCM', description: 'Limited company - medium' },
+  { id: 'O', description: 'Other' }
 ] as const

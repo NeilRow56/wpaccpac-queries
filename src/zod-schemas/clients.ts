@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 
-import { businessTypes, clients } from '@/db/schema'
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod'
+import { clients } from '@/db/schema'
 
 export const insertClientSchema = createInsertSchema(clients, {
   name: schema =>
@@ -9,8 +9,8 @@ export const insertClientSchema = createInsertSchema(clients, {
       .min(1, 'Name is required')
       .max(100, { error: 'Name must be at most 100 characters!' }),
   organizationId: schema => schema.min(1, 'OrganizationId is required'),
-  cost_centre_name: schema => schema.min(1, 'Cost center Id is required'),
-  entity_type: z.enum(businessTypes),
+  cost_centre_name: schema => schema.min(1, 'Cost center is required'),
+  entity_type: schema => schema.min(1, 'Entity type is required'),
 
   active: z.boolean()
 })

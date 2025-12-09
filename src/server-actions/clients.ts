@@ -62,82 +62,74 @@ if (!session.user || session.user.role !== 'admin') {
   throw new Error('You must be an administrator to add/access this data')
 }
 
-// // NEXT SAFE ACTION
+// NEXT SAFE ACTION
 
-// export const saveClientAction = actionClient
-//   .metadata({ actionName: 'saveClientAction' })
-//   .inputSchema(insertClientSchema, {
-//     handleValidationErrorsShape: async ve =>
-//       flattenValidationErrors(ve).fieldErrors
-//   })
-//   .action(
-//     async ({
-//       parsedInput: client
-//     }: {
-//       parsedInput: insertClientSchemaType
-//     }) => {
-//       /* ------------------------ AUTHENTICATION CHECK ------------------------ */
-//       const session = await auth.api.getSession({
-//         headers: await headers()
-//       })
+//use-safe-actions
 
-//       if (!session) redirect('/auth')
+export const saveClientAction = actionClient
+  .metadata({ actionName: 'saveClientAction' })
+  .inputSchema(insertClientSchema, {
+    handleValidationErrorsShape: async ve =>
+      flattenValidationErrors(ve).fieldErrors
+  })
+  .action(
+    async ({
+      parsedInput: client
+    }: {
+      parsedInput: insertClientSchemaType
+    }) => {
+      const session = await auth.api.getSession({
+        headers: await headers()
+      })
 
-//       if (!session.user || session.user.role !== 'admin') {
-//         throw new Error('You must be an administrator to add/access this data')
-//       }
+      if (!session) redirect('/auth/sign-in')
 
-//       /* ----------------------------- DUPLICATE CHECK ----------------------------- */
-//       const duplicates = await existingClient(
-//         client.name,
-//         client.organizationId
-//       )
+      // ERROR TESTS
 
-//       // Editing: allow duplicate if it is THIS record
-//       const isEditing = client.id !== ''
-//       if (duplicates.length > 0) {
-//         const isSameRecord = isEditing && duplicates[0].id === client.id
+      // throw Error('test error client create action')
 
-//         if (!isSameRecord) {
-//           throw new Error('Cost centre already exists')
-//         }
-//       }
+      // New Client
+      // All new clients are active by default - no need to set active to true
+      // createdAt and updatedAt are set by the database
 
-//       /* ---------------------------------- CREATE ---------------------------------- */
-//       if (!isEditing) {
-//         const result = await db
-//           .insert(clients)
-//           .values({
-//             name: client.name,
-//             organizationId: client.organizationId,
-//             entity_type: client.entity_type || 'Unknown',
-//             cost_centre_name: client.cost_centre_name || '',
-//             notes: client.notes || '',
-//             active: client.active
-//           })
-//           .returning({ insertedId: clients.id })
+      if (client.id === '') {
+        const result = await db
+          .insert(clients)
+          .values({
+            name: client.name,
+            organizationId: client.organizationId,
+            entity_type: client.entity_type,
+            cost_centre_name: client.cost_centre_name,
 
-//         return {
-//           message: `Cost centre #${result[0].insertedId} created successfully`
-//         }
-//       }
+            // customer.notes is an optional field
+            ...(client.notes?.trim() ? { notes: client.notes } : {})
+          })
+          .returning({ insertedId: clients.id })
 
-//       /* ---------------------------------- UPDATE ---------------------------------- */
-//       const result = await db
-//         .update(clients)
-//         .set({
-//           name: client.name,
-//           organizationId: client.organizationId,
-//           entity_type: client.entity_type || 'Unknown',
-//           cost_centre_name: client.cost_centre_name || '',
-//           notes: client.notes || '',
-//           active: client.active
-//         })
-//         .where(eq(clients.id, client.id!))
-//         .returning({ updatedId: clients.id })
+        return {
+          message: `Client ID #${result[0].insertedId} created successfully`
+        }
+      }
 
-//       return {
-//         message: `Cost centre #${result[0].updatedId} updated successfully`
-//       }
-//     }
-//   )
+      // Existing client
+      // updatedAt is set by the database
+      const result = await db
+        .update(clients)
+        .set({
+          name: client.name,
+          organizationId: client.organizationId,
+          entity_type: client.entity_type,
+          cost_centre_name: client.cost_centre_name,
+          // customer.notes is an optional field
+          notes: client.notes?.trim() ?? null,
+          active: client.active
+        })
+        // ! confirms customer.id will always exist for the update function
+        .where(eq(clients.id, client.id!))
+        .returning({ updatedId: clients.id })
+
+      return {
+        message: `Client ID #${result[0].updatedId} updated successfully`
+      }
+    }
+  )

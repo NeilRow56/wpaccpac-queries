@@ -28,7 +28,8 @@ import {
 } from '@/components/form/form-base'
 import { Client } from './columns'
 import { SelectItem } from '@/components/ui/select'
-import { businessTypes, costCentre } from '@/db/schema'
+import { costCentre } from '@/db/schema'
+import { entity_types } from '@/lib/constants'
 
 type Props = {
   open: boolean
@@ -45,38 +46,47 @@ export default function AddClientDialog({
   organization,
   orgCostCentres
 }: Props) {
-  // const router = useRouter()
+  const router = useRouter()
   const hasClientId = client?.id
+
+  const emptyValues: insertClientSchemaType = {
+    id: '',
+    name: '',
+    organizationId: organization.id ?? '',
+    entity_type: '',
+    cost_centre_name: '',
+    notes: '',
+    active: true
+  }
 
   const defaultValues: insertClientSchemaType = hasClientId
     ? {
-        id: client.id,
-        name: client.name,
-        organizationId: organization.id,
-        entity_type: client.entity_type || 'Unknown',
-        cost_centre_name: client.cost_centre_name || '',
-        notes: client.notes || '',
-        active: client.active
+        id: client?.id ?? ' ',
+        name: client?.name ?? ' ',
+        organizationId: organization?.id ?? ' ',
+        entity_type: client?.entity_type ?? '',
+        cost_centre_name: client?.cost_centre_name ?? '',
+        notes: client?.notes ?? ' ',
+        active: client?.active ?? true
       }
-    : {
-        id: '',
-        name: '',
-        organizationId: organization.id,
-        entity_type: 'Unknown',
-        cost_centre_name: '',
-        notes: '',
-        active: true
-      }
+    : emptyValues
 
   const form = useForm<insertClientSchemaType>({
     resolver: zodResolver(insertClientSchema),
     mode: 'onBlur',
     defaultValues
   })
+  useEffect(() => {
+    console.log('FORM ERRORS:', form.formState.errors)
+  }, [form.formState.errors])
 
   async function onSubmit(values: insertClientSchemaType) {
     console.log(values)
   }
+
+  useEffect(() => {
+    console.log('FORM ERRORS:', form.formState.errors)
+  }, [form.formState.errors])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -116,9 +126,9 @@ export default function AddClientDialog({
               name='entity_type'
               label='Entity Type'
             >
-              {businessTypes.map(bt => (
-                <SelectItem key={bt} value={bt}>
-                  {bt}
+              {entity_types.map(bt => (
+                <SelectItem key={bt.id} value={bt.description}>
+                  {bt.description}
                 </SelectItem>
               ))}
             </FormSelect>
@@ -139,11 +149,7 @@ export default function AddClientDialog({
             </FieldGroup>
 
             <Field orientation='horizontal' className='justify-start gap-2'>
-              <Button
-                type='submit'
-                form='create-client-form'
-                disabled={form.formState.isSubmitting}
-              >
+              <Button type='submit' disabled={form.formState.isSubmitting}>
                 <LoadingSwap isLoading={form.formState.isSubmitting}>
                   {client?.id ? 'Update' : 'Create'}
                 </LoadingSwap>
