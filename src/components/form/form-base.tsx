@@ -20,7 +20,8 @@ import { EyeIcon, EyeOffIcon } from 'lucide-react'
 import { useState, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
-/* ----- Types ----- */
+/* ---------- Types ---------- */
+
 type FormControlProps<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
@@ -59,7 +60,8 @@ type FormControlFunc<
   props: FormControlProps<TFieldValues, TName, TTransformedValues> & ExtraProps
 ) => ReactNode
 
-/* ----- FormBase ----- */
+/* ---------- FormBase ---------- */
+
 function FormBase<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
@@ -78,6 +80,8 @@ function FormBase<
       control={control}
       name={name}
       render={({ field, fieldState }) => {
+        const invalid = fieldState.invalid && fieldState.isTouched
+
         const labelElement = (
           <>
             <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
@@ -88,18 +92,16 @@ function FormBase<
         const controlElem = children({
           ...field,
           id: field.name,
-          'aria-invalid': fieldState.invalid
+          'aria-invalid': invalid
         })
 
-        const errorElem = fieldState.invalid && (
-          <FieldError errors={[fieldState.error]} />
-        )
+        const errorElem = invalid && <FieldError errors={[fieldState.error]} />
 
         return (
           <Field
-            data-invalid={fieldState.invalid}
+            data-invalid={invalid}
             orientation={horizontal ? 'horizontal' : undefined}
-            className='bg-transparent' // ensure Field wrapper is transparent
+            className='bg-transparent'
           >
             {controlFirst ? (
               <>
@@ -125,45 +127,31 @@ function FormBase<
   )
 }
 
-/* ----- Transparent Input Classes ----- */
+/* ---------- Transparent Input Classes ---------- */
+
 const transparentInputClasses = `
   bg-transparent focus:bg-transparent hover:bg-transparent disabled:bg-transparent
-  border-none
-  text-current
+  border-none text-current
   [&::-webkit-autofill]:bg-transparent [&::-webkit-autofill]:text-current
-  [&:-webkit-autofill]:bg-transparent [&:-webkit-autofill]:text-current
   [&::placeholder]:text-muted-foreground
 `
 
-/* ----- FormInput ----- */
+/* ---------- FormInput ---------- */
+
 export const FormInput: FormControlFunc<{ className?: string }> = ({
   className,
   ...props
 }) => {
   return (
     <FormBase {...props}>
-      {field => (
-        <Input {...field} className={cn(transparentInputClasses, className)} />
-      )}
-    </FormBase>
-  )
-}
-
-/* ----- FormNumberInput ----- */
-export const FormNumberInput: FormControlFunc<{ className?: string }> = ({
-  className,
-  ...props
-}) => {
-  return (
-    <FormBase {...props}>
-      {({ onChange, value, ...field }) => (
+      {({ onChange, onBlur, value, ...field }) => (
         <Input
           {...field}
-          type='number'
           value={value ?? ''}
+          onBlur={onBlur}
           onChange={e => {
-            const number = e.target.valueAsNumber
-            onChange(isNaN(number) ? null : number)
+            onChange(e)
+            onBlur()
           }}
           className={cn(transparentInputClasses, className)}
         />
@@ -172,16 +160,25 @@ export const FormNumberInput: FormControlFunc<{ className?: string }> = ({
   )
 }
 
-/* ----- FormTextarea ----- */
-export const FormTextarea: FormControlFunc<{ className?: string }> = ({
+/* ---------- FormNumberInput ---------- */
+
+export const FormNumberInput: FormControlFunc<{ className?: string }> = ({
   className,
   ...props
 }) => {
   return (
     <FormBase {...props}>
-      {field => (
-        <Textarea
+      {({ onChange, onBlur, value, ...field }) => (
+        <Input
           {...field}
+          type='number'
+          value={value ?? ''}
+          onBlur={onBlur}
+          onChange={e => {
+            const number = e.target.valueAsNumber
+            onChange(isNaN(number) ? null : number)
+            onBlur()
+          }}
           className={cn(transparentInputClasses, className)}
         />
       )}
@@ -189,22 +186,56 @@ export const FormTextarea: FormControlFunc<{ className?: string }> = ({
   )
 }
 
-/* ----- FormSelect ----- */
+/* ---------- FormTextarea ---------- */
+
+export const FormTextarea: FormControlFunc<{ className?: string }> = ({
+  className,
+  ...props
+}) => {
+  return (
+    <FormBase {...props}>
+      {({ onChange, onBlur, value, ...field }) => (
+        <Textarea
+          {...field}
+          value={value ?? ''}
+          onBlur={onBlur}
+          onChange={e => {
+            onChange(e)
+            onBlur()
+          }}
+          className={cn(transparentInputClasses, className)}
+        />
+      )}
+    </FormBase>
+  )
+}
+
+/* ---------- FormSelect (touch-fixed) ---------- */
+
 export const FormSelect: FormControlFunc<{
   children: ReactNode
   className?: string
 }> = ({ children, className, ...props }) => {
   return (
     <FormBase {...props}>
-      {({ onChange, onBlur, ...field }) => (
-        <Select {...field} onValueChange={onChange}>
+      {({ onChange, onBlur, value, name, ...field }) => (
+        <Select
+          name={name}
+          value={value}
+          onValueChange={val => {
+            onChange(val)
+            onBlur() // mark touched
+          }}
+          onOpenChange={open => {
+            if (!open) onBlur() // closing → touched
+          }}
+        >
           <SelectTrigger
             id={field.id}
-            onBlur={onBlur}
             aria-invalid={field['aria-invalid']}
             className={cn(transparentInputClasses, className)}
           >
-            <SelectValue />
+            <SelectValue placeholder='Select...' />
           </SelectTrigger>
           <SelectContent>{children}</SelectContent>
         </Select>
@@ -213,18 +244,28 @@ export const FormSelect: FormControlFunc<{
   )
 }
 
-/* ----- FormCheckbox ----- */
+/* ---------- FormCheckbox ---------- */
+
 export const FormCheckbox: FormControlFunc = props => {
   return (
     <FormBase {...props} horizontal controlFirst>
-      {({ onChange, value, ...field }) => (
-        <Checkbox {...field} checked={value} onCheckedChange={onChange} />
+      {({ onChange, onBlur, value, ...field }) => (
+        <Checkbox
+          {...field}
+          checked={value}
+          onCheckedChange={checked => {
+            onChange(checked)
+            onBlur()
+          }}
+          onBlur={onBlur}
+        />
       )}
     </FormBase>
   )
 }
 
-/* ----- FormPasswordInput ----- */
+/* ---------- FormPasswordInput ---------- */
+
 export const FormPasswordInput: FormControlFunc<{ className?: string }> = ({
   className,
   ...props
@@ -234,12 +275,18 @@ export const FormPasswordInput: FormControlFunc<{ className?: string }> = ({
 
   return (
     <FormBase {...props}>
-      {field => (
+      {({ onChange, onBlur, value, ...field }) => (
         <div className='flex rounded-md border-none bg-transparent'>
           <Input
             {...field}
             type={showPassword ? 'text' : 'password'}
             autoComplete='off'
+            value={value ?? ''}
+            onBlur={onBlur}
+            onChange={e => {
+              onChange(e)
+              onBlur()
+            }}
             className={cn(transparentInputClasses, 'border-none', className)}
           />
           <Button
@@ -250,9 +297,6 @@ export const FormPasswordInput: FormControlFunc<{ className?: string }> = ({
             onClick={() => setShowPassword(p => !p)}
           >
             <Icon className='size-5' />
-            <span className='sr-only'>
-              {showPassword ? 'Hide password' : 'Show password'}
-            </span>
           </Button>
         </div>
       )}

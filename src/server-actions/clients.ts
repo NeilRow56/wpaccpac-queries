@@ -1,33 +1,36 @@
 'use server'
 
 import { db } from '@/db'
-import { clients } from '@/db/schema'
+import { clients, costCentres, organization } from '@/db/schema'
+
 import { auth } from '@/lib/auth'
 import { actionClient } from '@/lib/safe-action'
-
 import {
   insertClientSchema,
   insertClientSchemaType
 } from '@/zod-schemas/clients'
-
-import { asc, eq, and } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 import { flattenValidationErrors } from 'next-safe-action'
 import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 export async function getActiveOrganizationClients(organizationId: string) {
-  const categoriesByOrganizationId = await db
+  const clientsByOrganizationId = await db
     .select({
       id: clients.id,
       name: clients.name,
-      organizationId: clients.organizationId
+      organizationId: clients.organizationId,
+      entity_type: clients.entity_type,
+      cost_centre_name: clients.cost_centre_name,
+      notes: clients.notes,
+      active: clients.active
     })
     .from(clients)
-    .where(and(eq(clients.organizationId, organizationId)))
+    .where(eq(clients.organizationId, organizationId))
     .orderBy(asc(clients.name))
 
-  return categoriesByOrganizationId
+  return clientsByOrganizationId
 }
 
 /**
@@ -43,29 +46,6 @@ export async function deleteClient(id: string, path: string) {
   }
 }
 
-/**
- * Check if cost centre exists (returns row array).
- */
-export async function existingClient(name: string, organizationId: string) {
-  return await db
-    .select()
-    .from(clients)
-    .where(
-      and(eq(clients.name, name), eq(clients.organizationId, organizationId))
-    )
-}
-
-// Authentication check
-const session = await auth.api.getSession({ headers: await headers() })
-if (!session) redirect('/auth')
-if (!session.user || session.user.role !== 'admin') {
-  throw new Error('You must be an administrator to add/access this data')
-}
-
-// NEXT SAFE ACTION
-
-//use-safe-actions
-
 export const saveClientAction = actionClient
   .metadata({ actionName: 'saveClientAction' })
   .inputSchema(insertClientSchema, {
@@ -78,58 +58,87 @@ export const saveClientAction = actionClient
     }: {
       parsedInput: insertClientSchemaType
     }) => {
-      const session = await auth.api.getSession({
-        headers: await headers()
-      })
-
+      const session = await auth.api.getSession({ headers: await headers() })
       if (!session) redirect('/auth/sign-in')
+      if (!session.user || session.user.role !== 'admin') {
+        throw new Error('You must be an administrator to add/access this data')
+      }
 
-      // ERROR TESTS
+      const clientName = client.name.trim()
+      const costCentreName = client.cost_centre_name?.trim() || ''
+      const entityType = client.entity_type?.trim() || ''
+      const notes = client.notes?.trim() || ''
+      const isEditing = !!client.id
 
-      // throw Error('test error client create action')
+      // --- SAFETY CHECK: verify organization exists ---
+      const orgExists = await db
+        .select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.id, client.organizationId))
 
-      // New Client
-      // All new clients are active by default - no need to set active to true
-      // createdAt and updatedAt are set by the database
+      if (!orgExists || orgExists.length === 0) {
+        throw new Error(
+          `Organization with ID "${client.organizationId}" does not exist`
+        )
+      }
 
-      if (client.id === '') {
-        const result = await db
+      // 2️⃣ Check cost centre exists for that organization
+      const costCentreExists = await db
+        .select({ id: costCentres.id })
+        .from(costCentres)
+        .where(
+          and(
+            eq(costCentres.name, costCentreName),
+            eq(costCentres.organizationId, client.organizationId)
+          )
+        )
+
+      if (costCentreExists.length === 0) {
+        throw new Error(
+          `Cost centre "${costCentreName}" does not exist for organization ${client.organizationId}`
+        )
+      }
+
+      if (!isEditing) {
+        // CREATE
+        const [inserted] = await db
           .insert(clients)
           .values({
-            name: client.name,
+            name: clientName,
             organizationId: client.organizationId,
-            entity_type: client.entity_type,
-            cost_centre_name: client.cost_centre_name,
-
-            // customer.notes is an optional field
-            ...(client.notes?.trim() ? { notes: client.notes } : {})
+            cost_centre_name: costCentreName,
+            entity_type: entityType,
+            notes,
+            active: client.active
           })
           .returning({ insertedId: clients.id })
 
+        console.log('✅ Inserted client:', inserted)
+
         return {
-          message: `Client ID #${result[0].insertedId} created successfully`
+          message: `Client #${inserted.insertedId} created successfully`
         }
-      }
+      } else {
+        // UPDATE
+        if (!client.id) throw new Error('Client ID is required for update')
 
-      // Existing client
-      // updatedAt is set by the database
-      const result = await db
-        .update(clients)
-        .set({
-          name: client.name,
-          organizationId: client.organizationId,
-          entity_type: client.entity_type,
-          cost_centre_name: client.cost_centre_name,
-          // customer.notes is an optional field
-          notes: client.notes?.trim() ?? null,
-          active: client.active
-        })
-        // ! confirms customer.id will always exist for the update function
-        .where(eq(clients.id, client.id!))
-        .returning({ updatedId: clients.id })
+        const [updated] = await db
+          .update(clients)
+          .set({
+            name: clientName,
+            organizationId: client.organizationId,
+            cost_centre_name: costCentreName,
+            entity_type: entityType,
+            notes,
+            active: client.active
+          })
+          // .where({ id: client.id })
+          .where(eq(clients.id, client.id!))
+          .returning({ updatedId: clients.id })
 
-      return {
-        message: `Client ID #${result[0].updatedId} updated successfully`
+        console.log('✅ Updated client:', updated)
+
+        return { message: `Client #${updated.updatedId} updated successfully` }
       }
     }
   )

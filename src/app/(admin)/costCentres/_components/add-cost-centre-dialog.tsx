@@ -70,7 +70,7 @@ function AddCostCentreDialog({
 
   const form = useForm<insertCostCentreSchemaType>({
     resolver: zodResolver(insertCostCentreSchema),
-    mode: 'onBlur',
+    mode: 'onSubmit',
     defaultValues
   })
 
@@ -160,7 +160,7 @@ function AddCostCentreDialog({
                   <Button
                     className='border-red-500'
                     type='button'
-                    form='create-category-form'
+                    form='create-costCentre-form'
                     variant='outline'
                     onClick={() => form.reset()}
                   >

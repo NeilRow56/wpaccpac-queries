@@ -1,7 +1,8 @@
 import { relations, sql } from 'drizzle-orm'
 import { boolean, pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core'
-import { user } from './authSchema'
+
 import { accountsPeriods } from './accountsPeriods'
+import { organization } from './authSchema'
 
 export const clients = pgTable('clients', {
   id: text('id')
@@ -10,7 +11,7 @@ export const clients = pgTable('clients', {
   name: varchar('name').notNull(),
   organizationId: text('organization_id')
     .notNull()
-    .references(() => user.id, { onDelete: 'restrict' }),
+    .references(() => organization.id, { onDelete: 'restrict' }),
   cost_centre_name: text('cost_centre_name').notNull(),
   entity_type: varchar('entity_type').notNull(),
   notes: text('notes'),

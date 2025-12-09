@@ -10,7 +10,7 @@ export type Client = {
   name: string
   entity_type: string
   cost_centre_name: string
-  owner: string
+  organizationId: string
   notes: string
   active: boolean
   // organizationId?: string

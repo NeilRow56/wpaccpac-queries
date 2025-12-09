@@ -12,7 +12,6 @@ export const APP_DESCRIPTION =
 export const EMAIL_SENDER_ADDRESS = process.env.EMAIL_SENDER_ADDRESS
 
 export const entity_types = [
-  { id: 'U', description: 'Unknown' },
   { id: 'ST', description: 'Sole Trader' },
   { id: 'P', description: 'Partnership' },
   { id: 'LCT', description: 'Limited company - tiny' },
