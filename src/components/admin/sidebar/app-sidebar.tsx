@@ -33,6 +33,11 @@ const data = {
       icon: IconDashboard
     },
     {
+      title: 'Cost centers',
+      url: '/costCentres',
+      icon: IconDashboard
+    },
+    {
       title: 'Clients',
       url: '/clients',
       icon: IconListDetails

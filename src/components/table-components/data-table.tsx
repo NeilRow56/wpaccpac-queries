@@ -1,10 +1,243 @@
+// 'use client'
+
+// import * as React from 'react'
+// import {
+//   ColumnDef,
+//   ColumnFiltersState,
+//   SortingState,
+//   VisibilityState,
+//   flexRender,
+//   getCoreRowModel,
+//   getFilteredRowModel,
+//   getPaginationRowModel,
+//   getSortedRowModel,
+//   useReactTable,
+//   Column,
+//   RowData
+// } from '@tanstack/react-table'
+
+// import { Input } from '@/components/ui/input'
+// import { Button } from '@/components/ui/button'
+// import {
+//   DropdownMenu,
+//   DropdownMenuTrigger,
+//   DropdownMenuCheckboxItem,
+//   DropdownMenuContent
+// } from '@/components/ui/dropdown-menu'
+
+// import {
+//   Table,
+//   TableBody,
+//   TableCell,
+//   TableHead,
+//   TableHeader,
+//   TableRow
+// } from '@/components/ui/table'
+// import { PaginationMobileFriendly } from './data-table-pagination'
+
+// declare module '@tanstack/react-table' {
+//   interface ColumnMeta<TData extends RowData, TValue> {
+//     filterComponent?: React.FC<{ column: Column<TData, TValue> }>
+//   }
+
+//   interface TableMeta<TData extends RowData> {
+//     onDelete?: (item: TData) => void
+//     onEdit?: (item: TData) => void
+//   }
+// }
+
+// interface DataTableProps<TData, TValue> {
+//   columns: ColumnDef<TData, TValue>[]
+//   data: TData[]
+//   onRowDelete?: (item: TData) => void
+//   onRowEdit?: (item: TData) => void
+//   // Add these props for controlled filters
+//   columnFilters?: ColumnFiltersState
+//   setColumnFilters?: React.Dispatch<React.SetStateAction<ColumnFiltersState>>
+// }
+
+// export function DataTable<TData extends RowData, TValue>({
+//   columns,
+//   data,
+//   onRowDelete,
+//   onRowEdit
+// }: DataTableProps<TData, TValue>) {
+//   const [sorting, setSorting] = React.useState<SortingState>([])
+//   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+//     []
+//   )
+//   const [columnVisibility, setColumnVisibility] =
+//     React.useState<VisibilityState>({})
+//   const [rowSelection, setRowSelection] = React.useState({})
+//   const [columnFiltersInternal, setColumnFiltersInternal] =
+//     React.useState<ColumnFiltersState>([])
+//   const filtersToUse = columnFilters ?? columnFiltersInternal
+//   const setFiltersToUse = setColumnFilters ?? setColumnFiltersInternal
+
+//   const [pagination, setPagination] = React.useState({
+//     pageIndex: 0,
+//     pageSize: 10
+//   })
+
+//   // eslint-disable-next-line react-hooks/incompatible-library
+//   const table = useReactTable({
+//     data,
+//     columns,
+//     state: {
+//       sorting,
+//       columnFilters: filtersToUse, // use prop if provided
+//       columnVisibility,
+//       rowSelection,
+//       pagination
+//     },
+//     meta: {
+//       onDelete: onRowDelete,
+//       onEdit: onRowEdit
+//     },
+//     onSortingChange: setSorting,
+//     onColumnFiltersChange: setFiltersToUse,
+//     onColumnVisibilityChange: setColumnVisibility,
+//     onRowSelectionChange: setRowSelection,
+//     onPaginationChange: setPagination,
+
+//     getCoreRowModel: getCoreRowModel(),
+//     getFilteredRowModel: getFilteredRowModel(),
+//     getSortedRowModel: getSortedRowModel(),
+//     getPaginationRowModel: getPaginationRowModel()
+//   })
+
+//   // Default text filter for columns without a custom filterComponent
+//   const renderDefaultFilter = (column: Column<TData, unknown>) => (
+//     <Input
+//       placeholder={`Filter ${column.id}...`}
+//       value={(column.getFilterValue() as string) ?? ''}
+//       onChange={e => column.setFilterValue(e.target.value)}
+//       className='mt-1 h-7 max-w-sm border-red-200'
+//     />
+//   )
+
+//   return (
+//     <div>
+//       {/* Column Toggle Menu */}
+//       <div className='flex items-center px-6 py-4'>
+//         <DropdownMenu>
+//           <DropdownMenuTrigger asChild>
+//             <Button variant='outline' className='ml-auto'>
+//               Columns
+//             </Button>
+//           </DropdownMenuTrigger>
+
+//           <DropdownMenuContent align='end'>
+//             {table
+//               .getAllColumns()
+//               .filter(col => col.getCanHide())
+//               .map(col => (
+//                 <DropdownMenuCheckboxItem
+//                   key={col.id}
+//                   checked={col.getIsVisible()}
+//                   onCheckedChange={v => col.toggleVisibility(!!v)}
+//                   className='capitalize'
+//                 >
+//                   {col.id}
+//                 </DropdownMenuCheckboxItem>
+//               ))}
+//           </DropdownMenuContent>
+//         </DropdownMenu>
+//       </div>
+
+//       {/* Table */}
+//       <div className='m-6 overflow-hidden rounded-md border p-6'>
+//         <Table>
+//           <TableHeader>
+//             {table.getHeaderGroups().map(headerGroup => (
+//               <TableRow key={headerGroup.id}>
+//                 {headerGroup.headers.map(header => (
+//                   <TableHead
+//                     key={header.id}
+//                     className='border-b border-blue-600 pt-2 font-bold text-blue-600'
+//                   >
+//                     {header.isPlaceholder ? null : (
+//                       <>
+//                         <div className='font-bold text-blue-600'>
+//                           {flexRender(
+//                             header.column.columnDef.header,
+//                             header.getContext()
+//                           )}
+//                         </div>
+//                         {/* Render filter if available */}
+//                         {header.column.getCanFilter() && (
+//                           <div className='mt-1'>
+//                             {header.column.columnDef.meta?.filterComponent
+//                               ? flexRender(
+//                                   header.column.columnDef.meta.filterComponent,
+//                                   { column: header.column }
+//                                 )
+//                               : renderDefaultFilter(header.column)}
+//                           </div>
+//                         )}
+//                       </>
+//                     )}
+//                   </TableHead>
+//                 ))}
+//               </TableRow>
+//             ))}
+//           </TableHeader>
+
+//           <TableBody>
+//             {table.getRowModel().rows.length ? (
+//               table.getRowModel().rows.map(row => (
+//                 <TableRow
+//                   key={row.id}
+//                   data-state={row.getIsSelected() ? 'selected' : undefined}
+//                 >
+//                   {row.getVisibleCells().map(cell => (
+//                     <TableCell key={cell.id}>
+//                       {flexRender(
+//                         cell.column.columnDef.cell,
+//                         cell.getContext()
+//                       )}
+//                     </TableCell>
+//                   ))}
+//                 </TableRow>
+//               ))
+//             ) : (
+//               <TableRow>
+//                 <TableCell
+//                   colSpan={columns.length}
+//                   className='h-24 text-center'
+//                 >
+//                   No results.
+//                 </TableCell>
+//               </TableRow>
+//             )}
+//           </TableBody>
+//         </Table>
+//       </div>
+
+//       {/* Footer / Pagination */}
+//       <div className='flex w-full items-center px-6'>
+//         <div className='text-muted-foreground flex-1 text-sm'>
+//           {table.getFilteredRowModel().rows.length} row(s)
+//         </div>
+
+//         <div className='flex flex-1 justify-end py-4'>
+//           {/* <DataTablePagination table={table} /> */}
+//           <PaginationMobileFriendly
+//             table={table}
+//             pagination={pagination}
+//             setPagination={setPagination}
+//           />
+//         </div>
+//       </div>
+//     </div>
+//   )
+// }
 'use client'
 
 import * as React from 'react'
 import {
   ColumnDef,
   ColumnFiltersState,
-  RowData,
   SortingState,
   VisibilityState,
   flexRender,
@@ -12,8 +245,19 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  useReactTable
+  useReactTable,
+  Column,
+  RowData
 } from '@tanstack/react-table'
+
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent
+} from '@/components/ui/dropdown-menu'
 
 import {
   Table,
@@ -24,133 +268,165 @@ import {
   TableRow
 } from '@/components/ui/table'
 
-import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
-import { DataTablePagination } from './data-table-pagination'
+import { PaginationMobileFriendly } from './data-table-pagination'
 
 declare module '@tanstack/react-table' {
+  interface ColumnMeta<TData extends RowData, TValue> {
+    filterComponent?: React.FC<{ column: Column<TData, TValue> }>
+  }
+
   interface TableMeta<TData extends RowData> {
-    onDelete: (item: TData) => void
-    onEdit: (item: TData) => void
+    onDelete?: (item: TData) => void
+    onEdit?: (item: TData) => void
   }
 }
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
-
-  onRowDelete: (item: TData) => void
-  onRowEdit: (item: TData) => void
+  onRowDelete?: (item: TData) => void
+  onRowEdit?: (item: TData) => void
+  columnFilters?: ColumnFiltersState
+  setColumnFilters?: React.Dispatch<React.SetStateAction<ColumnFiltersState>>
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends RowData, TValue>({
   columns,
   data,
   onRowDelete,
-  onRowEdit
+  onRowEdit,
+  columnFilters,
+  setColumnFilters
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  )
+  const [internalFilters, setInternalFilters] =
+    React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
+  const filtersToUse = columnFilters ?? internalFilters
+  const setFiltersToUse = setColumnFilters ?? setInternalFilters
+
+  const [pagination, setPagination] = React.useState({
+    pageIndex: 0,
+    pageSize: 10
+  })
+
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    onSortingChange: setSorting,
-    getSortedRowModel: getSortedRowModel(),
-    onColumnFiltersChange: setColumnFilters,
-    getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
-    meta: {
-      onDelete: item => onRowDelete(item),
-      onEdit: item => onRowEdit(item)
-    },
     state: {
       sorting,
-      columnFilters,
+      columnFilters: filtersToUse,
       columnVisibility,
-      rowSelection
-    }
+      rowSelection,
+      pagination
+    },
+    meta: {
+      onDelete: onRowDelete,
+      onEdit: onRowEdit
+    },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setFiltersToUse,
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    onPaginationChange: setPagination,
+
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel()
   })
+
+  const renderDefaultFilter = (column: Column<TData, unknown>) => (
+    <Input
+      placeholder={`Filter ${column.id}...`}
+      value={(column.getFilterValue() as string) ?? ''}
+      onChange={e => column.setFilterValue(e.target.value)}
+      className='mt-1 h-7 max-w-sm border-red-200'
+    />
+  )
 
   return (
     <div>
+      {/* Toolbar: Columns + Clear Filters */}
       <div className='flex items-center px-6 py-4'>
-        <Input
-          placeholder='Filter categories...'
-          value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
-          onChange={event =>
-            table.getColumn('name')?.setFilterValue(event.target.value)
-          }
-          className='max-w-sm'
-        />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant='outline' className='ml-auto'>
-              Columns
-            </Button>
+            <Button variant='outline'>Columns</Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end'>
             {table
               .getAllColumns()
-              .filter(column => column.getCanHide())
-              .map(column => {
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className='capitalize'
-                    checked={column.getIsVisible()}
-                    onCheckedChange={value => column.toggleVisibility(!!value)}
-                  >
-                    {column.id}
-                  </DropdownMenuCheckboxItem>
-                )
-              })}
+              .filter(col => col.getCanHide())
+              .map(col => (
+                <DropdownMenuCheckboxItem
+                  key={col.id}
+                  checked={col.getIsVisible()}
+                  onCheckedChange={v => col.toggleVisibility(!!v)}
+                  className='capitalize'
+                >
+                  {col.id}
+                </DropdownMenuCheckboxItem>
+              ))}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Button
+          variant='outline'
+          className='ml-2'
+          onClick={() => table.resetColumnFilters()}
+        >
+          Clear Filters
+        </Button>
       </div>
+
+      {/* Table */}
       <div className='m-6 overflow-hidden rounded-md border p-6'>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map(headerGroup => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map(header => {
-                  return (
-                    <TableHead
-                      className='border-b border-blue-600 font-bold text-blue-600'
-                      key={header.id}
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
+                {headerGroup.headers.map(header => (
+                  <TableHead
+                    key={header.id}
+                    className='border-b border-blue-600 pt-2 font-bold text-blue-600'
+                  >
+                    {header.isPlaceholder ? null : (
+                      <>
+                        <div className='font-bold text-blue-600'>
+                          {flexRender(
                             header.column.columnDef.header,
                             header.getContext()
                           )}
-                    </TableHead>
-                  )
-                })}
+                        </div>
+                        {header.column.getCanFilter() && (
+                          <div className='mt-1'>
+                            {header.column.columnDef.meta?.filterComponent
+                              ? flexRender(
+                                  header.column.columnDef.meta.filterComponent,
+                                  {
+                                    column: header.column
+                                  }
+                                )
+                              : renderDefaultFilter(header.column)}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </TableHead>
+                ))}
               </TableRow>
             ))}
           </TableHeader>
+
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map(row => (
                 <TableRow
                   key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
+                  data-state={row.getIsSelected() ? 'selected' : undefined}
                 >
                   {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id}>
@@ -175,12 +451,19 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
+
+      {/* Footer / Pagination */}
       <div className='flex w-full items-center px-6'>
         <div className='text-muted-foreground flex-1 text-sm'>
-          {table.getFilteredRowModel().rows.length} row(s).
+          {table.getFilteredRowModel().rows.length} row(s)
         </div>
-        <div className='flex-1 items-center justify-end space-x-4 py-4'>
-          <DataTablePagination table={table} />
+
+        <div className='flex flex-1 justify-end py-4'>
+          <PaginationMobileFriendly
+            table={table}
+            pagination={pagination}
+            setPagination={setPagination}
+          />
         </div>
       </div>
     </div>

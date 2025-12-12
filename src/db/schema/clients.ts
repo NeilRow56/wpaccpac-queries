@@ -14,7 +14,9 @@ export const clients = pgTable('clients', {
     .references(() => organization.id, { onDelete: 'restrict' }),
   cost_centre_name: text('cost_centre_name').notNull(),
   entity_type: varchar('entity_type').notNull(),
-  notes: text('notes'),
+  notes: text('notes')
+    .$type<string | null>()
+    .default(sql`null`),
   active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()

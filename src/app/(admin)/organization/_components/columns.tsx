@@ -16,12 +16,12 @@ export const columns: ColumnDef<Organization>[] = [
       <DataTableColumnHeader column={column} title='Name' />
     )
   },
-  {
-    accessorKey: 'slug',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Slug' />
-    )
-  },
+  // {
+  //   accessorKey: 'slug',
+  //   header: ({ column }) => (
+  //     <DataTableColumnHeader column={column} title='Slug' />
+  //   )
+  // },
 
   CreateRowActions<Organization>()
 ]

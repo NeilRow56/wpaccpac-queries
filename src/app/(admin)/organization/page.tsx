@@ -1,5 +1,5 @@
 import { auth } from '@/lib/auth'
-import { getOrganizations } from '@/server-actions/organizations'
+import { getOrganizationsByUserId } from '@/server-actions/organizations'
 import { headers } from 'next/headers'
 // import { db } from '@/db'
 // import { count } from 'drizzle-orm'
@@ -16,9 +16,14 @@ import { OrganizationTabs } from './_components/organization-tabs'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { OrganizationSelect } from './_components/organization-select'
+import { db } from '@/db'
+import { count } from 'drizzle-orm'
+import { organization } from '@/db/schema'
+import OrganizationsTable from './_components/organizations-table'
+// import OrganizationsTable from './_components/organizations-table'
 
 export default async function OrganizationPage() {
-  const organizations = await getOrganizations()
+  const organizations = await getOrganizationsByUserId()
   const session = await auth.api.getSession({
     headers: await headers()
   })
@@ -27,6 +32,13 @@ export default async function OrganizationPage() {
   const role = session?.user.role
 
   if (role !== 'admin') return redirect('/auth')
+
+  type Result = { count: number }
+  const dbCount = await db.select({ count: count() }).from(organization)
+
+  const arr: Result[] = dbCount
+
+  const total: number = arr.reduce((sum, result) => sum + result.count, 0)
 
   if (organizations.length === 0) {
     return (
@@ -46,16 +58,17 @@ export default async function OrganizationPage() {
   }
   return (
     <>
-      <div className='container mx-auto max-w-2xl py-10'>
+      <div className='container mx-auto max-w-6xl py-10'>
         <Link href='/dashboard' className='mb-6 inline-flex items-center'>
           <ArrowLeft className='mr-2 size-4' />
           <span className='text-primary'>Back to Dashboard</span>
         </Link>
         <div className='mt-12 mb-2 space-y-2'>
-          <h2 className='font-bold'>Organizations:</h2>
-          <h3 className='text-primary/90 text-sm'>
-            Select active organization
-          </h3>
+          <h2 className='text-xl font-bold'>
+            Organizations:(Normally the short form name for your business - but
+            it can be anything )
+          </h2>
+          <h3 className='text-primary/90'>Select active organization</h3>
         </div>
         <div className='mb-8 flex items-center gap-2'>
           <OrganizationSelect />
@@ -69,6 +82,29 @@ export default async function OrganizationPage() {
           }
         >
           <OrganizationTabs />
+          <div className='text-muted-foreground mt-4 flex-col space-x-4 pl-8'>
+            <span className='text-red-600'>
+              NB: Organization creation and amendment is only visible to
+              &quot;admin&quot; users.
+            </span>
+            <p>
+              Organizations cannot be deleted, only edited. This is to protect
+              your data. All client information is linked to an organization
+            </p>
+
+            <p className='flex flex-col pt-4'>
+              In most cases a business will only have one organization.
+              <span>
+                Invite members of your team to join the organization once they
+                have registered with the app.
+              </span>
+            </p>
+            <p className='pt-4'>
+              Any problems please contact:
+              <span className='pl-2 text-blue-600'>admin@wpaccpac.org</span>
+            </p>
+          </div>
+          <OrganizationsTable total={total} organizations={organizations} />
         </Suspense>
       </div>
     </>

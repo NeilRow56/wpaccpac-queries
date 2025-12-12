@@ -131,7 +131,7 @@ function FormBase<
 
 const transparentInputClasses = `
   bg-transparent focus:bg-transparent hover:bg-transparent disabled:bg-transparent
-  border-none text-current
+  border border-gray-100 text-current
   [&::-webkit-autofill]:bg-transparent [&::-webkit-autofill]:text-current
   [&::placeholder]:text-muted-foreground
 `

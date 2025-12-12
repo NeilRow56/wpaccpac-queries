@@ -10,8 +10,10 @@ import { Button } from '../ui/button'
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
 import { DropdownMenuContent } from '@radix-ui/react-dropdown-menu'
 
-interface DataTableColumnHeaderProps<TData, TValue>
-  extends React.HTMLAttributes<HTMLDivElement> {
+interface DataTableColumnHeaderProps<
+  TData,
+  TValue
+> extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>
   title: string
 }
@@ -31,7 +33,7 @@ export default function DataTableColumnHeader<TData, TValue>({
           <Button
             variant='ghost'
             size='sm'
-            className='data-[state=open]:bg-accent -ml-3 h-8'
+            className='data-[state=open]:bg-accent text-primary -ml-3 h-8 font-bold'
           >
             <span>{title}</span>
 

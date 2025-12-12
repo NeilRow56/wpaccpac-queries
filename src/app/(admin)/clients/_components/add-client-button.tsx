@@ -9,8 +9,9 @@ import AddClientDialog from './add-client-dialog'
 import { costCentre } from '@/db/schema'
 
 interface ClientButtonProps {
-  organization: OrganizationType
+  organization: OrganizationType // You must have an organization to start a client - it is not optional
   orgCostCentres: costCentre[]
+  onClick?: () => void
 }
 
 export const AddClientButton = ({

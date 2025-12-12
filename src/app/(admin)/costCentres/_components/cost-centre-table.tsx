@@ -15,7 +15,7 @@ import { CostCentre, columns } from './columns'
 import AddCostCentreDialog from './add-cost-centre-dialog'
 import { AddCostCentreButton } from './add-cost-centre-button'
 import { deleteCostCentre } from '@/server-actions/cost-centres'
-import { DataTable } from './data-table'
+import { DataTable } from '@/components/table-components/data-table'
 
 type Props = {
   data: {
@@ -33,10 +33,10 @@ export default function CostCentreTable({ data, total, organization }: Props) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
-  const handleRowDelete = (item: CostCentre) => {
-    setOpenConfirmationDialog(true)
-    setItemToAction(item)
-  }
+  // const handleRowDelete = (item: CostCentre) => {
+  //   setOpenConfirmationDialog(true)
+  //   setItemToAction(item)
+  // }
 
   const handleRowEdit = (item: CostCentre) => {
     setItemToAction(item)
@@ -92,7 +92,7 @@ export default function CostCentreTable({ data, total, organization }: Props) {
       <DataTable
         data={data}
         columns={columns}
-        onRowDelete={handleRowDelete}
+        // onRowDelete={handleRowDelete}
         onRowEdit={handleRowEdit}
       />
 

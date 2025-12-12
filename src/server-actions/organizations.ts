@@ -9,8 +9,12 @@ import { member, organization } from '@/db/schema'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
-export async function getOrganizations() {
+export async function getOrganizationsByUserId() {
   const { currentUser } = await getCurrentUser()
+
+  const userId = currentUser.id
+
+  console.log(userId)
 
   const members = await db.query.member.findMany({
     where: eq(member.userId, currentUser.id)
@@ -88,3 +92,7 @@ export async function getCurrentOrganization() {
 
   return org || null
 }
+
+// export async function getOrganizationsByUserId(userId) {
+
+// }

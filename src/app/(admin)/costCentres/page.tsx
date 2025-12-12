@@ -79,7 +79,7 @@ export default async function CostCentresPage() {
 
     return (
       <>
-        <div className='container mx-auto max-w-2xl py-10'>
+        <div className='container mx-auto max-w-6xl py-5'>
           <Suspense
             fallback={
               <SkeletonArray amount={3}>
@@ -89,6 +89,25 @@ export default async function CostCentresPage() {
           >
             <CostCentreTable data={data} total={total} organization={org} />
           </Suspense>
+          <div className='text-muted-foreground flex-col space-x-4 pl-8'>
+            <span className='text-red-600'>NB: </span>
+            <p>
+              Cost centers cannot be deleted, only edited. If the cost centre
+              for a client changes e.g. on the retirement of a partner, select
+              the new cost centre for the client by using the edit function
+              under Actions in the Clients table.
+            </p>
+            <p className='pt-4'>
+              If a client now falls under a completely new cost centre create a
+              new entry, using the button above. Then use the the edit function
+              under Actions in the Clients table to ensure the correct client
+              allocation.
+            </p>
+            <p className='pt-4'>
+              Any problems please contact:
+              <span className='pl-2 text-blue-600'>admin@wpaccpac.org</span>
+            </p>
+          </div>
         </div>
       </>
     )

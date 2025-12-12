@@ -9,7 +9,6 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   PaginationState,
-  RowData,
   SortingState,
   useReactTable,
   VisibilityState
@@ -31,12 +30,12 @@ import { pageSize } from '@/lib/utils'
 import { usePathname, useRouter } from 'next/navigation'
 import { DataTablePaginationManual } from './data-table-pagination-manual'
 
-declare module '@tanstack/react-table' {
-  interface TableMeta<TData extends RowData> {
-    onDelete: (item: TData) => void
-    onEdit: (item: TData) => void
-  }
-}
+// declare module '@tanstack/react-table' {
+//   interface TableMeta<TData extends RowData> {
+//     onDelete: (item: TData) => void
+//     onEdit: (item: TData) => void
+//   }
+// }
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]

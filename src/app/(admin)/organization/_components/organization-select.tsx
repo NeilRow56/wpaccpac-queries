@@ -51,7 +51,7 @@ export function OrganizationSelect() {
       value={activeOrganization?.id ?? ''}
       onValueChange={setActiveOrganization}
     >
-      <SelectTrigger className='w-full'>
+      <SelectTrigger className='w-full border border-red-600'>
         <SelectValue placeholder='Select an organization' />
       </SelectTrigger>
       <SelectContent>

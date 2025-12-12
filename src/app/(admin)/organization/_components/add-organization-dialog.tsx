@@ -116,48 +116,44 @@ export function AddOrganizationDialog({ setOpen, open, organization }: Props) {
             <DialogDescription>
               Create organizations here. Click create when you&apos;re done.
             </DialogDescription>
-            <Card className='mx-auto w-full border-red-200 sm:max-w-md'>
-              <CardHeader className='text-center'>
-                <CardTitle></CardTitle>
-                <CardDescription></CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form
-                  id='create-organization-form'
-                  onSubmit={form.handleSubmit(onSubmit)}
-                >
-                  <FieldGroup>
-                    <FormInput
-                      control={form.control}
-                      name='name'
-                      label='Name'
-                    />
-                  </FieldGroup>
-                </form>
-              </CardContent>
-              <CardFooter className=''>
-                <Field orientation='horizontal' className='justify-between'>
-                  <Button
-                    type='submit'
-                    form='create-organization-form'
-                    className='w-full max-w-[150px] cursor-pointer dark:bg-blue-600 dark:text-white'
-                    disabled={isLoading}
-                  >
-                    <LoadingSwap isLoading={isLoading}>Create</LoadingSwap>
-                  </Button>
-                  <Button
-                    className='border-red-500'
-                    type='button'
-                    form='create-organization-form'
-                    variant='outline'
-                    onClick={() => form.reset()}
-                  >
-                    Reset
-                  </Button>
-                </Field>
-              </CardFooter>
-            </Card>
           </DialogHeader>
+          <Card className='mx-auto w-full border-red-200 sm:max-w-md'>
+            <CardHeader className='text-center'>
+              <CardTitle></CardTitle>
+              <CardDescription></CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form
+                id='create-organization-form'
+                onSubmit={form.handleSubmit(onSubmit)}
+              >
+                <FieldGroup>
+                  <FormInput control={form.control} name='name' label='Name' />
+                </FieldGroup>
+              </form>
+            </CardContent>
+            <CardFooter className=''>
+              <Field orientation='horizontal' className='justify-between'>
+                <Button
+                  type='submit'
+                  form='create-organization-form'
+                  className='w-full max-w-[150px] cursor-pointer dark:bg-blue-600 dark:text-white'
+                  disabled={isLoading}
+                >
+                  <LoadingSwap isLoading={isLoading}>Create</LoadingSwap>
+                </Button>
+                <Button
+                  className='border-red-500'
+                  type='button'
+                  form='create-organization-form'
+                  variant='outline'
+                  onClick={() => form.reset()}
+                >
+                  Reset
+                </Button>
+              </Field>
+            </CardFooter>
+          </Card>
         </DialogContent>
       </Dialog>
     </>

@@ -1,4 +1,4 @@
-import { z } from 'zod/v4'
+import { z, ZodString } from 'zod/v4'
 
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod'
 import { clients } from '@/db/schema'
@@ -12,7 +12,7 @@ export const insertClientSchema = createInsertSchema(clients, {
   organizationId: schema => schema.min(1, 'OrganizationId is required'),
   cost_centre_name: schema => schema.min(1, 'Cost center is required'),
   entity_type: schema => schema.min(1, 'Entity type is required'),
-  notes: schema => schema.optional(),
+  notes: (schema: ZodString) => schema.nullable().optional(),
   active: z.boolean()
 })
 

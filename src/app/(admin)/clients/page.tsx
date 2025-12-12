@@ -8,7 +8,7 @@ import { getActiveOrganizationClients } from '@/server-actions/clients'
 import { getActiveOrganizationCostCentres } from '@/server-actions/cost-centres'
 
 import { BackButton } from '@/components/shared/back-button'
-import { ReturnButton } from '@/components/shared/return-button'
+
 import { AddClientButton } from './_components/add-client-button'
 
 // import { EmptyState } from '@/components/shared/empty-state'
@@ -16,10 +16,15 @@ import { SkeletonArray } from '@/components/shared/skeleton'
 import { SkeletonCustomerCard } from '@/components/shared/skeleton-customer-card'
 
 import { OrganizationSchema } from '@/zod-schemas/organizations'
-import { entity_types } from '@/lib/constants'
+
+import { db } from '@/db'
+import { count } from 'drizzle-orm'
+import { clients } from '@/db/schema'
+import { EmptyState } from '@/components/shared/empty-state'
+import ClientTable from './_components/clients-table'
 
 export const metadata = {
-  title: 'Client Search'
+  title: 'clients'
 }
 
 export default async function ClientsPage() {
@@ -59,80 +64,69 @@ export default async function ClientsPage() {
     getActiveOrganizationClients(org.id)
   ])
 
-  // 5. Create a lookup map from id -> description
-  const entityTypeMap: Record<string, string> = Object.fromEntries(
-    entity_types.map(et => [et.id, et.description])
-  )
+  // 6. Create total for table pagination
+  type Result = { count: number }
+  const dbCount = await db.select({ count: count() }).from(clients)
 
-  // 6. If no clients, show EmptyState + Add button
+  const arr: Result[] = dbCount
+
+  const total: number = arr.reduce((sum, result) => sum + result.count, 0)
+
+  // 7. If no clients, show EmptyState + Add button
   if (!clientsData || clientsData.length === 0) {
     return (
-      <div className='container mx-auto max-w-5xl px-8 py-16'>
-        <div className='space-y-4'>
-          <ReturnButton href='/organization' label='Organizations' />
-
-          <h1 className='text-3xl font-bold'>Clients</h1>
-
-          <p className='text-lg'>
-            You have no clients yet for the active organization.
-          </p>
-
-          <div className='mt-8'>
-            <AddClientButton
-              organization={org}
-              orgCostCentres={orgCostCentres}
-            />
-          </div>
+      <>
+        <div className='mx-auto mt-24 flex max-w-6xl flex-col gap-2'>
+          <EmptyState
+            title='Clients'
+            description='You do not have any clients yet. Click on the button below to create your first client'
+          />
         </div>
-      </div>
+
+        <div className='- mt-12 flex w-full justify-center'>
+          <AddClientButton
+            organization={organization}
+            orgCostCentres={orgCostCentres}
+          />
+        </div>
+      </>
     )
   }
 
   // 6. Otherwise render the clients area (replace placeholder with your real table component)
   return (
-    <div className='container mx-auto max-w-6xl py-10'>
-      <div className='mb-6 flex items-center justify-between'>
-        <h1 className='text-2xl font-bold'>Clients</h1>
-        <AddClientButton organization={org} orgCostCentres={orgCostCentres} />
-      </div>
+    <>
+      <div className='container mx-auto max-w-6xl py-5'>
+        <Suspense
+          fallback={
+            <SkeletonArray amount={3}>
+              <SkeletonCustomerCard />
+            </SkeletonArray>
+          }
+        >
+          <ClientTable
+            data={clientsData}
+            total={total}
+            organization={org}
+            orgCostCentres={orgCostCentres}
+          />
+        </Suspense>
 
-      <Suspense
-        fallback={
-          <SkeletonArray amount={3}>
-            <SkeletonCustomerCard />
-          </SkeletonArray>
-        }
-      >
-        {/* TODO: replace this placeholder with your actual ClientTable / DataTable component */}
-        <div className='rounded-md border p-6'>
-          <p className='mb-4'>
-            Client Table Placeholder — replace with your real table component.
+        <div className='text-muted-foreground flex-col space-x-4 pl-8'>
+          <span className='text-red-600'>NB: </span>
+          <p>
+            Clients cannot be deleted, only edited. This is to ensure you always
+            have access to the data. If a client is no longer Active change the
+            status to Archived using the edit function under Actions and
+            unchecking the active checkbox.
           </p>
 
-          <table className='w-full table-fixed'>
-            <thead>
-              <tr className='text-left'>
-                <th className='pb-2'>Name</th>
-                <th className='pb-2'>Entity Type</th>
-                <th className='pb-2'>Cost Centre</th>
-                <th className='pb-2'>Active</th>
-              </tr>
-            </thead>
-            <tbody>
-              {clientsData.map(c => (
-                <tr key={c.id} className='border-t'>
-                  <td className='py-2'>{c.name}</td>
-                  <td className='py-2'>
-                    {entityTypeMap[c.entity_type] || c.entity_type}
-                  </td>
-                  <td className='py-2'>{c.cost_centre_name}</td>
-                  <td className='py-2'>{c.active ? 'Yes' : 'No'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <p className='pt-4'>
+            Any problems please contact:
+            <span className='pl-2 text-blue-600'>admin@wpaccpac.org</span>
+          </p>
         </div>
-      </Suspense>
-    </div>
+      </div>
+    </>
   )
 }

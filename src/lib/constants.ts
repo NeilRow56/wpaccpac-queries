@@ -19,3 +19,13 @@ export const entity_types = [
   { id: 'LCM', description: 'Limited company - medium' },
   { id: 'O', description: 'Other' }
 ] as const
+
+//Create a lookup map from id -> description
+export const entityTypeMap: Record<string, string> = Object.fromEntries(
+  entity_types.map(et => [et.id, et.description])
+)
+
+export const entityTypeList = entity_types.map(et => ({
+  id: et.id,
+  label: et.description
+}))

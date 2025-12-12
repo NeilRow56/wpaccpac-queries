@@ -1,3 +1,5 @@
+'use client'
+
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -13,88 +15,162 @@ import {
   ChevronsLeft,
   ChevronsRight
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-interface DataTablePaginationProps<TData> {
+interface PaginationProps<TData> {
   table: Table<TData>
+  pagination: { pageIndex: number; pageSize: number }
+  setPagination: (pagination: { pageIndex: number; pageSize: number }) => void
 }
 
-export function DataTablePagination<TData>({
-  table
-}: DataTablePaginationProps<TData>) {
+export function PaginationMobileFriendly<TData>({
+  table,
+  pagination,
+  setPagination
+}: PaginationProps<TData>) {
+  const { pageIndex, pageSize } = pagination
+  const pageCount = table.getPageCount()
+
+  // Clamp pageIndex if necessary
+  if (pageIndex > pageCount - 1 && pageCount > 0) {
+    setPagination({ ...pagination, pageIndex: pageCount - 1 })
+    table.setPageIndex(pageCount - 1)
+  }
+
+  const goToPage = (index: number) => {
+    setPagination({ ...pagination, pageIndex: index })
+    table.setPageIndex(index)
+  }
+
+  const changePageSize = (size: number) => {
+    setPagination({ pageIndex: 0, pageSize: size })
+    table.setPageSize(size)
+    table.setPageIndex(0)
+  }
+
+  // Full pages for large screens
+  const pages = generatePages(pageIndex, pageCount)
+
   return (
-    <div className='flex items-center justify-between px-2'>
-      {/* <div className='text-muted-foreground flex-1 text-sm'>
-        {table.getFilteredSelectedRowModel().rows.length} of{' '}
-        {table.getFilteredRowModel().rows.length} row(s) selected.
-      </div> */}
-      <div className='flex items-center space-x-6 lg:space-x-8'>
-        <div className='flex items-center space-x-2'>
-          <p className='text-sm font-medium'>Rows per page</p>
-          <Select
-            value={`${table.getState().pagination.pageSize}`}
-            onValueChange={value => {
-              table.setPageSize(Number(value))
-            }}
-          >
-            <SelectTrigger className='h-8 w-[70px]'>
-              <SelectValue placeholder={table.getState().pagination.pageSize} />
-            </SelectTrigger>
-            <SelectContent side='top'>
-              {[5, 10, 20, 25, 30, 40, 50].map(pageSize => (
-                <SelectItem key={pageSize} value={`${pageSize}`}>
-                  {pageSize}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className='flex flex-col items-center justify-between gap-2 px-4 py-3 lg:flex-row lg:gap-4'>
+      {/* Rows per page selector */}
+      <div className='flex items-center gap-2'>
+        <span className='text-sm'>Rows per page:</span>
+        <Select
+          value={String(pageSize)}
+          onValueChange={v => changePageSize(Number(v))}
+        >
+          <SelectTrigger className='h-8 w-[70px]'>
+            <SelectValue placeholder={pageSize} />
+          </SelectTrigger>
+          <SelectContent>
+            {[5, 10, 20, 30, 40, 50].map(size => (
+              <SelectItem key={size} value={String(size)}>
+                {size}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Page info */}
+      <div className='text-sm'>
+        Page {pageIndex + 1} of {pageCount || 1}
+      </div>
+
+      {/* Pagination buttons */}
+      <div className='flex flex-wrap items-center gap-1'>
+        {/* First page */}
+        <Button
+          variant='outline'
+          size='icon'
+          disabled={pageIndex === 0}
+          onClick={() => goToPage(0)}
+        >
+          <ChevronsLeft />
+        </Button>
+
+        {/* Previous */}
+        <Button
+          variant='outline'
+          size='icon'
+          disabled={pageIndex === 0}
+          onClick={() => goToPage(pageIndex - 1)}
+        >
+          <ChevronLeft />
+        </Button>
+
+        {/* Numeric buttons: show full on lg screens, compact on mobile */}
+        <div className='hidden gap-1 lg:flex'>
+          {pages.map((p, i) =>
+            p === '…' ? (
+              <span key={i} className='px-2 text-sm'>
+                …
+              </span>
+            ) : (
+              <Button
+                key={p}
+                variant='outline'
+                className={cn(
+                  'h-8 w-8 px-0',
+                  p === pageIndex + 1 && 'bg-primary text-primary-foreground'
+                )}
+                onClick={() => goToPage(p - 1)}
+              >
+                {p}
+              </Button>
+            )
+          )}
         </div>
-        <div className='flex w-[100px] items-center justify-center text-sm font-medium'>
-          Page {table.getState().pagination.pageIndex + 1} of{' '}
-          {table.getPageCount()}
+
+        {/* Mobile: show only current page number */}
+        <div className='flex px-2 text-sm font-medium lg:hidden'>
+          {pageIndex + 1}
         </div>
-        <div className='flex items-center space-x-2'>
-          <Button
-            variant='outline'
-            size='icon'
-            className='hidden size-8 lg:flex'
-            onClick={() => table.setPageIndex(0)}
-            disabled={!table.getCanPreviousPage()}
-          >
-            <span className='sr-only'>Go to first page</span>
-            <ChevronsLeft />
-          </Button>
-          <Button
-            variant='outline'
-            size='icon'
-            className='size-8'
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            <span className='sr-only'>Go to previous page</span>
-            <ChevronLeft />
-          </Button>
-          <Button
-            variant='outline'
-            size='icon'
-            className='size-8'
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            <span className='sr-only'>Go to next page</span>
-            <ChevronRight />
-          </Button>
-          <Button
-            variant='outline'
-            size='icon'
-            className='hidden size-8 lg:flex'
-            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-            disabled={!table.getCanNextPage()}
-          >
-            <span className='sr-only'>Go to last page</span>
-            <ChevronsRight />
-          </Button>
-        </div>
+
+        {/* Next */}
+        <Button
+          variant='outline'
+          size='icon'
+          disabled={pageIndex === pageCount - 1 || pageCount === 0}
+          onClick={() => goToPage(pageIndex + 1)}
+        >
+          <ChevronRight />
+        </Button>
+
+        {/* Last page */}
+        <Button
+          variant='outline'
+          size='icon'
+          disabled={pageIndex === pageCount - 1 || pageCount === 0}
+          onClick={() => goToPage(pageCount - 1)}
+        >
+          <ChevronsRight />
+        </Button>
       </div>
     </div>
   )
+}
+
+/* Generate numeric page buttons with ellipsis */
+function generatePages(pageIndex: number, total: number): (number | '…')[] {
+  const current = pageIndex + 1
+  const pages: (number | '…')[] = []
+
+  if (total <= 7) {
+    return [...Array(total)].map((_, i) => i + 1)
+  }
+
+  pages.push(1)
+  if (current > 4) pages.push('…')
+
+  const start = Math.max(2, current - 1)
+  const end = Math.min(total - 1, current + 1)
+
+  for (let i = start; i <= end; i++) pages.push(i)
+
+  if (current < total - 3) pages.push('…')
+  pages.push(total)
+
+  return pages
 }

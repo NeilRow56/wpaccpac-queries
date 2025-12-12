@@ -12,7 +12,7 @@ import ConfirmationDialog from '@/components/shared/confirmation-dialog'
 import { columns, Organization } from './columns'
 import { AddOrganizationButton } from './add-organization-button'
 import { deleteOrganization } from '@/server-actions/organizations'
-import { DataTable } from './data-table'
+import { DataTable } from '@/components/table-components/data-table'
 
 type Props = {
   organizations: {
@@ -76,13 +76,15 @@ export default function OrganizationsTable({ organizations, total }: Props) {
   return (
     <div className='container mx-auto my-12 max-w-6xl'>
       <div className='mb-16 flex w-full items-center justify-between border-b border-blue-500 pb-4'>
-        <span className='text-3xl font-bold'>Organizations </span>
+        <span className='text-primary font-bold'>Organizations List </span>
       </div>
       <DataTable
         data={organizations}
         columns={columns}
         onRowDelete={handleRowDelete}
         onRowEdit={handleRowEdit}
+        // columnFilters={columnFilters}
+        // setColumnFilters={setColumnFilters}
       />
 
       <ConfirmationDialog
