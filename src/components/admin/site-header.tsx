@@ -33,9 +33,13 @@ export async function SiteHeader() {
         </div>
 
         <div className='hidden lg:flex'>
-          <h3 className='ml-24 text-2xl font-bold'>
+          <h3
+            className={`ml-24 text-2xl font-bold ${
+              organization ? 'text-primary' : 'text-red-600'
+            }`}
+          >
             {organization
-              ? `Active organization: ${organization?.name} `
+              ? `Active organization: ${organization?.name}`
               : 'Administrator needs to create organization'}
           </h3>
         </div>

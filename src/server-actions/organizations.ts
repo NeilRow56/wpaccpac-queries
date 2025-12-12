@@ -10,14 +10,12 @@ import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
 export async function getOrganizationsByUserId() {
-  const { currentUser } = await getCurrentUser()
+  const currentUser = await getCurrentUser()
 
-  const userId = currentUser.id
-
-  console.log(userId)
+  const userId = currentUser.user.id
 
   const members = await db.query.member.findMany({
-    where: eq(member.userId, currentUser.id)
+    where: eq(member.userId, userId)
   })
 
   const organizations = await db.query.organization.findMany({

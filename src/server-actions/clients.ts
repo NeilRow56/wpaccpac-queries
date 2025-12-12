@@ -15,36 +15,66 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 /**
- * Get all active clients for an organization
+ * Get all active clients for an organization with cost centre name
  */
-export async function getActiveOrganizationClients(organizationId: string) {
-  const clientsByOrganizationId = await db
+// export async function getActiveOrganizationClients(organizationId: string) {
+//   const clientsByOrganizationId = await db
+//     .select({
+//       id: clients.id,
+//       name: clients.name,
+//       organizationId: clients.organizationId,
+//       entity_type: clients.entity_type,
+//       costCentreId: clients.costCentreId,
+//       costCentreName: costCentres.name, // join column
+//       notes: clients.notes,
+//       active: clients.active
+//     })
+//     .from(clients)
+//     .leftJoin(costCentres, eq(costCentres.id, clients.costCentreId))
+//     .where(eq(clients.organizationId, organizationId))
+//     .orderBy(asc(clients.name))
+
+//   return clientsByOrganizationId
+// }
+
+export type ClientServer = {
+  id: string
+  name: string
+  entity_type: string
+  costCentreId: string | null
+  costCentreName: string | null // directly included from cost_centres
+  organizationId: string
+  notes: string | null
+  active: boolean
+}
+export async function getActiveOrganizationClients(
+  organizationId: string
+): Promise<ClientServer[]> {
+  const clientsWithCostCentre = await db
     .select({
       id: clients.id,
       name: clients.name,
-      organizationId: clients.organizationId,
       entity_type: clients.entity_type,
-      cost_centre_name: clients.cost_centre_name,
+      costCentreId: clients.costCentreId,
+      costCentreName: costCentres.name, // join to get name
+      organizationId: clients.organizationId,
       notes: clients.notes,
       active: clients.active
     })
     .from(clients)
+    .leftJoin(costCentres, eq(clients.costCentreId, costCentres.id))
     .where(eq(clients.organizationId, organizationId))
     .orderBy(asc(clients.name))
 
-  return clientsByOrganizationId
+  return clientsWithCostCentre
 }
-
 /**
  * Delete a client
  */
 export async function deleteClient(id: string) {
   try {
     await db.delete(clients).where(eq(clients.id, id))
-
-    // 👇 This line forces the table to refresh automatically
     revalidatePath('/clients')
-
     return { success: true, message: 'Client deleted successfully' }
   } catch (err) {
     console.error('Delete error:', err)
@@ -53,9 +83,8 @@ export async function deleteClient(id: string) {
 }
 
 /**
- * Save client action (create or update)
+ * Create or update a client
  */
-
 export const saveClientAction = actionClient
   .metadata({ actionName: 'saveClientAction' })
   .inputSchema(insertClientSchema, {
@@ -69,16 +98,19 @@ export const saveClientAction = actionClient
       parsedInput: insertClientSchemaType
     }) => {
       console.log('--- saveClientAction called ---')
-      console.log('Client data:', client)
+      console.log('Incoming client:', client)
 
-      // Trim all inputs
       const trimmedClient = {
         ...client,
         name: client.name.trim(),
-        cost_centre_name: client.cost_centre_name.trim(),
         entity_type: client.entity_type.trim(),
-        notes: client.notes?.trim() ?? ''
+        costCentreId: client.costCentreId,
+        notes:
+          typeof client.notes === 'string' && client.notes.trim() !== ''
+            ? client.notes.trim()
+            : null
       }
+
       console.log('Trimmed client:', trimmedClient)
 
       const session = await auth.api.getSession({ headers: await headers() })
@@ -88,71 +120,60 @@ export const saveClientAction = actionClient
       }
 
       const isEditing = !!trimmedClient.id
-      console.log('Editing?', isEditing)
+      console.log('Is editing?', isEditing)
 
-      // Fetch all cost centres for this organization
-      const allCostCentres = await db
-        .select({ id: costCentres.id, name: costCentres.name })
-        .from(costCentres)
-        .where(eq(costCentres.organizationId, trimmedClient.organizationId))
+      // Validate cost centre belongs to organization
+      const validCostCentre = await db.query.costCentres.findFirst({
+        where: (cc, { eq, and }) =>
+          and(
+            eq(cc.id, trimmedClient.costCentreId),
+            eq(cc.organizationId, trimmedClient.organizationId)
+          )
+      })
 
-      console.log('All DB Cost Centres:', allCostCentres)
-
-      // Find matching cost centre (trimmed & case-insensitive)
-      const matchedCostCentre = allCostCentres.find(
-        cc =>
-          cc.name.trim().toLowerCase() ===
-          trimmedClient.cost_centre_name.toLowerCase()
-      )
-
-      if (!matchedCostCentre) {
-        throw new Error(
-          `Cost centre "${trimmedClient.cost_centre_name}" does not exist for organization ${trimmedClient.organizationId}`
-        )
+      if (!validCostCentre) {
+        throw new Error('Invalid cost centre selected for this organization.')
       }
 
+      // Normalized payload for Drizzle
+      const normalized = {
+        name: trimmedClient.name,
+        organizationId: trimmedClient.organizationId,
+        costCentreId: trimmedClient.costCentreId,
+        entity_type: trimmedClient.entity_type,
+        notes: trimmedClient.notes,
+        active: trimmedClient.active ?? true
+      } as const
+
+      // ---- CREATE ----
       if (!isEditing) {
-        // CREATE
         const [inserted] = await db
           .insert(clients)
-          .values({
-            name: trimmedClient.name,
-            organizationId: trimmedClient.organizationId,
-            cost_centre_name: matchedCostCentre.name,
-            entity_type: trimmedClient.entity_type,
-            notes: trimmedClient.notes,
-            active: trimmedClient.active
-          })
+          .values(normalized)
           .returning({ insertedId: clients.id })
 
-        console.log('✅ Inserted client:', inserted)
+        console.log('Created client:', inserted)
+        revalidatePath('/clients')
+
         return {
           message: `Client #${inserted.insertedId} created successfully`,
           clientId: inserted.insertedId
         }
-      } else {
-        // UPDATE
-        if (!trimmedClient.id)
-          throw new Error('Client ID is required for update')
+      }
 
-        const [updated] = await db
-          .update(clients)
-          .set({
-            name: trimmedClient.name,
-            organizationId: trimmedClient.organizationId,
-            cost_centre_name: matchedCostCentre.name,
-            entity_type: trimmedClient.entity_type,
-            notes: trimmedClient.notes,
-            active: trimmedClient.active
-          })
-          .where(eq(clients.id, trimmedClient.id))
-          .returning({ updatedId: clients.id })
+      // ---- UPDATE ----
+      const [updated] = await db
+        .update(clients)
+        .set(normalized)
+        .where(eq(clients.id, trimmedClient.id!))
+        .returning({ updatedId: clients.id })
 
-        console.log('✅ Updated client:', updated)
-        return {
-          message: `Client #${updated.updatedId} updated successfully`,
-          clientId: updated.updatedId
-        }
+      console.log('Updated client:', updated)
+      revalidatePath('/clients')
+
+      return {
+        message: `Client #${updated.updatedId} updated successfully`,
+        clientId: updated.updatedId
       }
     }
   )

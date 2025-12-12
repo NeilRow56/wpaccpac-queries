@@ -1,8 +1,4 @@
-import { auth } from '@/lib/auth'
 import { getOrganizationsByUserId } from '@/server-actions/organizations'
-import { headers } from 'next/headers'
-// import { db } from '@/db'
-// import { count } from 'drizzle-orm'
 
 import { EmptyState } from '@/components/shared/empty-state'
 import { AddOrganizationButton } from './_components/add-organization-button'
@@ -20,18 +16,23 @@ import { db } from '@/db'
 import { count } from 'drizzle-orm'
 import { organization } from '@/db/schema'
 import OrganizationsTable from './_components/organizations-table'
+import { requireSession } from '@/lib/requireSession'
+import { extractUserId } from '@/lib/extract-user-Id'
+import { ReturnButton } from '@/components/shared/return-button'
 // import OrganizationsTable from './_components/organizations-table'
 
 export default async function OrganizationPage() {
-  const organizations = await getOrganizationsByUserId()
-  const session = await auth.api.getSession({
-    headers: await headers()
+  const session = await requireSession({
+    allowPaths: ['/'],
+    redirectTo: '/'
   })
-  if (session == null) return redirect('/auth')
+
+  const userId = extractUserId(session)
+  if (!userId) redirect('/')
 
   const role = session?.user.role
 
-  if (role !== 'admin') return redirect('/auth')
+  const organizations = await getOrganizationsByUserId()
 
   type Result = { count: number }
   const dbCount = await db.select({ count: count() }).from(organization)
@@ -39,6 +40,24 @@ export default async function OrganizationPage() {
   const arr: Result[] = dbCount
 
   const total: number = arr.reduce((sum, result) => sum + result.count, 0)
+
+  if (role !== 'admin') {
+    return (
+      <div className='container mx-auto max-w-5xl space-y-8 px-8 py-16'>
+        <div className='space-y-4'>
+          <ReturnButton href='/dashboard' label='Dashboard' />
+
+          <h1 className='text-3xl font-bold'>
+            Only admin. users are able to create an organization.
+          </h1>
+
+          <p className='rounded-md bg-red-600 p-2 text-lg font-bold text-white'>
+            FORBIDDEN
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   if (organizations.length === 0) {
     return (
@@ -72,7 +91,7 @@ export default async function OrganizationPage() {
         </div>
         <div className='mb-8 flex items-center gap-2'>
           <OrganizationSelect />
-          {session.user.role !== 'user' && <AddOrganizationButton />}
+          {session?.user.role !== 'user' && <AddOrganizationButton />}
         </div>
         <Suspense
           fallback={

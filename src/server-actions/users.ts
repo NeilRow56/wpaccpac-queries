@@ -4,10 +4,24 @@ import { db } from '@/db'
 import { member, user } from '@/db/schema'
 
 import { auth } from '@/lib/auth'
+import { extractUserId } from '@/lib/extract-user-Id'
+import { requireSession } from '@/lib/requireSession'
+
 import { asc, eq, inArray, not } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
+
+// HELPER
+type SessionWithRole = {
+  user?: {
+    role?: string
+    id?: string
+  }
+}
+
+/* -----------------------------------------------------
+   SIGN UP
+----------------------------------------------------- */
 
 export const signUp = async (email: string, password: string, name: string) => {
   try {
@@ -20,19 +34,18 @@ export const signUp = async (email: string, password: string, name: string) => {
       }
     })
 
-    return {
-      success: true,
-      message: 'Signed up successfully.'
-    }
+    return { success: true, message: 'Signed up successfully.' }
   } catch (error) {
-    const e = error as Error
-
     return {
       success: false,
-      message: e.message || 'An unknown error occurred.'
+      message: (error as Error).message ?? 'Unknown error'
     }
   }
 }
+
+/* -----------------------------------------------------
+   SIGN IN
+----------------------------------------------------- */
 
 export const signIn = async (email: string, password: string) => {
   try {
@@ -44,88 +57,107 @@ export const signIn = async (email: string, password: string) => {
       }
     })
 
-    return {
-      success: true,
-      message: 'Signed in successfully.'
-    }
+    return { success: true, message: 'Signed in successfully.' }
   } catch (error) {
-    const e = error as Error
-
     return {
       success: false,
-      message: e.message || 'An unknown error occurred.'
+      message: (error as Error).message ?? 'Unknown error'
     }
   }
 }
 
-export const getCurrentUser = async () => {
-  const session = await auth.api.getSession({
-    headers: await headers()
+/* -----------------------------------------------------
+   GET CURRENT USER (session + DB user)
+----------------------------------------------------- */
+
+export async function getCurrentUser() {
+  const session = await requireSession({
+    allowPaths: ['/'],
+    redirectTo: '/'
   })
 
-  if (!session) {
-    redirect('/auth')
+  const userId = extractUserId(session)
+  if (!userId) {
+    console.log('[getCurrentUser] Session exists but no userId')
+    redirect('/')
   }
 
   const currentUser = await db.query.user.findFirst({
-    where: eq(user.id, session.user.id)
+    where: eq(user.id, userId)
   })
 
   if (!currentUser) {
-    redirect('/auth')
+    console.log('[getCurrentUser] No DB user found for session uid')
+    redirect('/')
   }
 
   return {
-    ...session,
-    currentUser
+    session,
+    user: currentUser
   }
 }
 
-export const getCurrentUserId = async () => {
-  const session = await auth.api.getSession({
-    headers: await headers()
+/* -----------------------------------------------------
+   GET CURRENT USER ID ONLY
+----------------------------------------------------- */
+
+export async function getCurrentUserId() {
+  const session = await requireSession({
+    allowPaths: ['/'],
+    redirectTo: '/'
   })
 
-  if (!session) {
-    redirect('/auth')
-  }
-
-  const userId = session.session.userId
+  const userId = extractUserId(session)
+  if (!userId) redirect('/')
 
   return {
-    ...session,
+    session,
     userId
   }
 }
 
-export async function getUserDetails(id: string) {
-  const userDetails = await db.select().from(user).where(eq(user.id, id))
+/* -----------------------------------------------------
+   GET USER DETAILS BY ID
+----------------------------------------------------- */
 
-  return userDetails[0]
+export async function getUserDetails(id: string) {
+  const rows = await db.select().from(user).where(eq(user.id, id))
+
+  return rows[0] ?? null
 }
+
+/* -----------------------------------------------------
+   FIND ALL USERS (admin)
+----------------------------------------------------- */
 
 export async function findAllUsers() {
-  const session = await auth.api.getSession({
-    headers: await headers()
+  // Require session so this call is protected
+  await requireSession({
+    allowPaths: ['/'],
+    redirectTo: '/'
   })
 
-  if (!session) redirect('/auth/sign-in')
-
-  const allUsers = await db.select().from(user).orderBy(asc(user.name))
-
-  return allUsers
+  return db.select().from(user).orderBy(asc(user.name))
 }
 
-export async function deleteUser(id: string) {
-  const headersList = await headers()
+/* -----------------------------------------------------
+   DELETE USER
+----------------------------------------------------- */
 
-  const session = await auth.api.getSession({
-    headers: headersList
+export async function deleteUser(id: string) {
+  const session = await requireSession({
+    allowPaths: ['/'],
+    redirectTo: '/'
   })
 
-  if (!session) throw new Error('Unauthorized')
+  const uid = extractUserId(session)
+  if (!uid) throw new Error('Unauthorized')
 
-  if (session.user.role !== 'admin' || session.user.id === id) {
+  // Safe type-narrowing: BetterAuth may attach a role property
+  const { user: sessUser } = session as unknown as SessionWithRole
+  const role = sessUser?.role
+
+  if (role !== 'admin' || uid === id) {
     throw new Error('Forbidden operation')
   }
 
@@ -142,22 +174,23 @@ export async function deleteUser(id: string) {
   revalidatePath('/protected')
 }
 
-export const getUsers = async (organizationId: string) => {
+/* -----------------------------------------------------
+   GET USERS NOT IN ORG
+----------------------------------------------------- */
+
+export async function getUsers(organizationId: string) {
+  await requireSession({ allowPaths: ['/'], redirectTo: '/' })
+
   try {
-    const members = await db.query.member.findMany({
+    const membersList = await db.query.member.findMany({
       where: eq(member.organizationId, organizationId)
     })
 
-    const users = await db.query.user.findMany({
-      where: not(
-        inArray(
-          user.id,
-          members.map(m => m.userId)
-        )
-      )
-    })
+    const excludedIds = membersList.map(m => m.userId)
 
-    return users
+    return db.query.user.findMany({
+      where: not(inArray(user.id, excludedIds))
+    })
   } catch (error) {
     console.error(error)
     return []

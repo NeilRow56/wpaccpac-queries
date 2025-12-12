@@ -23,11 +23,11 @@ export default function HeroSection() {
           <div>
             {/* Top Box */}
             <div className='flex w-fit items-center space-x-3 rounded-full bg-white px-2 py-1.5 shadow-md md:px-5 dark:bg-zinc-950'>
-              <div className='rounded-full bg-blue-700 px-3 py-1 text-white sm:text-xs md:px-5 md:text-base'>
-                News
+              <div className='rounded-full bg-green-500 px-3 py-1 text-white sm:text-xs md:px-5 md:text-base'>
+                <Link href='/gettingStarted'>How files are setup</Link>
               </div>
               <p className='text-xs text-red-500 sm:text-sm'>
-                We have updated our terms and conditions policy
+                {/* We have updated our terms and conditions policy */}
               </p>
             </div>
             {/* Heading */}

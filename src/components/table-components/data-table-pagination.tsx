@@ -52,7 +52,7 @@ export function PaginationMobileFriendly<TData>({
   const pages = generatePages(pageIndex, pageCount)
 
   return (
-    <div className='flex flex-col items-center justify-between gap-2 px-4 py-3 lg:flex-row lg:gap-4'>
+    <div className='flex flex-col items-center justify-between gap-2 px-4 py-3 2xl:flex-row 2xl:gap-4'>
       {/* Rows per page selector */}
       <div className='flex items-center gap-2'>
         <span className='text-sm'>Rows per page:</span>
@@ -101,7 +101,7 @@ export function PaginationMobileFriendly<TData>({
         </Button>
 
         {/* Numeric buttons: show full on lg screens, compact on mobile */}
-        <div className='hidden gap-1 lg:flex'>
+        <div className='hidden gap-1 2xl:flex'>
           {pages.map((p, i) =>
             p === '…' ? (
               <span key={i} className='px-2 text-sm'>
@@ -124,7 +124,7 @@ export function PaginationMobileFriendly<TData>({
         </div>
 
         {/* Mobile: show only current page number */}
-        <div className='flex px-2 text-sm font-medium lg:hidden'>
+        <div className='flex px-2 text-sm font-medium 2xl:hidden'>
           {pageIndex + 1}
         </div>
 
