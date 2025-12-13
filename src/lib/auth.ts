@@ -1,10 +1,210 @@
+// import VerifyChangeEmail from '@/components/emails/change-email'
+// import ForgotPasswordEmail from '@/components/emails/reset-password'
+// import VerifyEmail from '@/components/emails/verify-email'
+// import sendOrganizationInviteEmail from '@/components/emails/organization-invite-email'
+
+// import { db } from '@/db'
+// import { member, user } from '@/db/schema'
+// import { eq } from 'drizzle-orm'
+
+// import { betterAuth } from 'better-auth'
+// import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+// import { organization } from 'better-auth/plugins'
+// import { admin as adminPlugin } from 'better-auth/plugins/admin'
+// import { nextCookies } from 'better-auth/next-js'
+
+// import { ac, roles } from '@/lib/permissions'
+// import { Resend } from 'resend'
+// import { assignFirstAdmin } from './auth-logic/assign-first-admin'
+// import { UserExecutor } from './use-executor-type'
+
+// const resend = new Resend(process.env.RESEND_API_KEY!)
+
+// /** ----------------- Allowed Origins ----------------- */
+// const ALLOWED_ORIGINS = [
+//   process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, ''),
+//   process.env.BETTER_AUTH_URL?.replace(/\/$/, ''),
+//   'http://localhost:3000',
+//   'http://127.0.0.1:3000'
+// ].filter(Boolean) as string[]
+
+// const normalizeOrigin = (origin: string) => origin.replace(/\/$/, '').toLowerCase()
+
+// const allowedOriginsFn = (origin: string | null | undefined, req: Request) => {
+//   const detected = req.headers.get('origin') ?? req.headers.get('referer') ?? origin
+//   if (!detected || detected === 'null') return true
+//   const normalized = normalizeOrigin(detected)
+//   if (ALLOWED_ORIGINS.some(o => normalizeOrigin(o) === normalized)) return true
+//   if (normalized.includes('.vercel.app')) return true
+//   console.warn('[better-auth] Blocked origin:', normalized)
+//   return false
+// }
+
+// /** ----------------- Better Auth ----------------- */
+// export const auth = betterAuth({
+//   emailVerification: {
+//     sendVerificationEmail: async ({ user, url }) => {
+//       await resend.emails.send({
+//         from: `${process.env.EMAIL_SENDER_NAME} <${process.env.EMAIL_SENDER_ADDRESS}>`,
+//         to: user.email,
+//         subject: 'Verify your email',
+//         react: VerifyEmail({ username: user.name, verifyUrl: url })
+//       })
+//     },
+//     sendOnSignUp: true,
+//     autoSignInAfterVerification: true
+//   },
+
+//   emailAndPassword: {
+//     enabled: true,
+//     sendResetPassword: async ({ user, url }) => {
+//       await resend.emails.send({
+//         from: `${process.env.EMAIL_SENDER_NAME} <${process.env.EMAIL_SENDER_ADDRESS}>`,
+//         to: user.email,
+//         subject: 'Reset your password',
+//         react: ForgotPasswordEmail({
+//           username: user.name,
+//           resetUrl: url,
+//           userEmail: user.email
+//         })
+//       })
+//     },
+//     requireEmailVerification: true
+//   },
+
+//   user: {
+//     deleteUser: { enabled: true },
+//     changeEmail: {
+//       enabled: true,
+//       async sendChangeEmailVerification({ user, newEmail, url }) {
+//         await resend.emails.send({
+//           from: `${process.env.EMAIL_SENDER_NAME} <${process.env.EMAIL_SENDER_ADDRESS}>`,
+//           to: user.email,
+//           subject: 'Change your email',
+//           react: VerifyChangeEmail({ newEmail, verifyUrl: url })
+//         })
+//       }
+//     }
+//   },
+
+//   session: {
+//     expiresIn: 60 * 24 * 60 * 60, // 60 days
+//     refresh: { enabled: true, interval: 5 * 60 },
+//     cookieCache: { enabled: true, maxAge: 5 * 60 } // ✅ removed sameSite/secure
+//   },
+
+//   database: drizzleAdapter(db, { provider: 'pg' }),
+//   trustHost: true,
+//   allowedOrigins: allowedOriginsFn,
+//   secret: process.env.BETTER_AUTH_SECRET!,
+//   url: process.env.BETTER_AUTH_URL,
+//   trustedOrigins: [
+//     'http://localhost:3000',
+//     process.env.NEXT_PUBLIC_APP_URL!,
+//     process.env.BETTER_AUTH_URL!,
+//     '*.vercel.app'
+//   ],
+
+//   plugins: [
+//     organization({
+//       sendInvitationEmail: async (data: {
+//         id: string
+//         email: string
+//         inviter: { user: { id: string; name: string | null; email: string } }
+//         organization: { id: string; name: string }
+//         role?: string
+//       }) => {
+//         const inviteLink = `${process.env.BETTER_AUTH_URL}/organization/invites/${data.id}`
+//         await resend.emails.send({
+//           from: `${process.env.EMAIL_SENDER_NAME} <${process.env.EMAIL_SENDER_ADDRESS}>`,
+//           to: data.email,
+//           subject: "You've been invited",
+//           react: sendOrganizationInviteEmail({
+//             email: data.email,
+//             invitedByUsername: data.inviter.user.name,
+//             invitedByEmail: data.inviter.user.email,
+//             teamName: data.organization.name,
+//             inviteLink
+//           })
+//         })
+//       }
+//     }),
+//     nextCookies(),
+//     adminPlugin({
+//       defaultRole: 'user',
+//       adminRoles: ['superuser', 'admin', 'owner'],
+//       ac,
+//       roles
+//     })
+//   ],
+
+//   databaseHooks: {
+//     user: {
+//       create: {
+//         after: async (createdUser) => {
+//           // Fetch full user record
+//           const fullUser = await db.query.user.findFirst({
+//             where: eq(user.id, createdUser.id)
+//           })
+//           if (!fullUser) return
+
+//           await db.transaction(async (tx: UserExecutor) => {
+//             // Assign first admin if needed
+//             await assignFirstAdmin(tx, fullUser.id)
+
+//             // Ensure role & isSuperUser defaults
+//             await tx.query.user.update({
+//               set: {
+//                 role: fullUser.role as 'user' | 'admin' | 'owner' | 'superuser',
+//                 isSuperUser: fullUser.isSuperUser ?? false
+//               },
+//               where: eq(user.id, fullUser.id)
+//             })
+//           })
+//         }
+//       }
+//     },
+
+//     session: {
+//       create: {
+//         before: async (sessionRow) => {
+//           if (sessionRow.activeOrganizationId) return { data: sessionRow }
+
+//           const memberships = await db.query.member.findMany({
+//             where: eq(member.userId, sessionRow.userId),
+//             columns: { organizationId: true }
+//           })
+
+//           if (memberships.length === 1) {
+//             return { data: { ...sessionRow, activeOrganizationId: memberships[0].organizationId } }
+//           }
+
+//           const dbUser = await db.query.user.findFirst({
+//             where: eq(user.id, sessionRow.userId),
+//             columns: { lastActiveOrganizationId: true }
+//           })
+
+//           if (dbUser?.lastActiveOrganizationId) {
+//             return { data: { ...sessionRow, activeOrganizationId: dbUser.lastActiveOrganizationId } }
+//           }
+
+//           return { data: sessionRow }
+//         }
+//       }
+//     }
+//   }
+// })
+
+// export type ErrorCode = keyof typeof auth.$ERROR_CODES | 'UNKNOWN'
+// export type Session = typeof auth.$Infer.Session
+
 import VerifyChangeEmail from '@/components/emails/change-email'
 import ForgotPasswordEmail from '@/components/emails/reset-password'
 import VerifyEmail from '@/components/emails/verify-email'
 import sendOrganizationInviteEmail from '@/components/emails/organization-invite-email'
 
 import { db } from '@/db'
-import { member, user } from '@/db/schema'
+import { user, member } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 
 import { betterAuth } from 'better-auth'
@@ -15,50 +215,10 @@ import { nextCookies } from 'better-auth/next-js'
 
 import { ac, roles } from '@/lib/permissions'
 import { Resend } from 'resend'
+import { assignFirstAdmin } from './auth-logic/assign-first-admin'
+import { UserExecutor } from './use-executor-type'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
-
-type OrgInviteData = {
-  id: string
-  email: string
-
-  inviter: {
-    user: {
-      id: string
-      name: string | null
-      email: string
-    }
-  }
-  organization: {
-    id: string
-    name: string
-  }
-}
-
-/** ----------------- Helpers ----------------- */
-function normalizeOrigin(origin: string) {
-  try {
-    return new URL(origin).origin.replace(/\/$/, '').toLowerCase()
-  } catch {
-    return origin.replace(/\/$/, '').toLowerCase()
-  }
-}
-
-function getRequestOrigin(req: Request): string | null {
-  const origin = req.headers.get('origin')
-  const referer = req.headers.get('referer')
-  if (origin && origin !== 'null') return origin.replace(/\/$/, '')
-  if (referer) {
-    try {
-      const url = new URL(referer)
-      return url.origin.replace(/\/$/, '')
-    } catch {
-      return null
-    }
-  }
-  const host = req.headers.get('host')
-  return host ? `https://${host}` : null
-}
 
 /** ----------------- Allowed Origins ----------------- */
 const ALLOWED_ORIGINS = [
@@ -68,23 +228,21 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:3000'
 ].filter(Boolean) as string[]
 
+const normalizeOrigin = (origin: string) =>
+  origin.replace(/\/$/, '').toLowerCase()
+
 const allowedOriginsFn = (origin: string | null | undefined, req: Request) => {
-  const detected = getRequestOrigin(req) || origin
+  const detected =
+    req.headers.get('origin') ?? req.headers.get('referer') ?? origin
   if (!detected || detected === 'null') return true
-
   const normalized = normalizeOrigin(detected)
-
-  // allow exact matches
   if (ALLOWED_ORIGINS.some(o => normalizeOrigin(o) === normalized)) return true
-
-  // allow all vercel preview domains
   if (normalized.includes('.vercel.app')) return true
-
   console.warn('[better-auth] Blocked origin:', normalized)
   return false
 }
 
-/** ----------------- Better-Auth ----------------- */
+/** ----------------- Better Auth ----------------- */
 export const auth = betterAuth({
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
@@ -118,21 +276,13 @@ export const auth = betterAuth({
 
   user: {
     deleteUser: { enabled: true },
-
-    additionalFields: {
-      role: { type: ['user', 'admin', 'owner'], input: false },
-      isSuperUser: {
-        type: 'boolean' as const,
-        default: false as boolean
-      }
-    },
     changeEmail: {
       enabled: true,
       async sendChangeEmailVerification({ user, newEmail, url }) {
         await resend.emails.send({
           from: `${process.env.EMAIL_SENDER_NAME} <${process.env.EMAIL_SENDER_ADDRESS}>`,
           to: user.email,
-          subject: 'Reset your email',
+          subject: 'Change your email',
           react: VerifyChangeEmail({ newEmail, verifyUrl: url })
         })
       }
@@ -141,16 +291,8 @@ export const auth = betterAuth({
 
   session: {
     expiresIn: 60 * 24 * 60 * 60, // 60 days
-    refresh: {
-      enabled: true,
-      interval: 5 * 60 // 5 minutes
-    },
-    cookieCache: {
-      enabled: true,
-      maxAge: 5 * 60,
-      sameSite: 'none', // cross-origin previews
-      secure: true
-    }
+    refresh: { enabled: true, interval: 5 * 60 },
+    cookieCache: { enabled: true, maxAge: 5 * 60 } // Removed sameSite to satisfy TS
   },
 
   database: drizzleAdapter(db, { provider: 'pg' }),
@@ -160,7 +302,6 @@ export const auth = betterAuth({
   url: process.env.BETTER_AUTH_URL,
   trustedOrigins: [
     'http://localhost:3000',
-    'http://127.0.0.1:3000',
     process.env.NEXT_PUBLIC_APP_URL!,
     process.env.BETTER_AUTH_URL!,
     '*.vercel.app'
@@ -168,13 +309,18 @@ export const auth = betterAuth({
 
   plugins: [
     organization({
-      sendInvitationEmail: async (data: OrgInviteData) => {
+      sendInvitationEmail: async (data: {
+        id: string
+        email: string
+        inviter: { user: { id: string; name: string | null; email: string } }
+        organization: { id: string; name: string }
+        role?: string
+      }) => {
         const inviteLink = `${process.env.BETTER_AUTH_URL}/organization/invites/${data.id}`
-
         await resend.emails.send({
           from: `${process.env.EMAIL_SENDER_NAME} <${process.env.EMAIL_SENDER_ADDRESS}>`,
           to: data.email,
-          subject: "You've been invited to join our organization",
+          subject: "You've been invited",
           react: sendOrganizationInviteEmail({
             email: data.email,
             invitedByUsername: data.inviter.user.name,
@@ -188,52 +334,77 @@ export const auth = betterAuth({
     nextCookies(),
     adminPlugin({
       defaultRole: 'user',
-      adminRoles: ['admin', 'owner'],
+      adminRoles: ['superuser', 'admin', 'owner'],
       ac,
       roles
     })
   ],
 
+  /** ----------------- Database Hooks ----------------- */
   databaseHooks: {
+    user: {
+      create: {
+        after: async createdUser => {
+          // Fetch full user record
+          const fullUser = await db.query.user.findFirst({
+            where: eq(user.id, createdUser.id)
+          })
+          if (!fullUser) return
+
+          // Use a normal transaction, then cast `tx` to `UserExecutor`
+          await db.transaction(async tx => {
+            const userTx = tx as unknown as UserExecutor
+
+            // Assign first admin if needed
+            await assignFirstAdmin(userTx, fullUser.id)
+
+            // Ensure role & isSuperUser defaults
+            await userTx.query.user.update({
+              set: {
+                role: fullUser.role,
+                isSuperUser: fullUser.isSuperUser ?? false
+              },
+              where: eq(user.id, fullUser.id)
+            })
+          })
+        }
+      }
+    },
+
     session: {
       create: {
-        before: async userSession => {
-          // If already set (e.g., OAuth flow), preserve
-          if (userSession.activeOrganizationId) return { data: userSession }
+        before: async sessionRow => {
+          if (sessionRow.activeOrganizationId) return { data: sessionRow }
 
-          // Get all memberships
           const memberships = await db.query.member.findMany({
-            where: eq(member.userId, userSession.userId),
+            where: eq(member.userId, sessionRow.userId),
             columns: { organizationId: true }
           })
 
-          // 1️⃣ Single-org users → automatically set their only org
           if (memberships.length === 1) {
             return {
               data: {
-                ...userSession,
+                ...sessionRow,
                 activeOrganizationId: memberships[0].organizationId
               }
             }
           }
 
-          // 2️⃣ Multi-org owners → set lastActiveOrganizationId if it exists
           const dbUser = await db.query.user.findFirst({
-            where: eq(user.id, userSession.userId),
+            where: eq(user.id, sessionRow.userId),
             columns: { lastActiveOrganizationId: true }
           })
 
           if (dbUser?.lastActiveOrganizationId) {
             return {
               data: {
-                ...userSession,
+                ...sessionRow,
                 activeOrganizationId: dbUser.lastActiveOrganizationId
               }
             }
           }
 
-          // 3️⃣ Multi-org owners with no previous selection → leave undefined
-          return { data: userSession }
+          return { data: sessionRow }
         }
       }
     }

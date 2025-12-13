@@ -9,12 +9,8 @@ import { db } from '@/db'
 
 export const removeMember = async (memberId: string) => {
   const admin = await isAdmin()
-
   if (!admin) {
-    return {
-      success: false,
-      error: 'You are not authorized to remove members.'
-    }
+    return { success: false, error: 'Not authorized' }
   }
 
   try {

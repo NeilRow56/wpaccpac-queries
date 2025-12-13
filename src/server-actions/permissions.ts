@@ -1,9 +1,7 @@
-'use server'
-
 import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
 
-export const isAdmin = async () => {
+export const isAdmin = async (): Promise<boolean> => {
   try {
     const { success, error } = await auth.api.hasPermission({
       headers: await headers(),
@@ -15,18 +13,13 @@ export const isAdmin = async () => {
     })
 
     if (error) {
-      return {
-        success: false,
-        error: error || 'Failed to check permissions'
-      }
+      console.error('[isAdmin] permission check error', error)
+      return false
     }
 
-    return success
+    return Boolean(success)
   } catch (error) {
-    console.error(error)
-    return {
-      success: false,
-      error: error || 'Failed to check permissions'
-    }
+    console.error('[isAdmin] failed', error)
+    return false
   }
 }
