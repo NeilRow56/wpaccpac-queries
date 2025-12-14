@@ -10,7 +10,7 @@ import {
 
 import { Role } from '@/db/schema'
 
-import DeleteUserButton from './delete-user-button'
+import ArchiveUserButton from './archive-user-button'
 import { UserRoleSelect } from './user-role-select'
 import { findAllUsers } from '@/server-actions/users'
 import { Button } from '@/components/ui/button'
@@ -43,7 +43,7 @@ export async function UserTable() {
             </TableCell>
             <TableCell className='space-x-2 text-right'>
               {user.isSuperUser !== true ? (
-                <DeleteUserButton userId={user.id} />
+                <ArchiveUserButton userId={user.id} />
               ) : (
                 <Button
                   variant='ghost'

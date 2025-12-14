@@ -19,6 +19,7 @@ export const user = pgTable('user', {
   emailVerified: boolean('email_verified').default(false).notNull(),
   role: role('role').default('user').notNull(),
   isSuperUser: boolean('is_super_user').default(false),
+  archivedAt: timestamp('archived_at'),
   image: text('image'),
   // db/schema.ts
   lastActiveOrganizationId: text('last_active_organization_id'), // ✅ nullable by default
@@ -28,7 +29,6 @@ export const user = pgTable('user', {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
-
   banned: boolean('banned').default(false),
   banReason: text('ban_reason'),
   banExpires: timestamp('ban_expires')

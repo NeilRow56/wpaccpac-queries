@@ -1,12 +1,9 @@
 // src/app/(admin)/organization/page.tsx
-
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { ArrowLeft } from 'lucide-react'
 
-import { getCurrentUser } from '@/server-actions/users'
-import { getOrganizationsByUserId } from '@/server-actions/organizations'
-import { canCreateOrganization } from '@/lib/permissions'
+// import { canCreateOrganization } from '@/lib/permissions'
 
 import { EmptyState } from '@/components/shared/empty-state'
 import { AddOrganizationButton } from './_components/add-organization-button'
@@ -16,24 +13,37 @@ import OrganizationsTable from './_components/organizations-table'
 
 import { SkeletonArray } from '@/components/shared/skeleton'
 import { SkeletonCustomerCard } from '@/components/shared/skeleton-customer-card'
+import { getUISession } from '@/lib/get-ui-session'
 
 export default async function OrganizationPage() {
-  // Get full user object (TS-safe)
-  const { user } = await getCurrentUser()
+  // 1️⃣ Get full TS-safe UI session
+  const { user, ui } = await getUISession()
 
-  // Fetch organizations for the current user
-  const organizations = await getOrganizationsByUserId()
+  if (!user) {
+    throw new Error('User not found or not authenticated')
+  }
 
-  // Check if user can create an organization
-  if (!canCreateOrganization(user, organizations.length)) {
+  // 2️⃣ Fetch organizations for this user
+  const organizations = user.organizations
+
+  // 3️⃣ Check permissions
+  if (!ui.canCreateOrganization) {
     throw new Error('You are not allowed to create an organization')
   }
 
-  // Calculate total organizations for the table
+  // Map organizations to include slug
+  // Map organizations for table, ensuring id, name, slug
+  const tableOrgs = organizations.map(o => ({
+    id: o.id,
+    name: o.name,
+    slug: o.slug
+  }))
+
+  // 4️⃣ Calculate total organizations
   const total = organizations.length
 
-  // Render empty state if no organizations
-  if (organizations.length === 0) {
+  // 5️⃣ Render empty state if no organizations
+  if (total === 0) {
     return (
       <>
         <div className='mx-auto mt-24 flex max-w-6xl flex-col gap-2'>
@@ -49,7 +59,7 @@ export default async function OrganizationPage() {
     )
   }
 
-  // Main organizations page
+  // 6️⃣ Render main page
   return (
     <div className='container mx-auto max-w-6xl py-10'>
       <Link href='/dashboard' className='mb-6 inline-flex items-center'>
@@ -100,7 +110,7 @@ export default async function OrganizationPage() {
           </p>
         </div>
 
-        <OrganizationsTable total={total} organizations={organizations} />
+        <OrganizationsTable total={total} organizations={tableOrgs} />
       </Suspense>
     </div>
   )

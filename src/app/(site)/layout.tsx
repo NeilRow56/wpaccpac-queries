@@ -1,17 +1,21 @@
 // app/(site)/layout.tsx
-import { Navbar } from '@/components/site-home/navbar'
-import { getSessionServer } from '@/lib/session'
 
-export default async function Layout({
+import { getUISession } from '@/lib/get-ui-session'
+
+import { Navbar } from '@/components/site-home/navbar'
+
+export default async function RootLayout({
   children
 }: {
   children: React.ReactNode
 }) {
-  const session = await getSessionServer() // server-side session
+  const { session, ui } = await getUISession()
 
   return (
     <div>
-      <Navbar serverSession={session} />
+      {/* Navbar with server-side session + UI flags */}
+      <Navbar serverSession={session} ui={ui} />
+
       {children}
     </div>
   )

@@ -8,16 +8,16 @@ import { extractUserId } from '@/lib/extract-user-Id'
 import { requireSession } from '@/lib/requireSession'
 
 import { asc, eq, inArray, not } from 'drizzle-orm'
-import { revalidatePath } from 'next/cache'
+
 import { redirect } from 'next/navigation'
 
-// HELPER
-type SessionWithRole = {
-  user?: {
-    role?: string
-    id?: string
-  }
-}
+// // HELPER
+// type SessionWithRole = {
+//   user?: {
+//     role?: string
+//     id?: string
+//   }
+// }
 
 /* -----------------------------------------------------
    SIGN UP
@@ -143,34 +143,49 @@ export async function findAllUsers() {
    DELETE USER
 ----------------------------------------------------- */
 
-export async function deleteUser(id: string) {
-  const session = await requireSession({
-    allowPaths: ['/'],
-    redirectTo: '/'
-  })
+// export async function deleteUser(id: string) {
+//   const session = await requireSession({
+//     allowPaths: ['/'],
+//     redirectTo: '/'
+//   })
 
-  const uid = extractUserId(session)
-  if (!uid) throw new Error('Unauthorized')
+//   const uid = extractUserId(session)
+//   if (!uid) throw new Error('Unauthorized')
 
-  // Safe type-narrowing: BetterAuth may attach a role property
-  const { user: sessUser } = session as unknown as SessionWithRole
-  const role = sessUser?.role
+//   // Safe type-narrowing: BetterAuth may attach a role property
+//   const { user: sessUser } = session as unknown as SessionWithRole
+//   const role = sessUser?.role
 
-  if (role !== 'admin' || uid === id) {
-    throw new Error('Forbidden operation')
-  }
+//   if (role !== 'admin' || uid === id) {
+//     throw new Error('Forbidden operation')
+//   }
 
-  try {
-    await db.delete(user).where(eq(user.id, id))
-  } catch (error) {
-    console.error(error)
-    return {
-      error:
-        'Failed to delete user. Admin users cannot be deleted. Users cannot delete themselves'
-    }
-  }
+//   try {
+//     await db.delete(user).where(eq(user.id, id))
+//   } catch (error) {
+//     console.error(error)
+//     return {
+//       error:
+//         'Failed to delete user. Admin users cannot be deleted. Users cannot delete themselves'
+//     }
+//   }
 
-  revalidatePath('/protected')
+//   revalidatePath('/protected')
+// }
+
+/* -----------------------------------------------------
+   ARCHIVE USER
+----------------------------------------------------- */
+export async function archiveUser(userId: string) {
+  await db
+    .update(user)
+    .set({
+      archivedAt: new Date(),
+      banned: true,
+      banReason: 'Archived by admin',
+      banExpires: null
+    })
+    .where(eq(user.id, userId))
 }
 
 /* -----------------------------------------------------

@@ -14,20 +14,38 @@ import {
 } from '@/components/ui/table'
 
 import { ArrowLeft, Users } from 'lucide-react'
-import { headers } from 'next/headers'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-
-import { auth } from '@/lib/auth'
 import { UserRow } from './_components/user-row'
 import { findAllUsers } from '@/server-actions/users'
+import { requireSession } from '@/lib/requireSession'
+import { extractUserId } from '@/lib/extract-user-Id'
+import { db } from '@/db'
+import { eq } from 'drizzle-orm'
+import { user } from '@/db/schema'
 
 export default async function AdminPage() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  // 1️⃣ Require session
+  const session = await requireSession({
+    redirectTo: '/auth'
+  })
 
-  if (session == null) return redirect('/auth')
+  // 2️⃣ Extract user id
+  const userId = extractUserId(session)
+  if (!userId) redirect('/auth')
 
-  if (session?.user.isSuperUser === false) redirect('/auth')
+  // 3️⃣ Load authoritative DB user
+  const dbUser = await db.query.user.findFirst({
+    where: eq(user.id, userId),
+    columns: {
+      id: true,
+      isSuperUser: true
+    }
+  })
+
+  if (!dbUser || dbUser.isSuperUser !== true) {
+    redirect('/auth')
+  }
 
   const users = await findAllUsers()
 
@@ -63,7 +81,7 @@ export default async function AdminPage() {
               </TableHeader>
               <TableBody>
                 {users.map(user => (
-                  <UserRow key={user.id} user={user} selfId={session.user.id} />
+                  <UserRow key={user.id} user={user} selfId={userId} />
                 ))}
               </TableBody>
             </Table>

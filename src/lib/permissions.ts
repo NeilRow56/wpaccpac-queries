@@ -1,4 +1,3 @@
-import { User } from '@/db/schema'
 import { createAccessControl } from 'better-auth/plugins/access'
 import { defaultStatements, adminAc } from 'better-auth/plugins/admin/access'
 
@@ -23,12 +22,18 @@ export const roles = {
   })
 }
 
+export type AuthzUser = {
+  id: string
+  role: 'user' | 'admin' | 'owner' | 'superuser'
+  isSuperUser: boolean
+}
+
 export function canCreateOrganization(
-  user: User,
+  user: AuthzUser,
   userOrgCount: number
 ): boolean {
   // Superusers can always create
-  if (user.role === 'superuser') return true
+  if (user.isSuperUser) return true
 
   // Admins can only create if they have no organizations yet
   if (user.role === 'admin' && userOrgCount === 0) return true

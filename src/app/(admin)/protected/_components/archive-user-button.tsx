@@ -15,13 +15,13 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { deleteUser } from '@/server-actions/users'
+import { archiveUser } from '@/server-actions/users'
 
 interface DeleteUserButtonProps {
   userId: string
 }
 
-export default function DeleteUserButton({ userId }: DeleteUserButtonProps) {
+export default function ArchiveUserButton({ userId }: DeleteUserButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
@@ -29,8 +29,8 @@ export default function DeleteUserButton({ userId }: DeleteUserButtonProps) {
   const handleDelete = async () => {
     try {
       setIsLoading(true)
-      await deleteUser(userId)
-      toast.success('User deleted successfully')
+      await archiveUser(userId)
+      toast.success('User archive successfully')
       setIsOpen(false)
       router.refresh()
     } catch (error) {
@@ -53,8 +53,9 @@ export default function DeleteUserButton({ userId }: DeleteUserButtonProps) {
         <DialogHeader>
           <DialogTitle>Are you absolutely sure?</DialogTitle>
           <DialogDescription>
-            This action cannot be undone. This will permanently delete your
-            account and remove your data from our servers.
+            Arcchiving this person will prevent them fom accessing the wpaccpac
+            system, but retain all data they have been associated with in your
+            database.
           </DialogDescription>
 
           <Button
