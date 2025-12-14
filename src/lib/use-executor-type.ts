@@ -1,34 +1,3 @@
-// lib/user-executor.ts
-
-// import { eq } from 'drizzle-orm'
-
-// export type UserExecutor = {
-//   query: {
-//     user: {
-//       findMany: (args: {
-//         where?: ReturnType<typeof eq>
-//         columns?: { id: true }
-//         limit?: number
-//       }) => Promise<{ id: string }[]>
-//       update: (args: {
-//         set: Partial<{
-//           role: 'user' | 'admin' | 'owner' | 'superuser'
-//           isSuperUser: boolean
-//         }>
-//         where?: ReturnType<typeof eq>
-//       }) => Promise<void>
-//     }
-//   }
-// }
-
-// export {}
-// use-executor-type.ts
-// use-executor-type.ts
-// use-executor-type.ts
-// use-executor-type.ts
-// use-executor-type.ts
-// db/use-executor-type.ts
-// db/use-executor-type.ts
 import { eq } from 'drizzle-orm'
 
 export type UserExecutor = {

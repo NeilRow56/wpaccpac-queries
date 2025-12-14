@@ -105,13 +105,29 @@ export default function AddClientDialog({
   // -----------------------------------------
   const handleSubmit = async (data: insertClientSchemaType) => {
     try {
-      await saveClientAction(data)
-      toast.success(`Client ${data.id ? 'updated' : 'added'} successfully`)
+      const result = await saveClientAction(data)
+
+      if (result.serverError) {
+        toast.error(result.serverError)
+        return
+      }
+
+      if (result.validationErrors) {
+        toast.error('Validation failed')
+        return
+      }
+
+      if (!result.data?.success) {
+        toast.error(result.data?.error ?? 'Operation failed')
+        return
+      }
+
+      toast.success(result.data.message)
       setOpen(false)
       router.refresh()
     } catch (err) {
       console.error(err)
-      toast.error(`Failed to ${data.id ? 'update' : 'add'} client`)
+      toast.error('Unexpected error')
     }
   }
 

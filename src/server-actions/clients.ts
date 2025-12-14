@@ -2,7 +2,8 @@
 
 import { db } from '@/db'
 import { clients, costCentres } from '@/db/schema'
-import { auth } from '@/lib/auth'
+
+import { getUISession } from '@/lib/get-ui-session'
 import { actionClient } from '@/lib/safe-action'
 import {
   insertClientSchema,
@@ -11,8 +12,6 @@ import {
 import { asc, eq } from 'drizzle-orm'
 import { flattenValidationErrors } from 'next-safe-action'
 import { revalidatePath } from 'next/cache'
-import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
 
 /**
  * Get all active clients for an organization with cost centre name
@@ -50,6 +49,11 @@ export type ClientServer = {
 export async function getActiveOrganizationClients(
   organizationId: string
 ): Promise<ClientServer[]> {
+  const { user } = await getUISession()
+
+  if (!user) {
+    throw new Error('Not authenticated')
+  }
   const clientsWithCostCentre = await db
     .select({
       id: clients.id,
@@ -72,6 +76,19 @@ export async function getActiveOrganizationClients(
  * Delete a client
  */
 export async function deleteClient(id: string) {
+  const { user, ui } = await getUISession()
+
+  if (!user) {
+    return { success: false, message: 'Not authenticated' }
+  }
+
+  if (!ui.canAccessAdmin) {
+    return {
+      success: false,
+      message: 'You are not allowed to delete clients'
+    }
+  }
+
   try {
     await db.delete(clients).where(eq(clients.id, id))
     revalidatePath('/clients')
@@ -113,10 +130,20 @@ export const saveClientAction = actionClient
 
       console.log('Trimmed client:', trimmedClient)
 
-      const session = await auth.api.getSession({ headers: await headers() })
-      if (!session) redirect('/auth/sign-in')
-      if (!session.user || session.user.role !== 'admin') {
-        throw new Error('You must be an administrator to add/access this data')
+      const { user, ui } = await getUISession()
+
+      if (!user) {
+        return {
+          success: false,
+          error: 'Not authenticated'
+        }
+      }
+
+      if (!ui.canAccessAdmin) {
+        return {
+          success: false,
+          error: 'You must be an administrator to add or edit clients'
+        }
       }
 
       const isEditing = !!trimmedClient.id
@@ -132,7 +159,10 @@ export const saveClientAction = actionClient
       })
 
       if (!validCostCentre) {
-        throw new Error('Invalid cost centre selected for this organization.')
+        return {
+          success: false,
+          error: 'Invalid cost centre selected for this organization'
+        }
       }
 
       // Normalized payload for Drizzle
@@ -156,7 +186,8 @@ export const saveClientAction = actionClient
         revalidatePath('/clients')
 
         return {
-          message: `Client #${inserted.insertedId} created successfully`,
+          success: true,
+          message: `Client created successfully`,
           clientId: inserted.insertedId
         }
       }
@@ -172,7 +203,8 @@ export const saveClientAction = actionClient
       revalidatePath('/clients')
 
       return {
-        message: `Client #${updated.updatedId} updated successfully`,
+        success: true,
+        message: `Client created successfully`,
         clientId: updated.updatedId
       }
     }

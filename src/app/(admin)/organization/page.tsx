@@ -3,8 +3,6 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { ArrowLeft } from 'lucide-react'
 
-// import { canCreateOrganization } from '@/lib/permissions'
-
 import { EmptyState } from '@/components/shared/empty-state'
 import { AddOrganizationButton } from './_components/add-organization-button'
 import { OrganizationSelect } from './_components/organization-select'
@@ -31,7 +29,6 @@ export default async function OrganizationPage() {
     throw new Error('You are not allowed to create an organization')
   }
 
-  // Map organizations to include slug
   // Map organizations for table, ensuring id, name, slug
   const tableOrgs = organizations.map(o => ({
     id: o.id,

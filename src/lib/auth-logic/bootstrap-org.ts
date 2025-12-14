@@ -1,33 +1,24 @@
-// canCreateOrganization(user, appState)
+// src/lib/auth-logic/bootstrap-org.ts
 
-// canInviteMembers(memberRole)
-
-// user.role !== organizationMember.role
-// src/lib/bootstrap-org.ts
+import { getUISession } from '../get-ui-session'
 
 /**
- * Determines if a user can create a new organization.
- * Only allows if:
- *  - User is a superuser or admin
- *  - For the first organization, ensures "bootstrap lock"
+ * Determines if the currently authenticated user
+ * can create a new organization.
+ *
+ * 🔐 Single source of truth:
+ * Delegates entirely to ui.canCreateOrganization
  */
-export function canCreateOrganization(
-  user: { role: 'superuser' | 'admin' | 'user' },
-  currentOrgCount: number
-): boolean {
+export async function canCreateOrganization(): Promise<boolean> {
+  const { user, ui } = await getUISession()
+
   if (!user) return false
 
-  // Only allow first organization to be created by superuser/admin
-  if (currentOrgCount === 0) {
-    return user.role === 'superuser' || user.role === 'admin'
-  }
-
-  // Subsequent organizations could have more complex logic (optional)
-  return false
+  return ui.canCreateOrganization
 }
 
 /**
- * Determines if a member can invite new members to the organization.
+ * Determines if a member can invite new members to an organization.
  * Only owners and admins can invite.
  */
 export function canInviteMembers(
@@ -37,11 +28,11 @@ export function canInviteMembers(
 }
 
 /**
- * Maps the global user.role to organization member.role.
- * Ensures internal consistency between user and membership permissions.
+ * Maps a global user.role to an organization member.role.
+ * Used when bootstrapping or adding members.
  */
 export function mapUserRoleToMemberRole(
-  userRole: 'superuser' | 'admin' | 'user'
+  userRole: 'superuser' | 'admin' | 'owner' | 'user'
 ): 'owner' | 'admin' | 'member' {
   switch (userRole) {
     case 'superuser':
@@ -54,8 +45,8 @@ export function mapUserRoleToMemberRole(
 }
 
 /**
- * Optional: helper to check if user can perform any admin-level actions
- * within an organization (update org, delete org, manage members, etc)
+ * Checks whether a member can perform organization-level admin actions
+ * (update org, manage members, etc).
  */
 export function canPerformOrgAdminActions(
   memberRole: 'owner' | 'admin' | 'member'

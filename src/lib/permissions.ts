@@ -27,17 +27,3 @@ export type AuthzUser = {
   role: 'user' | 'admin' | 'owner' | 'superuser'
   isSuperUser: boolean
 }
-
-export function canCreateOrganization(
-  user: AuthzUser,
-  userOrgCount: number
-): boolean {
-  // Superusers can always create
-  if (user.isSuperUser) return true
-
-  // Admins can only create if they have no organizations yet
-  if (user.role === 'admin' && userOrgCount === 0) return true
-
-  // Owners and regular users cannot create
-  return false
-}
