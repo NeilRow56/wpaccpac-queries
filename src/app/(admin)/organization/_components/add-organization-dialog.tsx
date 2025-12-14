@@ -32,6 +32,7 @@ import { FormInput } from '@/components/form/form-base'
 import { LoadingSwap } from '@/components/shared/loading-swap'
 import { authClient } from '@/lib/auth-client'
 import { Organization } from '@/db/schema/authSchema'
+import { createOrganizationAction } from '@/server-actions/organizations'
 
 const formSchema = z.object({
   name: z.string().min(2).max(50)
@@ -76,16 +77,13 @@ export function AddOrganizationDialog({ setOpen, open, organization }: Props) {
 
     try {
       setIsLoading(true)
-      const res = await authClient.organization.create({
-        name: values.name,
-        slug
-      })
+      const result = await createOrganizationAction(values.name, slug)
 
-      if (res.error) {
-        toast.error(res.error.message || 'Failed to create organization')
+      if (!result.success) {
+        toast.error(result.error)
       } else {
         await authClient.organization.setActive({
-          organizationId: res.data?.id
+          organizationId: result.organizationId
         })
         toast.success('Organization created successfully')
       }

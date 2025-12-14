@@ -2,22 +2,12 @@
 
 import { db } from '@/db'
 import { member, user } from '@/db/schema'
-
 import { auth } from '@/lib/auth'
-import { extractUserId } from '@/lib/extract-user-Id'
-import { requireSession } from '@/lib/requireSession'
-
+import { getUISession, UISession } from '@/lib/get-ui-session'
 import { asc, eq, inArray, not } from 'drizzle-orm'
+import { revalidatePath } from 'next/cache'
 
 import { redirect } from 'next/navigation'
-
-// // HELPER
-// type SessionWithRole = {
-//   user?: {
-//     role?: string
-//     id?: string
-//   }
-// }
 
 /* -----------------------------------------------------
    SIGN UP
@@ -69,31 +59,12 @@ export const signIn = async (email: string, password: string) => {
    GET CURRENT USER (session + DB user)
 ----------------------------------------------------- */
 
-export async function getCurrentUser() {
-  const session = await requireSession({
-    allowPaths: ['/'],
-    redirectTo: '/'
-  })
-
-  const userId = extractUserId(session)
-  if (!userId) {
-    console.log('[getCurrentUser] Session exists but no userId')
-    redirect('/')
-  }
-
-  const currentUser = await db.query.user.findFirst({
-    where: eq(user.id, userId)
-  })
-
-  if (!currentUser) {
-    console.log('[getCurrentUser] No DB user found for session uid')
-    redirect('/')
-  }
-
-  return {
-    session,
-    user: currentUser
-  }
+export async function getCurrentUser(): Promise<
+  NonNullable<UISession['user']>
+> {
+  const { user } = await getUISession()
+  if (!user) redirect('/')
+  return user // now TS sees it as non-null
 }
 
 /* -----------------------------------------------------
@@ -101,18 +72,10 @@ export async function getCurrentUser() {
 ----------------------------------------------------- */
 
 export async function getCurrentUserId() {
-  const session = await requireSession({
-    allowPaths: ['/'],
-    redirectTo: '/'
-  })
+  const { user } = await getUISession()
+  if (!user) redirect('/')
 
-  const userId = extractUserId(session)
-  if (!userId) redirect('/')
-
-  return {
-    session,
-    userId
-  }
+  return user.id
 }
 
 /* -----------------------------------------------------
@@ -120,9 +83,7 @@ export async function getCurrentUserId() {
 ----------------------------------------------------- */
 
 export async function getUserDetails(id: string) {
-  const rows = await db.select().from(user).where(eq(user.id, id))
-
-  return rows[0] ?? null
+  return (await db.select().from(user).where(eq(user.id, id)))[0] ?? null
 }
 
 /* -----------------------------------------------------
@@ -131,10 +92,8 @@ export async function getUserDetails(id: string) {
 
 export async function findAllUsers() {
   // Require session so this call is protected
-  await requireSession({
-    allowPaths: ['/'],
-    redirectTo: '/'
-  })
+  const { ui } = await getUISession()
+  if (!ui.canAccessAdmin) throw new Error('Forbidden: Admin access required')
 
   return db.select().from(user).orderBy(asc(user.name))
 }
@@ -177,6 +136,8 @@ export async function findAllUsers() {
    ARCHIVE USER
 ----------------------------------------------------- */
 export async function archiveUser(userId: string) {
+  const { ui } = await getUISession()
+  if (!ui.canAccessAdmin) throw new Error('Forbidden: Admin access required')
   await db
     .update(user)
     .set({
@@ -186,6 +147,8 @@ export async function archiveUser(userId: string) {
       banExpires: null
     })
     .where(eq(user.id, userId))
+
+  revalidatePath('/team')
 }
 
 /* -----------------------------------------------------
@@ -193,20 +156,90 @@ export async function archiveUser(userId: string) {
 ----------------------------------------------------- */
 
 export async function getUsers(organizationId: string) {
-  await requireSession({ allowPaths: ['/'], redirectTo: '/' })
+  await getUISession() // protects endpoint
 
+  const membersList = await db.query.member.findMany({
+    where: eq(member.organizationId, organizationId),
+    columns: { userId: true }
+  })
+
+  const excludedIds = membersList.map(m => m.userId)
+
+  return db.query.user.findMany({
+    where: not(inArray(user.id, excludedIds))
+  })
+}
+
+/**
+ * Get all users who are **not** members of a specific organization.
+ * Only authenticated users can call this function.
+ */
+
+export type UserSummary = {
+  id: string
+  name: string
+  email: string
+  role: 'user' | 'admin' | 'owner' | 'superuser'
+  isSuperUser: boolean
+  lastActiveOrganizationId: string | null
+  banned: boolean
+}
+
+export type GetUsersNotInOrganizationResponse = {
+  success: boolean
+  data: UserSummary[]
+  error?: string
+}
+
+export async function getUsersNotInOrganization(
+  organizationId: string
+): Promise<GetUsersNotInOrganizationResponse> {
   try {
+    // ✅ Get typed session + UI permissions
+    const { user, ui } = await getUISession()
+
+    if (!user) return { success: false, data: [], error: 'Not authenticated' }
+    if (!ui.canAccessAdmin)
+      return { success: false, data: [], error: 'Forbidden' }
+
     const membersList = await db.query.member.findMany({
-      where: eq(member.organizationId, organizationId)
+      where: (m, { eq }) => eq(m.organizationId, organizationId),
+      columns: { userId: true }
     })
 
     const excludedIds = membersList.map(m => m.userId)
 
-    return db.query.user.findMany({
-      where: not(inArray(user.id, excludedIds))
+    const usersNotInOrg = await db.query.user.findMany({
+      where: (u, { not, inArray }) =>
+        excludedIds.length > 0 ? not(inArray(u.id, excludedIds)) : undefined,
+      columns: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isSuperUser: true,
+        lastActiveOrganizationId: true,
+        banned: true
+      }
     })
+
+    const normalizedUsers: UserSummary[] = usersNotInOrg.map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      isSuperUser: u.isSuperUser ?? false,
+      lastActiveOrganizationId: u.lastActiveOrganizationId ?? null,
+      banned: u.banned ?? false
+    }))
+
+    return { success: true, data: normalizedUsers }
   } catch (error) {
-    console.error(error)
-    return []
+    console.error('[getUsersNotInOrganization] Error:', error)
+    return {
+      success: false,
+      data: [],
+      error: (error as Error).message ?? 'Unknown error'
+    }
   }
 }

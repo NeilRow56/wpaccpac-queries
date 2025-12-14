@@ -8,11 +8,14 @@ import { revalidatePath } from 'next/cache'
 import { member, organization } from '@/db/schema'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
+import { getUISession } from '@/lib/get-ui-session'
+import { authClient } from '@/lib/auth-client'
+import { CreateOrganizationResult } from '@/lib/action-types'
 
 export async function getOrganizationsByUserId() {
   const currentUser = await getCurrentUser()
 
-  const userId = currentUser.user.id
+  const userId = currentUser.id
 
   const members = await db.query.member.findMany({
     where: eq(member.userId, userId)
@@ -91,6 +94,56 @@ export async function getCurrentOrganization() {
   return org || null
 }
 
-// export async function getOrganizationsByUserId(userId) {
+export async function createOrganizationAction(
+  name: string,
+  slug: string
+): Promise<CreateOrganizationResult> {
+  const { user, ui } = await getUISession()
 
-// }
+  if (!user) {
+    throw new Error('Not authenticated')
+  }
+
+  if (!ui.canCreateOrganization) {
+    return {
+      success: false,
+      error: 'You are not allowed to create an organization'
+    }
+  }
+
+  // Optional hard bootstrap lock
+  if (user.organizations.length > 0 && !user.isSuperUser) {
+    return {
+      success: false,
+      error: 'You already belong to an organization'
+    }
+  }
+
+  // ✅ Use better-auth CLIENT SDK even on the server
+  //✔ Why this is correct
+  //Fully type-safe
+  //Fully authorized
+  //No duplication
+  //No internal Better Auth APIs used
+  //Matches how Better Auth expects orgs to be created
+  const res = await authClient.organization.create({
+    name,
+    slug
+  })
+
+  if (res.error || !res.data?.id) {
+    return {
+      success: false,
+      error: res.error?.message ?? 'Failed to create organization'
+    }
+  }
+
+  await authClient.organization.setActive({
+    organizationId: res.data!.id
+  })
+
+  return {
+    success: true as const,
+    organizationId: res.data!.id
+  }
+}
