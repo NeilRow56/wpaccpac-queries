@@ -2,6 +2,7 @@
 
 import { Role } from '@/db/schema'
 import { authClient } from '@/lib/auth-client'
+
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -11,53 +12,51 @@ interface UserRoleSelectProps {
   role: Role
 }
 
-const API_ROLES: Array<'user' | 'admin'> = ['user', 'admin']
-
 export const UserRoleSelect = ({ userId, role }: UserRoleSelectProps) => {
   const [isPending, setIsPending] = useState(false)
   const router = useRouter()
 
-  // Map full role to dropdown display
-  const DROPDOWN_OPTIONS: Array<{ label: string; value: Role }> = [
-    { label: 'USER', value: 'user' },
-    { label: 'ADMIN', value: 'admin' },
-    { label: 'OWNER', value: 'owner' } // displayed but not sent to API
-  ]
+  // Map DB roles to BetterAuth roles
+  const roleMap: Record<Role, 'user' | 'admin'> = {
+    user: 'user',
+    admin: 'admin',
+    owner: 'admin', // map owner -> admin
+    superuser: 'admin' // map superuser -> admin
+  }
 
   async function handleChange(evt: React.ChangeEvent<HTMLSelectElement>) {
     const newRole = evt.target.value as Role
 
-    // Only call setRole for roles supported by Better Auth API
-    if (!API_ROLES.includes(newRole as 'user' | 'admin')) {
-      toast.error('Cannot change to this role via UI')
-      return
-    }
+    try {
+      const permissionCheck = await authClient.admin.hasPermission({
+        permissions: { user: ['set-role'] }
+      })
 
-    const canChangeRole = await authClient.admin.hasPermission({
-      permissions: {
-        user: ['set-role']
+      if (permissionCheck.error) {
+        toast.error('Forbidden: You do not have permission to change roles')
+        return
       }
-    })
 
-    if (canChangeRole.error) {
-      return toast.error('Forbidden')
-    }
-
-    await authClient.admin.setRole({
-      userId,
-      role: newRole,
-      fetchOptions: {
-        onRequest: () => setIsPending(true),
-        onResponse: () => setIsPending(false),
-        onError: ctx => {
-          toast.error(ctx.error.message) // just call it, don’t return
-        },
-        onSuccess: () => {
-          toast.success('User role updated')
-          router.refresh()
+      await authClient.admin.setRole({
+        userId,
+        role: roleMap[newRole], // TS-safe mapping
+        fetchOptions: {
+          onRequest: () => setIsPending(true),
+          onResponse: () => setIsPending(false),
+          onError: ctx => {
+            toast.error(ctx.error?.message ?? 'Failed to update role')
+          },
+          onSuccess: () => {
+            toast.success('User role updated')
+            router.refresh()
+          }
         }
-      }
-    })
+      })
+    } catch (err) {
+      console.error(err)
+      toast.error('Unexpected error while updating role')
+      setIsPending(false)
+    }
   }
 
   return (
@@ -67,11 +66,10 @@ export const UserRoleSelect = ({ userId, role }: UserRoleSelectProps) => {
       disabled={isPending}
       className='px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50'
     >
-      {DROPDOWN_OPTIONS.map(option => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
+      <option value='user'>USER</option>
+      <option value='admin'>ADMIN</option>
+      <option value='owner'>OWNER</option>
+      <option value='superuser'>SUPERUSER</option>
     </select>
   )
 }
