@@ -1,10 +1,10 @@
 'use server'
 
 import { db } from '@/db'
-import { member, user } from '@/db/schema'
+import { member, user as userTable } from '@/db/schema'
 import { auth } from '@/lib/auth'
 import { getUISession, UISession } from '@/lib/get-ui-session'
-import { asc, eq, inArray, not } from 'drizzle-orm'
+import { asc, eq, inArray, isNull, not } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
 import { redirect } from 'next/navigation'
@@ -83,19 +83,32 @@ export async function getCurrentUserId() {
 ----------------------------------------------------- */
 
 export async function getUserDetails(id: string) {
-  return (await db.select().from(user).where(eq(user.id, id)))[0] ?? null
+  return (
+    (await db.select().from(userTable).where(eq(userTable.id, id)))[0] ?? null
+  )
 }
 
 /* -----------------------------------------------------
    FIND ALL USERS (admin)
 ----------------------------------------------------- */
 
-export async function findAllUsers() {
+export async function getAllUsersAdmin() {
   // Require session so this call is protected
   const { ui } = await getUISession()
   if (!ui.canAccessAdmin) throw new Error('Forbidden: Admin access required')
 
-  return db.select().from(user).orderBy(asc(user.name))
+  return db.select().from(userTable).orderBy(asc(userTable.name))
+}
+/* -----------------------------------------------------
+   FIND ALL ACTIVE USERS (admin)
+----------------------------------------------------- */
+
+export async function getActiveUsersAdmin() {
+  // Require session so this call is protected
+  const { ui } = await getUISession()
+  if (!ui.canAccessAdmin) throw new Error('Forbidden: Admin access required')
+
+  return db.select().from(userTable).where(isNull(userTable.archivedAt))
 }
 
 /* -----------------------------------------------------
@@ -139,14 +152,32 @@ export async function archiveUser(userId: string) {
   const { ui } = await getUISession()
   if (!ui.canAccessAdmin) throw new Error('Forbidden: Admin access required')
   await db
-    .update(user)
+    .update(userTable)
     .set({
       archivedAt: new Date(),
       banned: true,
       banReason: 'Archived by admin',
       banExpires: null
     })
-    .where(eq(user.id, userId))
+    .where(eq(userTable.id, userId))
+
+  revalidatePath('/team')
+}
+/* -----------------------------------------------------
+   REINSTATE USER
+----------------------------------------------------- */
+export async function reinstateUser(userId: string) {
+  const { ui } = await getUISession()
+  if (!ui.canAccessAdmin) throw new Error('Forbidden: Admin access required')
+  await db
+    .update(userTable)
+    .set({
+      archivedAt: null,
+      banned: false,
+      banReason: null,
+      banExpires: null
+    })
+    .where(eq(userTable.id, userId))
 
   revalidatePath('/team')
 }
@@ -156,7 +187,8 @@ export async function archiveUser(userId: string) {
 ----------------------------------------------------- */
 
 export async function getUsers(organizationId: string) {
-  await getUISession() // protects endpoint
+  const { ui } = await getUISession()
+  if (!ui.canAccessAdmin) throw new Error('Forbidden')
 
   const membersList = await db.query.member.findMany({
     where: eq(member.organizationId, organizationId),
@@ -166,7 +198,7 @@ export async function getUsers(organizationId: string) {
   const excludedIds = membersList.map(m => m.userId)
 
   return db.query.user.findMany({
-    where: not(inArray(user.id, excludedIds))
+    where: not(inArray(userTable.id, excludedIds))
   })
 }
 
@@ -191,7 +223,7 @@ export type GetUsersNotInOrganizationResponse = {
   error?: string
 }
 
-export async function getUsersNotInOrganization(
+export async function getUsersNotInOrganizationAdmin(
   organizationId: string
 ): Promise<GetUsersNotInOrganizationResponse> {
   try {
@@ -210,8 +242,12 @@ export async function getUsersNotInOrganization(
     const excludedIds = membersList.map(m => m.userId)
 
     const usersNotInOrg = await db.query.user.findMany({
-      where: (u, { not, inArray }) =>
-        excludedIds.length > 0 ? not(inArray(u.id, excludedIds)) : undefined,
+      where: (u, { and, not, inArray, isNull }) =>
+        and(
+          isNull(u.archivedAt),
+          excludedIds.length > 0 ? not(inArray(u.id, excludedIds)) : undefined
+        ),
+
       columns: {
         id: true,
         name: true,
@@ -235,7 +271,7 @@ export async function getUsersNotInOrganization(
 
     return { success: true, data: normalizedUsers }
   } catch (error) {
-    console.error('[getUsersNotInOrganization] Error:', error)
+    console.error('[getUsersNotInOrganizationAdmin] Error:', error)
     return {
       success: false,
       data: [],

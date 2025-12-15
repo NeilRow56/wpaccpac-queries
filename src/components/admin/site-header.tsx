@@ -5,17 +5,19 @@ import { UsersRound } from 'lucide-react'
 import { ModeToggle } from '../mode-toggle'
 import { NavButtonMenu } from './nav-button-memu'
 
-import { headers } from 'next/headers'
-import { auth } from '@/lib/auth'
-import { redirect } from 'next/navigation'
 import { getCurrentOrganization } from '@/server-actions/organizations'
+import { Button } from '../ui/button'
+import Link from 'next/link'
+import { getUISession } from '@/lib/get-ui-session'
 
 export async function SiteHeader() {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  })
+  // 1. Ensure logged in
+  // 1️⃣ Get full TS-safe UI session
+  const { user } = await getUISession()
 
-  if (!session) redirect('/auth')
+  if (!user) {
+    throw new Error('User not found or not authenticated')
+  }
 
   const organization = await getCurrentOrganization()
 
@@ -34,7 +36,7 @@ export async function SiteHeader() {
 
         <div className='hidden lg:flex'>
           <h3
-            className={`ml-24 text-2xl font-bold ${
+            className={`lg:text-2xxl ml-24 text-xl font-bold ${
               organization ? 'text-primary' : 'text-red-600'
             }`}
           >
@@ -44,6 +46,12 @@ export async function SiteHeader() {
           </h3>
         </div>
         <div className='ml-auto flex items-center gap-2'>
+          {user.isSuperUser && (
+            <Button variant='outline' asChild size='lg'>
+              <Link href='/protected'>Protected</Link>
+            </Button>
+          )}
+
           <NavButtonMenu
             icon={UsersRound}
             label='Customers Menu'

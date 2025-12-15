@@ -1,19 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@/db'
-import { user } from '@/db/schema'
+import { user as userTable } from '@/db/schema'
 import { assignFirstAdmin } from '../assign-first-admin'
 import { eq } from 'drizzle-orm'
 import { UserExecutor } from '@/lib/use-executor-type'
 
 describe('assignFirstAdmin', () => {
   beforeEach(async () => {
-    await db.delete(user)
+    await db.delete(userTable)
   })
 
   it('makes the first user an admin', async () => {
     const id = 'user-1'
 
-    await db.insert(user).values({
+    await db.insert(userTable).values({
       id,
       email: 'one@test.com',
       name: 'User One'
@@ -25,14 +25,14 @@ describe('assignFirstAdmin', () => {
     })
 
     const result = await db.query.user.findFirst({
-      where: eq(user.id, id)
+      where: eq(userTable.id, id)
     })
 
     expect(result?.role).toBe('admin')
   })
 
   it('does not promote second user if admin exists', async () => {
-    await db.insert(user).values([
+    await db.insert(userTable).values([
       {
         id: 'admin',
         email: 'admin@test.com',
@@ -52,7 +52,7 @@ describe('assignFirstAdmin', () => {
     })
 
     const user2 = await db.query.user.findFirst({
-      where: eq(user.id, 'user-2')
+      where: eq(userTable.id, 'user-2')
     })
 
     expect(user2?.role).toBe('user')

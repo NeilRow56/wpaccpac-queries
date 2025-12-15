@@ -83,9 +83,6 @@ export function Navbar({ serverSession, ui }: NavbarProps) {
                     <Button variant='outline' asChild size='lg'>
                       <Link href='/admin'>Admin</Link>
                     </Button>
-                    <Button variant='outline' asChild size='lg'>
-                      <Link href='/protected'>Protected</Link>
-                    </Button>
                   </>
                 )}
 
@@ -154,9 +151,6 @@ export function Navbar({ serverSession, ui }: NavbarProps) {
                   <>
                     <Button variant='outline' asChild size='lg'>
                       <Link href='/admin'>Admin</Link>
-                    </Button>
-                    <Button variant='outline' asChild size='lg'>
-                      <Link href='/protected'>Protected</Link>
                     </Button>
                   </>
                 )}

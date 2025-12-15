@@ -10,13 +10,13 @@ import {
 
 import { Role } from '@/db/schema'
 
-import ArchiveUserButton from './archive-user-button'
 import { UserRoleSelect } from './user-role-select'
-import { findAllUsers } from '@/server-actions/users'
+import { getAllUsersAdmin } from '@/server-actions/users'
 import { Button } from '@/components/ui/button'
+import { UserArchiveMenu } from './userArchiveMenu'
 
 export async function UserTable() {
-  const users = await findAllUsers()
+  const users = await getAllUsersAdmin()
 
   return (
     <Table>
@@ -29,6 +29,7 @@ export async function UserTable() {
           <TableHead>Name</TableHead>
           <TableHead>Email</TableHead>
           <TableHead>Role</TableHead>
+
           <TableHead className='text-right'>Actions</TableHead>
         </TableRow>
       </TableHeader>
@@ -38,12 +39,17 @@ export async function UserTable() {
             <TableCell className='font-medium'>{user.id.slice(0, 8)}</TableCell>
             <TableCell>{user.name}</TableCell>
             <TableCell>{user.email}</TableCell>
+
             <TableCell>
               <UserRoleSelect userId={user.id} role={user.role as Role} />
             </TableCell>
+
             <TableCell className='space-x-2 text-right'>
               {user.isSuperUser !== true ? (
-                <ArchiveUserButton userId={user.id} />
+                <UserArchiveMenu
+                  userId={user.id}
+                  isArchived={Boolean(user.archivedAt)}
+                />
               ) : (
                 <Button
                   variant='ghost'

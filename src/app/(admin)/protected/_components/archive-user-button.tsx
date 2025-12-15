@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2, Trash2 } from 'lucide-react'
+import { Archive, Loader2 } from 'lucide-react'
 
 import {
   Dialog,
@@ -26,7 +26,7 @@ export default function ArchiveUserButton({ userId }: DeleteUserButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
 
-  const handleDelete = async () => {
+  const handleArchive = async () => {
     try {
       setIsLoading(true)
       await archiveUser(userId)
@@ -45,7 +45,7 @@ export default function ArchiveUserButton({ userId }: DeleteUserButtonProps) {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant='ghost' className='cursor-pointer'>
-          <Trash2 className='size-4 text-red-500' />
+          <Archive className='size-4 text-red-500' />
         </Button>
       </DialogTrigger>
 
@@ -61,7 +61,7 @@ export default function ArchiveUserButton({ userId }: DeleteUserButtonProps) {
           <Button
             disabled={isLoading}
             variant='destructive'
-            onClick={handleDelete}
+            onClick={handleArchive}
           >
             {isLoading ? <Loader2 className='size-4 animate-spin' /> : 'Delete'}
           </Button>

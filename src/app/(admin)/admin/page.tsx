@@ -17,26 +17,24 @@ import { ArrowLeft, Users } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { UserRow } from './_components/user-row'
-import { findAllUsers } from '@/server-actions/users'
-import { requireSession } from '@/lib/requireSession'
-import { extractUserId } from '@/lib/extract-user-Id'
+import { getAllUsersAdmin } from '@/server-actions/users'
 import { db } from '@/db'
 import { eq } from 'drizzle-orm'
-import { user } from '@/db/schema'
+import { user as userTable } from '@/db/schema'
+import { getUISession } from '@/lib/get-ui-session'
 
 export default async function AdminPage() {
-  // 1️⃣ Require session
-  const session = await requireSession({
-    redirectTo: '/auth'
-  })
+  const { user } = await getUISession()
 
-  // 2️⃣ Extract user id
-  const userId = extractUserId(session)
-  if (!userId) redirect('/auth')
+  if (!user) {
+    throw new Error('User not found or not authenticated')
+  }
+
+  const userId = user.id
 
   // 3️⃣ Load authoritative DB user
   const dbUser = await db.query.user.findFirst({
-    where: eq(user.id, userId),
+    where: eq(userTable.id, userId),
     columns: {
       id: true,
       isSuperUser: true
@@ -47,7 +45,7 @@ export default async function AdminPage() {
     redirect('/auth')
   }
 
-  const users = await findAllUsers()
+  const users = await getAllUsersAdmin()
 
   const total = users.length
 

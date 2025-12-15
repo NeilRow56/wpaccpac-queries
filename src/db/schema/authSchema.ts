@@ -19,7 +19,7 @@ export const user = pgTable('user', {
   emailVerified: boolean('email_verified').default(false).notNull(),
   role: role('role').default('user').notNull(),
   isSuperUser: boolean('is_super_user').default(false),
-  archivedAt: timestamp('archived_at'),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
   image: text('image'),
   // db/schema.ts
   lastActiveOrganizationId: text('last_active_organization_id'), // ✅ nullable by default

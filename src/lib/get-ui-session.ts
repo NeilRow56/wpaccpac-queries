@@ -1,10 +1,11 @@
 // src/lib/getUISession.ts
 import { Session as BetterAuthSession } from '@/lib/auth'
 import { db } from '@/db'
-import { user, member, organization } from '@/db/schema'
-import { requireSession } from './requireSession'
+import { user as userTable, member, organization } from '@/db/schema'
+
 import { eq } from 'drizzle-orm'
 import { extractUserId } from './extract-user-Id'
+import { requireSession } from './requireSession'
 
 export type UISession = {
   session: BetterAuthSession | null
@@ -16,6 +17,7 @@ export type UISession = {
     isSuperUser: boolean
     lastActiveOrganizationId: string | null
     banned: boolean
+    image?: string // ✅ optional image property
     organizations: { id: string; name: string; slug: string }[]
   } | null
   ui: {
@@ -42,7 +44,7 @@ export async function getUISession(): Promise<UISession> {
 
   // Fetch full DB user
   const dbUser = await db.query.user.findFirst({
-    where: eq(user.id, userId),
+    where: eq(userTable.id, userId),
     columns: {
       id: true,
       email: true,
@@ -50,7 +52,8 @@ export async function getUISession(): Promise<UISession> {
       role: true,
       isSuperUser: true,
       lastActiveOrganizationId: true,
-      banned: true
+      banned: true,
+      image: true // include image column
     }
   })
 
@@ -89,6 +92,7 @@ export async function getUISession(): Promise<UISession> {
     ...dbUser,
     isSuperUser,
     banned,
+    image: dbUser.image ?? undefined, // ✅ normalize null to undefined
     organizations
   }
 

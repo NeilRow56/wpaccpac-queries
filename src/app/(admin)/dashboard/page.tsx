@@ -1,16 +1,18 @@
 import data from './data.json'
 
-import { redirect } from 'next/navigation'
-
 import { SectionCards } from '@/components/admin/sidebar/section-cards'
 import { DataTable } from '@/components/admin/sidebar/data-table'
 import { ChartAreaInteractive } from '@/components/admin/sidebar/chart-area-interactive'
-import { getSessionServer } from '@/lib/session'
+import { getUISession } from '@/lib/get-ui-session'
+import { redirect } from 'next/navigation'
 
 export default async function DashboardPage() {
-  const session = await getSessionServer() // server-side session
-  if (!session) redirect('/auth')
+  // 1️⃣ Get full TS-safe UI session
+  const { user } = await getUISession()
 
+  if (!user) {
+    redirect('/auth')
+  }
   return (
     <div className='mx-auto w-full max-w-[2040px]'>
       <SectionCards />
