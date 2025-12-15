@@ -11,13 +11,15 @@ import { ProfileUpdateForm } from './_components/profile-update-form'
 import { SessionManagement } from './_components/session-management'
 
 import { LoadingSuspense } from '@/components/shared/loading-suspense'
-import { requireSession } from '@/lib/requireSession'
+import { getUISession } from '@/lib/get-ui-session'
+import { redirect } from 'next/navigation'
 
 export default async function ProfileSettingsPage() {
-  const session = await requireSession({
-    allowPaths: ['/'],
-    redirectTo: '/'
-  })
+  const { session, user } = await getUISession()
+
+  if (!user) {
+    redirect('/auth')
+  }
 
   //requireSession guarantees non-null (because it redirects when session is null).
 
@@ -33,11 +35,11 @@ export default async function ProfileSettingsPage() {
         </Link>
         <div className='mt-12 flex items-center space-x-4'>
           <div className='bg-muted flex size-16 items-center justify-center overflow-hidden rounded-full'>
-            {session!.user.image ? (
+            {user.image ? (
               <Image
                 width={64}
                 height={64}
-                src={session!.user.image ?? '/avatar.png'}
+                src={user.image ?? '/avatar.png'}
                 alt='User Avatar'
                 className='object-cover'
               />
@@ -48,12 +50,12 @@ export default async function ProfileSettingsPage() {
           <div className='flex-1 items-center'>
             <div className='flex items-center justify-between gap-1'>
               <h1 className='text-3xl font-bold'>
-                {session!.user.name || 'User Profile'}
+                {user.name || 'User Profile'}
               </h1>
 
-              <Badge className='bg-teal-600'>{session!.user.role}</Badge>
+              <Badge className='bg-teal-600'>{user.role}</Badge>
             </div>
-            <p className='text-muted-foreground'>{session!.user.email}</p>
+            <p className='text-muted-foreground'>{user.email}</p>
           </div>
         </div>
       </div>
@@ -74,7 +76,7 @@ export default async function ProfileSettingsPage() {
         <TabsContent value='profile'>
           <Card>
             <CardContent>
-              <ProfileUpdateForm user={session!.user} />
+              <ProfileUpdateForm user={user} />
             </CardContent>
           </Card>
         </TabsContent>

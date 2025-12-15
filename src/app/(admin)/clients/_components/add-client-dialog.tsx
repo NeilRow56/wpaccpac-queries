@@ -45,7 +45,7 @@ type Props = {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
   organization: ReturnType<typeof OrganizationSchema.parse>
   orgCostCentres: costCentre[]
-  client?: insertClientSchemaType
+  client?: ClientDialogType
 }
 
 // -----------------------------------------
@@ -60,6 +60,7 @@ const initialEmptyClient: Omit<insertClientSchemaType, 'organizationId'> = {
   active: true
 }
 
+// UI Component
 export default function AddClientDialog({
   open,
   setOpen,
@@ -72,23 +73,24 @@ export default function AddClientDialog({
   // -----------------------------------------
   // Initial values (for edit or new client)
   // -----------------------------------------
-  const initialValues = useMemo<insertClientSchemaType>(
-    () =>
-      client
-        ? client
-        : {
-            ...initialEmptyClient,
-            organizationId: organization.id
-          },
-    [client, organization.id]
-  )
+  const normalizedInitialValues = useMemo<insertClientSchemaType>(() => {
+    if (client) {
+      return normalizeClientForInsert(client, organization.id)
+    }
+
+    return {
+      ...initialEmptyClient,
+      organizationId: organization.id,
+      active: true // ✅ REQUIRED DEFAULT
+    }
+  }, [client, organization.id])
 
   // -----------------------------------------
   // Form setup
   // -----------------------------------------
   const form = useForm<insertClientSchemaType>({
     resolver: zodResolver(insertClientSchema),
-    defaultValues: initialValues
+    defaultValues: normalizedInitialValues
   })
 
   // -----------------------------------------
@@ -96,16 +98,32 @@ export default function AddClientDialog({
   // -----------------------------------------
   useEffect(() => {
     if (open) {
-      form.reset(initialValues)
+      form.reset(normalizedInitialValues)
     }
-  }, [open, initialValues, form])
+  }, [open, normalizedInitialValues, form])
 
   // -----------------------------------------
   // Submit handler
   // -----------------------------------------
-  const handleSubmit = async (data: insertClientSchemaType) => {
+  // const handleSubmit = async (values: ClientDialogType) => {
+  //   try {
+  //     const payload = normalizeClientForInsert(values, organization.id)
+
+  //     await saveClientAction(payload)
+
+  //     toast.success(client ? 'Client updated successfully' : 'Client created successfully')
+  //     setOpen(false)
+  //     router.refresh()
+  //   } catch (error) {
+  //     console.error(error)
+  //     toast.error('Failed to save client')
+  //   }
+  // }
+  const handleSubmit = async (values: ClientDialogType) => {
     try {
-      const result = await saveClientAction(data)
+      const payload = normalizeClientForInsert(values, organization.id)
+
+      const result = await saveClientAction(payload)
 
       if (result.serverError) {
         toast.error(result.serverError)
@@ -122,12 +140,13 @@ export default function AddClientDialog({
         return
       }
 
-      toast.success(result.data.message)
+      toast.success(result.data.message ?? 'Client save successfully')
+
       setOpen(false)
       router.refresh()
-    } catch (err) {
-      console.error(err)
-      toast.error('Unexpected error')
+    } catch (error) {
+      console.error(error)
+      toast.error('Unexpected client error')
     }
   }
 
@@ -224,4 +243,29 @@ export default function AddClientDialog({
       </DialogContent>
     </Dialog>
   )
+}
+
+// -----------------------------------------
+// Types and normalization ( Ui + DB)
+// -----------------------------------------
+
+export type ClientDialogType = {
+  id?: string
+  name: string
+  organizationId: string
+  costCentreId: string
+  entity_type: string
+  notes?: string | null
+  active?: boolean // ✅ optional for UI
+}
+
+function normalizeClientForInsert(
+  values: ClientDialogType,
+  organizationId: string
+): insertClientSchemaType {
+  return {
+    ...values,
+    organizationId,
+    active: values.active ?? true // ✅ GUARANTEED
+  }
 }

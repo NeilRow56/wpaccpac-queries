@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/db'
-import { clients, costCentres } from '@/db/schema'
+import { clients as clientsTable, costCentres } from '@/db/schema'
 
 import { getUISession } from '@/lib/get-ui-session'
 import { actionClient } from '@/lib/safe-action'
@@ -56,19 +56,19 @@ export async function getActiveOrganizationClients(
   }
   const clientsWithCostCentre = await db
     .select({
-      id: clients.id,
-      name: clients.name,
-      entity_type: clients.entity_type,
-      costCentreId: clients.costCentreId,
+      id: clientsTable.id,
+      name: clientsTable.name,
+      entity_type: clientsTable.entity_type,
+      costCentreId: clientsTable.costCentreId,
       costCentreName: costCentres.name, // join to get name
-      organizationId: clients.organizationId,
-      notes: clients.notes,
-      active: clients.active
+      organizationId: clientsTable.organizationId,
+      notes: clientsTable.notes,
+      active: clientsTable.active
     })
-    .from(clients)
-    .leftJoin(costCentres, eq(clients.costCentreId, costCentres.id))
-    .where(eq(clients.organizationId, organizationId))
-    .orderBy(asc(clients.name))
+    .from(clientsTable)
+    .leftJoin(costCentres, eq(clientsTable.costCentreId, costCentres.id))
+    .where(eq(clientsTable.organizationId, organizationId))
+    .orderBy(asc(clientsTable.name))
 
   return clientsWithCostCentre
 }
@@ -90,7 +90,7 @@ export async function deleteClient(id: string) {
   }
 
   try {
-    await db.delete(clients).where(eq(clients.id, id))
+    await db.delete(clientsTable).where(eq(clientsTable.id, id))
     revalidatePath('/clients')
     return { success: true, message: 'Client deleted successfully' }
   } catch (err) {
@@ -178,9 +178,9 @@ export const saveClientAction = actionClient
       // ---- CREATE ----
       if (!isEditing) {
         const [inserted] = await db
-          .insert(clients)
+          .insert(clientsTable)
           .values(normalized)
-          .returning({ insertedId: clients.id })
+          .returning({ insertedId: clientsTable.id })
 
         console.log('Created client:', inserted)
         revalidatePath('/clients')
@@ -194,10 +194,10 @@ export const saveClientAction = actionClient
 
       // ---- UPDATE ----
       const [updated] = await db
-        .update(clients)
+        .update(clientsTable)
         .set(normalized)
-        .where(eq(clients.id, trimmedClient.id!))
-        .returning({ updatedId: clients.id })
+        .where(eq(clientsTable.id, trimmedClient.id!))
+        .returning({ updatedId: clientsTable.id })
 
       console.log('Updated client:', updated)
       revalidatePath('/clients')

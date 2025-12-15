@@ -15,6 +15,7 @@ import { costCentres } from '@/db/schema'
 import { AddCostCentreButton } from './_components/add-cost-centre-button'
 import CostCentreTable from './_components/cost-centre-table'
 import { getUISession } from '@/lib/get-ui-session'
+import { redirect } from 'next/navigation'
 
 export const metadata = {
   title: 'Cost centers'
@@ -26,7 +27,7 @@ export default async function CostCentresPage() {
   const { user } = await getUISession()
 
   if (!user) {
-    throw new Error('User not found or not authenticated')
+    redirect('/auth')
   }
 
   const userId = user.id

@@ -5,7 +5,10 @@ import { eq, inArray } from 'drizzle-orm'
 import { getCurrentUser } from './users'
 import { db } from '@/db'
 import { revalidatePath } from 'next/cache'
-import { member, organization } from '@/db/schema'
+import {
+  member as memberTable,
+  organization as organizationTable
+} from '@/db/schema'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { getUISession } from '@/lib/get-ui-session'
@@ -18,12 +21,12 @@ export async function getOrganizationsByUserId() {
   const userId = currentUser.id
 
   const members = await db.query.member.findMany({
-    where: eq(member.userId, userId)
+    where: eq(memberTable.userId, userId)
   })
 
   const organizations = await db.query.organization.findMany({
     where: inArray(
-      organization.id,
+      organizationTable.id,
       members.map(m => m.organizationId)
     )
   })
@@ -33,7 +36,7 @@ export async function getOrganizationsByUserId() {
 
 export async function getActiveOrganization(userId: string) {
   const memberUser = await db.query.member.findFirst({
-    where: eq(member.userId, userId)
+    where: eq(memberTable.userId, userId)
   })
 
   if (!memberUser) {
@@ -41,7 +44,7 @@ export async function getActiveOrganization(userId: string) {
   }
 
   const activeOrganization = await db.query.organization.findFirst({
-    where: eq(organization.id, memberUser.organizationId)
+    where: eq(organizationTable.id, memberUser.organizationId)
   })
 
   return activeOrganization
@@ -50,7 +53,7 @@ export async function getActiveOrganization(userId: string) {
 export async function getOrganizationBySlug(slug: string) {
   try {
     const organizationBySlug = await db.query.organization.findFirst({
-      where: eq(organization.slug, slug),
+      where: eq(organizationTable.slug, slug),
       with: {
         members: {
           with: {
@@ -69,7 +72,7 @@ export async function getOrganizationBySlug(slug: string) {
 
 export const deleteOrganization = async (id: string, path: string) => {
   try {
-    await db.delete(organization).where(eq(organization.id, id))
+    await db.delete(organizationTable).where(eq(organizationTable.id, id))
     revalidatePath(path)
     return { success: true, message: 'Organization deleted successfully' }
   } catch {
@@ -88,7 +91,7 @@ export async function getCurrentOrganization() {
   const activeOrgId = result.session.activeOrganizationId
 
   const org = await db.query.organization.findFirst({
-    where: eq(organization.id, activeOrgId)
+    where: eq(organizationTable.id, activeOrgId)
   })
 
   return org || null

@@ -33,7 +33,7 @@ export default async function ClientsPage() {
   const { user } = await getUISession()
 
   if (!user) {
-    throw new Error('User not found or not authenticated')
+    redirect('/auth')
   }
 
   const userId = user.id

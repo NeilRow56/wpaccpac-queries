@@ -19,6 +19,10 @@ export const roles = {
   admin: ac.newRole({
     project: ['create', 'read', 'update', 'delete'],
     ...adminAc.statements
+  }),
+  superuser: ac.newRole({
+    project: ['create', 'read', 'update', 'delete'],
+    ...adminAc.statements
   })
 }
 

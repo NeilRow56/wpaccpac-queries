@@ -2,7 +2,7 @@
 
 import { eq } from 'drizzle-orm'
 
-import { member } from '@/db/schema'
+import { member as memberTable } from '@/db/schema'
 
 import { isAdmin } from './permissions'
 import { db } from '@/db'
@@ -14,7 +14,7 @@ export const removeMember = async (memberId: string) => {
   }
 
   try {
-    await db.delete(member).where(eq(member.id, memberId))
+    await db.delete(memberTable).where(eq(memberTable.id, memberId))
 
     return {
       success: true,

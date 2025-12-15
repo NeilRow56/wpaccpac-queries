@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/db'
-import { costCentres } from '@/db/schema'
+import { costCentres as costCentresTable } from '@/db/schema'
 import { auth } from '@/lib/auth'
 import { actionClient } from '@/lib/safe-action'
 
@@ -25,8 +25,8 @@ import { redirect } from 'next/navigation'
  */
 export async function getActiveOrganizationCostCentres(organizationId: string) {
   return await db.query.costCentres.findMany({
-    where: eq(costCentres.organizationId, organizationId),
-    orderBy: asc(costCentres.name)
+    where: eq(costCentresTable.organizationId, organizationId),
+    orderBy: asc(costCentresTable.name)
   })
 }
 
@@ -36,11 +36,11 @@ export async function getActiveOrganizationCostCentres(organizationId: string) {
 export async function existingCostCentre(name: string, organizationId: string) {
   return await db
     .select()
-    .from(costCentres)
+    .from(costCentresTable)
     .where(
       and(
-        eq(costCentres.name, name),
-        eq(costCentres.organizationId, organizationId)
+        eq(costCentresTable.name, name),
+        eq(costCentresTable.organizationId, organizationId)
       )
     )
 }
@@ -50,7 +50,7 @@ export async function existingCostCentre(name: string, organizationId: string) {
  */
 export async function deleteCostCentre(id: string, path: string) {
   try {
-    await db.delete(costCentres).where(eq(costCentres.id, id))
+    await db.delete(costCentresTable).where(eq(costCentresTable.id, id))
     revalidatePath(path)
     return { success: true, message: 'Cost centre deleted successfully' }
   } catch {
@@ -104,12 +104,12 @@ export const saveCostCentreAction = actionClient
       /* ---------------------------------- CREATE ---------------------------------- */
       if (!isEditing) {
         const result = await db
-          .insert(costCentres)
+          .insert(costCentresTable)
           .values({
             name: costCentre.name,
             organizationId: costCentre.organizationId
           })
-          .returning({ insertedId: costCentres.id })
+          .returning({ insertedId: costCentresTable.id })
 
         return {
           message: `Cost centre #${result[0].insertedId} created successfully`
@@ -118,13 +118,13 @@ export const saveCostCentreAction = actionClient
 
       /* ---------------------------------- UPDATE ---------------------------------- */
       const result = await db
-        .update(costCentres)
+        .update(costCentresTable)
         .set({
           name: costCentre.name,
           organizationId: costCentre.organizationId
         })
-        .where(eq(costCentres.id, costCentre.id!))
-        .returning({ updatedId: costCentres.id })
+        .where(eq(costCentresTable.id, costCentre.id!))
+        .returning({ updatedId: costCentresTable.id })
 
       return {
         message: `Cost centre #${result[0].updatedId} updated successfully`
