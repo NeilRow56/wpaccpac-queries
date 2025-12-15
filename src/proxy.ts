@@ -2,38 +2,66 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 
-/**
- * Fully safe middleware to protect authenticated routes.
- * - Redirects missing sessions to '/'
- * - Never redirects allowed/public paths (avoids loops)
- * - Works with Better Auth session API
- */
+export const config = {
+  matcher: [
+    // Protect these route groups
+    '/dashboard/:path*',
+    '/admin/:path*'
+  ]
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // Public paths (never redirect)
-  const allowPaths = ['/'] // add more public routes if needed (e.g. '/login')
+  // ---- Create response early (important for NFT tracing) ----
+  const response = NextResponse.next()
 
-  // Skip protection for allowed paths
-  if (allowPaths.includes(pathname)) {
-    return NextResponse.next()
+  // ---- Security headers (Edge-safe) ----
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=()'
+  )
+
+  if (process.env.NODE_ENV === 'production') {
+    response.headers.set(
+      'Strict-Transport-Security',
+      'max-age=63072000; includeSubDomains; preload'
+    )
   }
 
-  // Fetch session from Better Auth
+  response.headers.set(
+    'Content-Security-Policy',
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "font-src 'self' https:",
+      "connect-src 'self' https: http://localhost:3000 https://*.vercel.app",
+      "frame-ancestors 'none'"
+    ].join('; ')
+  )
+
+  // ---- Auth protection ----
+
+  // Public paths that should never redirect
+  const allowPaths = ['/']
+
+  if (allowPaths.includes(pathname)) {
+    return response
+  }
+
   const session = await auth.api.getSession({
     headers: Object.fromEntries(request.headers)
   })
 
   if (!session) {
-    console.log(`[proxy] No session on "${pathname}" → redirecting to "/"`)
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // Session exists — continue
-  return NextResponse.next()
-}
-
-// Apply middleware only to protected route groups
-export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*']
+  // Authenticated → continue with headers applied
+  return response
 }
