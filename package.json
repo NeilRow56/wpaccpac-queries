@@ -76,7 +76,9 @@
     "zod": "^4.1.13"
   },
   "overrides": {
-    "better-auth/drizzle-orm": "0.44.7"
+    "better-auth": {
+      "drizzle-orm": "^0.44.7"
+    }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
