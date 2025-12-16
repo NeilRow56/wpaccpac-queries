@@ -1,7 +1,7 @@
-import AuthLayoutComponent from './_components/auth-layout-component'
 import SuspenseWrapper from '@/components/shared/suspense-wrapper'
 import { getUISession } from '@/lib/get-ui-session'
 import { redirect } from 'next/navigation'
+import AuthLayoutComponent from './_components/auth-layout-component'
 
 interface AuthPageProps {
   searchParams?: {
