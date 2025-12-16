@@ -1,11 +1,11 @@
-// src/lib/getUISession.ts
+// lib/get-ui-session.ts
 import { Session as BetterAuthSession } from '@/lib/auth'
 import { db } from '@/db'
 import { user as userTable, member, organization } from '@/db/schema'
-
 import { eq } from 'drizzle-orm'
 import { extractUserId } from './extract-user-Id'
-import { requireSession } from './requireSession'
+import { auth } from '@/lib/auth'
+import { nextHeadersToObject } from './nextHeadersToObject'
 
 export type UISession = {
   session: BetterAuthSession | null
@@ -17,7 +17,7 @@ export type UISession = {
     isSuperUser: boolean
     lastActiveOrganizationId: string | null
     banned: boolean
-    image?: string // ✅ optional image property
+    image?: string
     organizations: { id: string; name: string; slug: string }[]
   } | null
   ui: {
@@ -27,13 +27,14 @@ export type UISession = {
 }
 
 export async function getUISession(): Promise<UISession> {
-  // Get raw BetterAuth session
-  const session = (await requireSession({
-    allowPaths: ['/'],
-    redirectTo: '/auth'
+  // Get session without redirecting
+  const headersObj = await nextHeadersToObject()
+  const session = (await auth.api.getSession({
+    headers: headersObj
   })) as BetterAuthSession | null
 
   const userId = extractUserId(session)
+
   if (!userId) {
     return {
       session,
@@ -42,7 +43,6 @@ export async function getUISession(): Promise<UISession> {
     }
   }
 
-  // Fetch full DB user
   const dbUser = await db.query.user.findFirst({
     where: eq(userTable.id, userId),
     columns: {
@@ -53,7 +53,7 @@ export async function getUISession(): Promise<UISession> {
       isSuperUser: true,
       lastActiveOrganizationId: true,
       banned: true,
-      image: true // include image column
+      image: true
     }
   })
 
@@ -65,23 +65,19 @@ export async function getUISession(): Promise<UISession> {
     }
   }
 
-  const isSuperUser = dbUser.isSuperUser ?? false
-  const banned = dbUser.banned ?? false
-
-  // Fetch organizations with slug
   const orgMemberships = await db.query.member.findMany({
     where: eq(member.userId, dbUser.id),
     columns: { organizationId: true }
   })
 
   const organizations = await Promise.all(
-    orgMemberships.map(async o => {
+    orgMemberships.map(async m => {
       const org = await db.query.organization.findFirst({
-        where: eq(organization.id, o.organizationId),
+        where: eq(organization.id, m.organizationId),
         columns: { name: true, slug: true }
       })
       return {
-        id: o.organizationId,
+        id: m.organizationId,
         name: org?.name ?? '',
         slug: org?.slug ?? ''
       }
@@ -90,16 +86,17 @@ export async function getUISession(): Promise<UISession> {
 
   const userWithOrgs = {
     ...dbUser,
-    isSuperUser,
-    banned,
-    image: dbUser.image ?? undefined, // ✅ normalize null to undefined
+    isSuperUser: dbUser.isSuperUser ?? false,
+    banned: dbUser.banned ?? false,
+    image: dbUser.image ?? undefined,
     organizations
   }
 
   const ui = {
     canCreateOrganization:
-      isSuperUser || (dbUser.role === 'admin' && organizations.length === 0),
-    canAccessAdmin: isSuperUser || dbUser.role === 'admin'
+      userWithOrgs.isSuperUser ||
+      (userWithOrgs.role === 'admin' && organizations.length === 0),
+    canAccessAdmin: userWithOrgs.isSuperUser || userWithOrgs.role === 'admin'
   }
 
   return { session, user: userWithOrgs, ui }

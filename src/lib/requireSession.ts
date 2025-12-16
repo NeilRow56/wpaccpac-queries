@@ -1,47 +1,54 @@
+// lib/requireSession.ts
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { db } from '@/db'
 import { user as userTable } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { extractUserId } from './extract-user-Id'
-import { headers } from 'next/headers'
+import { nextHeadersToObject } from './nextHeadersToObject'
 
 /**
- * Checks for a valid session.
- * Also ensures the user is NOT archived.
+ * Checks for a valid Better Auth session and user
+ * Optionally allows public paths, else redirects
  */
 export async function requireSession(options?: {
   allowPaths?: string[]
   redirectTo?: string
 }) {
-  const { allowPaths = ['/'], redirectTo = '/' } = options ?? {}
+  const { allowPaths = ['/'], redirectTo = '/auth' } = options ?? {}
 
-  const currentHeaders = await headers()
-  const pathname = currentHeaders.get('x-invoke-pathname') ?? '/'
+  // Use Next.js App Router headers -> plain object
+  const headersObj = await nextHeadersToObject()
+  const pathname = headersObj['x-invoke-pathname'] ?? '/'
 
-  const session = await auth.api.getSession({ headers: currentHeaders })
+  // Check if current path is allowed
+  const isAllowedPath = allowPaths.includes(pathname)
 
-  if (!session && !allowPaths.includes(pathname)) {
+  // Get session
+  const session = await auth.api.getSession({ headers: headersObj })
+
+  // If no session and not on allowed path, redirect
+  if (!session && !isAllowedPath) {
     redirect(redirectTo)
   }
 
-  // 🔐 Extract userId safely
   const userId = extractUserId(session)
-  if (!userId) {
+
+  // If no userId and not on allowed path, redirect
+  if (!userId && !isAllowedPath) {
     redirect(redirectTo)
   }
 
-  // 🔒 Check archived status
-  const dbUser = await db.query.user.findFirst({
-    where: eq(userTable.id, userId),
-    columns: {
-      archivedAt: true
-    }
-  })
+  // Only validate user status if we have a userId
+  if (userId) {
+    const dbUser = await db.query.user.findFirst({
+      where: eq(userTable.id, userId),
+      columns: { archivedAt: true }
+    })
 
-  if (!dbUser || dbUser.archivedAt) {
-    // Optional: log or track
-    redirect('/account-archived')
+    if (!dbUser || dbUser.archivedAt) {
+      redirect('/account-archived')
+    }
   }
 
   return session
