@@ -12,7 +12,7 @@ export const config = {
 }
 
 export async function proxy(request: NextRequest) {
-  const pathname = request.nextUrl.pathname
+  const { pathname, search } = request.nextUrl
 
   // ---- Create response early (important for NFT tracing) ----
   const response = NextResponse.next()
@@ -49,10 +49,10 @@ export async function proxy(request: NextRequest) {
   // ---- Auth protection ----
 
   // Public paths that should never redirect
-  const allowPaths = ['/', '/auth']
+  const publicPaths = ['/', '/auth']
 
-  if (allowPaths.includes(pathname)) {
-    return response
+  if (publicPaths.includes(pathname)) {
+    return NextResponse.next()
   }
 
   const session = await auth.api.getSession({
@@ -60,9 +60,11 @@ export async function proxy(request: NextRequest) {
   })
 
   if (!session) {
-    return NextResponse.redirect(new URL('/', request.url))
+    const redirectTo = encodeURIComponent(pathname + search)
+    return NextResponse.redirect(
+      new URL(`/auth?redirect=${redirectTo}`, request.url)
+    )
   }
 
-  // Authenticated → continue with headers applied
-  return response
+  return NextResponse.next()
 }

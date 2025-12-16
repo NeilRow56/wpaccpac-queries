@@ -1,11 +1,18 @@
+import { auth } from '@/lib/auth'
 import { ArrowLeftIcon } from 'lucide-react'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
 export default async function AuthLayout({
   children
 }: {
   children: React.ReactNode
 }) {
+  const session = await auth.api.getSession()
+
+  if (session) {
+    redirect('/dashboard')
+  }
   return (
     <div className='flex min-h-svh flex-col items-center bg-gray-300 p-6 md:p-10'>
       <div className='mt-48 w-full max-w-xs md:max-w-[850px]'>

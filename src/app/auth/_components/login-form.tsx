@@ -28,8 +28,11 @@ const loginSchema = z.object({
 })
 
 type LoginSchemaType = z.infer<typeof loginSchema>
+interface LoginFormProps {
+  redirectTo?: string
+}
 
-export function LoginForm() {
+export default function LoginForm({ redirectTo }: LoginFormProps) {
   const router = useRouter()
 
   const form = useForm<z.infer<typeof loginSchema>>({
@@ -47,7 +50,7 @@ export function LoginForm() {
 
     if (success) {
       toast.success(message as string)
-      router.push('/dashboard')
+      router.replace(redirectTo ?? '/dashboard')
     } else {
       toast.error((message as string) || 'Failed to sign up')
     }

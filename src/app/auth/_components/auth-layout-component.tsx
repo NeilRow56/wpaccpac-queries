@@ -1,33 +1,19 @@
 'use client'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useEffect, useState } from 'react'
 
-import { authClient } from '@/lib/auth-client'
-import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { LoginForm } from './login-form'
-import { RegisterForm } from './register-form'
 
-function AuthLayoutComponent() {
-  const [activeTab, setActiveTab] = useState('login')
-  const router = useRouter()
+import { useState } from 'react'
+import LoginForm from '@/app/auth/_components/login-form'
+import RegisterForm from '@/app/auth/_components/register-form'
 
-  useEffect(() => {
-    let active = true
+export interface AuthLayoutComponentProps {
+  redirectTo?: string
+}
 
-    authClient.getSession().then(session => {
-      if (!active) return
-
-      if (session.data) {
-        router.replace('/dashboard')
-      }
-    })
-
-    return () => {
-      active = false
-    }
-  }, [router])
+function AuthLayoutComponent({ redirectTo }: AuthLayoutComponentProps) {
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login')
 
   return (
     <div className='flex items-center justify-center'>
@@ -55,7 +41,9 @@ function AuthLayoutComponent() {
           <div className='w-full'>
             <Tabs
               value={activeTab}
-              onValueChange={setActiveTab}
+              onValueChange={value =>
+                setActiveTab(value as 'login' | 'register')
+              }
               className='w-full'
             >
               <TabsList className='border-accent mb-4 grid w-full grid-cols-2 border dark:bg-blue-600'>
@@ -73,10 +61,10 @@ function AuthLayoutComponent() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value='login' className=''>
-                <LoginForm />
+                <LoginForm redirectTo={redirectTo} />
               </TabsContent>
               <TabsContent value='register'>
-                <RegisterForm />
+                <RegisterForm redirectTo={redirectTo} />
               </TabsContent>
             </Tabs>
           </div>
