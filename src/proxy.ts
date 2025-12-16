@@ -6,7 +6,8 @@ export const config = {
   matcher: [
     // Protect these route groups
     '/dashboard/:path*',
-    '/admin/:path*'
+    '/admin/:path*',
+    '/settings/:path*'
   ]
 }
 
@@ -48,7 +49,7 @@ export async function proxy(request: NextRequest) {
   // ---- Auth protection ----
 
   // Public paths that should never redirect
-  const allowPaths = ['/']
+  const allowPaths = ['/', '/auth']
 
   if (allowPaths.includes(pathname)) {
     return response

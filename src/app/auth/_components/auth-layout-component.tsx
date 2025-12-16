@@ -14,9 +14,19 @@ function AuthLayoutComponent() {
   const router = useRouter()
 
   useEffect(() => {
+    let active = true
+
     authClient.getSession().then(session => {
-      if (session.data !== null) router.push('/dashboard')
+      if (!active) return
+
+      if (session.data) {
+        router.replace('/dashboard')
+      }
     })
+
+    return () => {
+      active = false
+    }
   }, [router])
 
   return (

@@ -12,6 +12,6 @@ export async function signOut() {
     throw new Error(`Sign-out failed: ${res.status} ${text}`)
   }
 
-  // Optionally redirect to homepage
-  window.location.href = '/auth'
+  // Optionally redirect to '/auth' but this prevents getting back to the home page after signout
+  window.location.href = '/'
 }
