@@ -1,4 +1,3 @@
-import React from 'react'
 import AuthLayoutComponent from './_components/auth-layout-component'
 import SuspenseWrapper from '@/components/shared/suspense-wrapper'
 import { getUISession } from '@/lib/get-ui-session'
