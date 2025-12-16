@@ -1,18 +1,27 @@
-import { auth } from '@/lib/auth'
+'use client'
+
+import { authClient } from '@/lib/auth-client'
 import { ArrowLeftIcon } from 'lucide-react'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
-export default async function AuthLayout({
+export default function AuthLayout({
   children
 }: {
   children: React.ReactNode
 }) {
-  const session = await auth.api.getSession()
+  const router = useRouter()
+  const [isLoading, setLoading] = useState(true)
 
-  if (session) {
-    redirect('/dashboard')
-  }
+  useEffect(() => {
+    authClient.getSession().then(session => {
+      if (session.data) router.replace('/dashboard')
+      setLoading(false)
+    })
+  }, [router])
+
+  if (isLoading) return null
   return (
     <div className='flex min-h-svh flex-col items-center bg-gray-300 p-6 md:p-10'>
       <div className='mt-48 w-full max-w-xs md:max-w-[850px]'>
