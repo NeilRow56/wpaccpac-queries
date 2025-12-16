@@ -1,6 +1,8 @@
+'use client'
+
 import { ForgotPasswordForm } from './_components/forgot-password-form'
 
-const ForgotPasswordPage = async () => {
+const ForgotPasswordPage = () => {
   return (
     <div className='flex items-center justify-center'>
       <div className='flex flex-col'>
