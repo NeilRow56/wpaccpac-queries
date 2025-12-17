@@ -15,7 +15,7 @@ export default function AuthLayout({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
-  console.log(searchParams)
+  // console.log(Object.fromEntries(searchParams.entries()))
 
   useEffect(() => {
     let mounted = true
