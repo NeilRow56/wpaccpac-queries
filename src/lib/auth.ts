@@ -48,8 +48,12 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => {
       const verifyUrl = new URL(url)
 
-      // ✅ MUST be callbackUrl (lowercase L)
-      verifyUrl.searchParams.set('callbackUrl', '/dashboard')
+      // 🔥 REMOVE the existing one
+      verifyUrl.searchParams.delete('callbackURL')
+      verifyUrl.searchParams.delete('callbackUrl')
+
+      // 🔥 ADD the correct one (Better Auth uses this casing)
+      verifyUrl.searchParams.set('callbackURL', '/dashboard')
 
       await resend.emails.send({
         from: `${process.env.EMAIL_SENDER_NAME} <${process.env.EMAIL_SENDER_ADDRESS}>`,
