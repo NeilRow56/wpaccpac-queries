@@ -46,11 +46,19 @@ const allowedOriginsFn = (origin: string | null | undefined, req: Request) => {
 export const auth = betterAuth({
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
+      const verifyUrl = new URL(url)
+
+      // 🔥 IMPORTANT: override the one Better Auth actually uses
+      verifyUrl.searchParams.set('callbackURL', '/dashboard')
+
       await resend.emails.send({
         from: `${process.env.EMAIL_SENDER_NAME} <${process.env.EMAIL_SENDER_ADDRESS}>`,
         to: user.email,
         subject: 'Verify your email',
-        react: VerifyEmail({ username: user.name, verifyUrl: url })
+        react: VerifyEmail({
+          username: user.name,
+          verifyUrl: verifyUrl.toString()
+        })
       })
     },
     sendOnSignUp: true,
@@ -151,22 +159,20 @@ export const auth = betterAuth({
           })
           if (!fullUser) return
 
-          // Use a normal transaction, then cast `tx` to `UserExecutor`
-          await db.transaction(async tx => {
-            const userTx = tx as unknown as UserExecutor
+          // ✅ Neon-safe sequential writes
+          const userExec = db as unknown as UserExecutor
 
-            // Assign first admin if needed
-            await assignFirstAdmin(userTx, fullUser.id)
+          // Assign first admin if needed
+          await assignFirstAdmin(userExec, fullUser.id)
 
-            // Ensure role & isSuperUser defaults
-            await userTx.query.user.update({
-              set: {
-                role: fullUser.role,
-                isSuperUser: fullUser.isSuperUser ?? false
-              },
-              where: eq(userTable.id, fullUser.id)
+          // Ensure role & isSuperUser defaults
+          await db
+            .update(userTable)
+            .set({
+              role: fullUser.role,
+              isSuperUser: fullUser.isSuperUser ?? false
             })
-          })
+            .where(eq(userTable.id, fullUser.id))
         }
       }
     },

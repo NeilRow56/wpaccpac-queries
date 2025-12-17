@@ -27,7 +27,7 @@ export const SignOutButton = () => {
           toast.success('You’ve logged out. See you soon!', {
             duration: 5000
           })
-          router.push('/')
+          router.push('/auth')
         }
       }
     })

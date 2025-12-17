@@ -1,32 +1,12 @@
-import { eq } from 'drizzle-orm'
+// src/lib/use-executor-type.ts
+import { db } from '@/db'
 
-export type UserExecutor = {
-  query: {
-    user: {
-      findFirst: (args: {
-        where?: ReturnType<typeof eq>
-        columns?: { id?: boolean; role?: boolean; isSuperUser?: boolean }
-      }) => Promise<
-        Partial<{
-          id: string
-          role: 'user' | 'admin' | 'owner' | 'superuser'
-          isSuperUser: boolean | null
-        }>
-      >
-      findMany: (args: {
-        where?: ReturnType<typeof eq>
-        columns?: { id: true }
-        limit?: number
-      }) => Promise<{ id: string }[]>
-      update: (args: {
-        set: Partial<{
-          role: 'user' | 'admin' | 'owner' | 'superuser'
-          isSuperUser: boolean
-        }>
-        where?: ReturnType<typeof eq>
-      }) => Promise<void>
-    }
-  }
-}
+/**
+ * UserExecutor represents a Drizzle database executor.
+ * This works for:
+ * - db
+ * - db.transaction(tx => ...)
+ */
+export type UserExecutor = typeof db
 
 export {}

@@ -4,6 +4,7 @@ import { db } from '@/db'
 import { member, user as userTable } from '@/db/schema'
 import { auth } from '@/lib/auth'
 import { getUISession, UISession } from '@/lib/get-ui-session'
+
 import { asc, eq, inArray, isNull, not } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
@@ -12,7 +13,6 @@ import { redirect } from 'next/navigation'
 /* -----------------------------------------------------
    SIGN UP
 ----------------------------------------------------- */
-
 export const signUp = async (email: string, password: string, name: string) => {
   try {
     await auth.api.signUpEmail({

@@ -5,8 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Image from 'next/image'
 
 import { useState } from 'react'
-import LoginForm from '@/app/auth/_components/login-form'
-import RegisterForm from '@/app/auth/_components/register-form'
+import LoginForm from './login-form'
+import RegisterForm from './register-form'
 
 export interface AuthLayoutComponentProps {
   redirectTo?: string
