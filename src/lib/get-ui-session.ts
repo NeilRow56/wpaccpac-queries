@@ -1,14 +1,13 @@
 // lib/get-ui-session.ts
-import { Session as BetterAuthSession } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { db } from '@/db'
 import { user as userTable, member, organization } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, count } from 'drizzle-orm'
 import { extractUserId } from './extract-user-Id'
-import { auth } from '@/lib/auth'
 import { nextHeadersToObject } from './nextHeadersToObject'
 
 export type UISession = {
-  session: BetterAuthSession | null
+  session: typeof auth.$Infer.Session | null
   user: {
     id: string
     email: string
@@ -27,12 +26,8 @@ export type UISession = {
 }
 
 export async function getUISession(): Promise<UISession> {
-  // Get session without redirecting
   const headersObj = await nextHeadersToObject()
-  const session = (await auth.api.getSession({
-    headers: headersObj
-  })) as BetterAuthSession | null
-
+  const session = (await auth.api.getSession({ headers: headersObj })) ?? null
   const userId = extractUserId(session)
 
   if (!userId) {
@@ -84,6 +79,10 @@ export async function getUISession(): Promise<UISession> {
     })
   )
 
+  const [{ value: totalUsers }] = await db
+    .select({ value: count() })
+    .from(userTable)
+
   const userWithOrgs = {
     ...dbUser,
     isSuperUser: dbUser.isSuperUser ?? false,
@@ -95,7 +94,8 @@ export async function getUISession(): Promise<UISession> {
   const ui = {
     canCreateOrganization:
       userWithOrgs.isSuperUser ||
-      (userWithOrgs.role === 'admin' && organizations.length === 0),
+      (userWithOrgs.role === 'admin' && organizations.length === 0) ||
+      (totalUsers === 1 && organizations.length === 0), // first user gets to create org
     canAccessAdmin: userWithOrgs.isSuperUser || userWithOrgs.role === 'admin'
   }
 

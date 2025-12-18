@@ -11,28 +11,21 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle
+  CardTitle,
+  CardDescription
 } from '@/components/ui/card'
 import { Field, FieldGroup } from '@/components/ui/field'
-
 import { useForm } from 'react-hook-form'
-
-import { toast } from 'sonner'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-
 import { Button } from '@/components/ui/button'
-
 import { useRouter } from 'next/navigation'
-
 import { FormInput } from '@/components/form/form-base'
 import { LoadingSwap } from '@/components/shared/loading-swap'
 import { authClient } from '@/lib/auth-client'
-import { Organization } from '@/db/schema/authSchema'
-import { createOrganizationAction } from '@/server-actions/organizations'
+import { toast } from 'sonner'
 
 const formSchema = z.object({
   name: z.string().min(2).max(50)
@@ -41,120 +34,139 @@ const formSchema = z.object({
 type Props = {
   open: boolean
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
-
-  organization?: Organization
+  sessionUserId: string // Pass the authenticated user's id from session
 }
 
-export function AddOrganizationDialog({ setOpen, open, organization }: Props) {
+export function AddOrganizationDialog({ setOpen, open, sessionUserId }: Props) {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: ''
-    }
+    defaultValues: { name: '' }
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const slug = values.name
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, '')
-      .trim()
-      .replace(/\s+/g, '-')
-      .slice(0, 50)
-
-    const { error } = await authClient.organization.checkSlug({ slug })
-
-    if (error) {
-      form.setError('name', {
-        type: 'manual',
-        message:
-          'Name is already in use by another business. Please choose a slightly amended name'
-      })
-      return
-    }
+    setIsLoading(true)
 
     try {
-      setIsLoading(true)
-      const result = await createOrganizationAction(values.name, slug)
+      // Generate slug
+      const slug = values.name
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-')
+        .slice(0, 50)
 
-      if (!result.success) {
-        toast.error(result.error)
-      } else {
-        await authClient.organization.setActive({
-          organizationId: result.organizationId
+      // Check slug uniqueness
+      const { error: slugError } = await authClient.organization.checkSlug({
+        slug
+      })
+      if (slugError) {
+        form.setError('name', {
+          type: 'manual',
+          message: 'Name is already in use. Choose a different name.'
         })
-        toast.success('Organization created successfully')
+        return
       }
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setIsLoading(false)
+
+      // Create organization (client-side safe)
+      const { data, error } = await authClient.organization.create({
+        name: values.name,
+        slug
+      })
+
+      if (error || !data?.id) {
+        console.error('[org.create]', error)
+        form.setError('name', {
+          type: 'manual',
+          message: error?.message ?? 'Failed to create organization'
+        })
+        return
+      }
+
+      const orgId = data.id
+
+      // Set organization as active
+      await authClient.organization.setActive({ organizationId: orgId })
+
+      // ✅ Promote first-ever admin via server-side endpoint
+      const promoteRes = await fetch('/api/promote-first-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: sessionUserId, organizationId: orgId })
+      })
+      const promoteData = await promoteRes.json()
+      if (!promoteData.success) {
+        console.warn('Promotion failed:', promoteData.error)
+      }
+
+      // Success toast & refresh
+      toast.success('Organization created successfully!')
+      router.refresh()
       setOpen(false)
       form.reset()
-      router.refresh()
+    } catch (err) {
+      console.error('[org.create]', err)
+      toast.error('Unexpected error occurred while creating organization.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              <div className='items-center justify-center'>
-                <h2 className='text-primary text-xl font-bold lg:text-3xl'>
-                  {organization?.id ? 'Edit' : 'New'} Organization{' '}
-                  {organization?.id ? `#${organization.id}` : 'Form'}
-                </h2>
-              </div>
-            </DialogTitle>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create New Organization</DialogTitle>
+          <DialogDescription>
+            Fill in the name and click create to add a new organization.
+          </DialogDescription>
+        </DialogHeader>
 
-            <DialogDescription>
-              Create organizations here. Click create when you&apos;re done.
-            </DialogDescription>
-          </DialogHeader>
-          <Card className='mx-auto w-full border-red-200 sm:max-w-md'>
-            <CardHeader className='text-center'>
-              <CardTitle></CardTitle>
-              <CardDescription></CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form
-                id='create-organization-form'
-                onSubmit={form.handleSubmit(onSubmit)}
+        <Card className='mx-auto w-full sm:max-w-md'>
+          <CardHeader>
+            <CardTitle></CardTitle>
+            <CardDescription></CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <form
+              id='create-organization-form'
+              onSubmit={form.handleSubmit(onSubmit)}
+            >
+              <FieldGroup>
+                <FormInput
+                  control={form.control}
+                  name='name'
+                  label='Organization Name'
+                />
+              </FieldGroup>
+            </form>
+          </CardContent>
+
+          <CardFooter>
+            <Field orientation='horizontal' className='justify-between'>
+              <Button
+                type='submit'
+                form='create-organization-form'
+                className='w-full max-w-[150px]'
+                disabled={isLoading}
               >
-                <FieldGroup>
-                  <FormInput control={form.control} name='name' label='Name' />
-                </FieldGroup>
-              </form>
-            </CardContent>
-            <CardFooter className=''>
-              <Field orientation='horizontal' className='justify-between'>
-                <Button
-                  type='submit'
-                  form='create-organization-form'
-                  className='w-full max-w-[150px] cursor-pointer dark:bg-blue-600 dark:text-white'
-                  disabled={isLoading}
-                >
-                  <LoadingSwap isLoading={isLoading}>Create</LoadingSwap>
-                </Button>
-                <Button
-                  className='border-red-500'
-                  type='button'
-                  form='create-organization-form'
-                  variant='outline'
-                  onClick={() => form.reset()}
-                >
-                  Reset
-                </Button>
-              </Field>
-            </CardFooter>
-          </Card>
-        </DialogContent>
-      </Dialog>
-    </>
+                <LoadingSwap isLoading={isLoading}>Create</LoadingSwap>
+              </Button>
+              <Button
+                variant='outline'
+                type='button'
+                onClick={() => form.reset()}
+              >
+                Reset
+              </Button>
+            </Field>
+          </CardFooter>
+        </Card>
+      </DialogContent>
+    </Dialog>
   )
 }
 

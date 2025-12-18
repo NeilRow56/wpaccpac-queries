@@ -26,7 +26,14 @@ export default async function OrganizationPage() {
 
   // 3️⃣ Check permissions
   if (!ui.canCreateOrganization) {
-    throw new Error('You are not allowed to create an organization')
+    return (
+      <div className='container mx-auto max-w-6xl py-10'>
+        <h2 className='text-3xl text-red-600'>
+          You have reached the maximum number of organizations you can be linked
+          to.
+        </h2>
+      </div>
+    )
   }
 
   // Map organizations for table, ensuring id, name, slug
@@ -50,7 +57,7 @@ export default async function OrganizationPage() {
           />
         </div>
         <div className='-mt-12 flex w-full justify-center'>
-          <AddOrganizationButton />
+          <AddOrganizationButton sessionUserId={user.id} />
         </div>
       </>
     )
@@ -74,7 +81,9 @@ export default async function OrganizationPage() {
 
       <div className='mb-8 flex items-center gap-2'>
         <OrganizationSelect />
-        {user.role !== 'user' && <AddOrganizationButton />}
+        {user.role !== 'user' && (
+          <AddOrganizationButton sessionUserId={user.id} />
+        )}
       </div>
 
       <Suspense

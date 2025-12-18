@@ -15,8 +15,6 @@ import { nextCookies } from 'better-auth/next-js'
 
 import { ac, roles } from '@/lib/permissions'
 import { Resend } from 'resend'
-import { assignFirstAdmin } from './auth-logic/assign-first-admin'
-import { UserExecutor } from './use-executor-type'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -152,7 +150,7 @@ export const auth = betterAuth({
     })
   ],
 
-  /** ----------------- Database Hooks ----------------- */
+  // /** ----------------- Database Hooks ----------------- */
   databaseHooks: {
     user: {
       create: {
@@ -163,20 +161,19 @@ export const auth = betterAuth({
           })
           if (!fullUser) return
 
-          // ✅ Neon-safe sequential writes
-          const userExec = db as unknown as UserExecutor
+          // ✅ Set defaults safely, no transaction needed
 
-          // Assign first admin if needed
-          await assignFirstAdmin(userExec, fullUser.id)
-
-          // Ensure role & isSuperUser defaults
           await db
             .update(userTable)
             .set({
-              role: fullUser.role,
+              role: fullUser.role ?? 'user',
               isSuperUser: fullUser.isSuperUser ?? false
             })
             .where(eq(userTable.id, fullUser.id))
+
+          // NOTE: Do NOT assign first admin here
+          // The first admin assignment is done **after creating an organization**
+          // in createOrganizationAction to handle multi-org logic correctly
         }
       }
     },
