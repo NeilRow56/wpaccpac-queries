@@ -25,22 +25,20 @@ import { FormInput } from '@/components/form/form-base'
 
 const profileUpdateSchema = z.object({
   name: z.string().min(1),
-  role: z.string().min(1),
+
   email: z.email().min(1)
 })
 
 type ProfileUpdateForm = z.infer<typeof profileUpdateSchema>
 
-export function ProfileUpdateForm({
-  user
-}: {
-  user: {
-    id: string
-    email: string
-    name: string
-    role: string
-  }
-}) {
+export type ProfileUser = {
+  id: string
+  email: string
+  name: string
+  // orgRole: 'owner' | 'admin' | 'member'
+}
+
+export function ProfileUpdateForm({ user }: { user: ProfileUser }) {
   const router = useRouter()
 
   const form = useForm<ProfileUpdateForm>({
@@ -91,9 +89,9 @@ export function ProfileUpdateForm({
         <CardTitle className='text-2xl'>Profile</CardTitle>
         <CardDescription>Manage your account</CardDescription>
       </CardHeader>
-      {/* <CardContent>
-        <UserRoleSelect userId={user.id} role={user.role as Role} />
-      </CardContent> */}
+      <CardContent>
+        {/* <UserRoleSelect userId={user.id} role={user.orgRole} /> */}
+      </CardContent>
       <CardContent>
         <form
           id='profile-update-form'

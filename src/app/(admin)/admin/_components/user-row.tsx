@@ -22,19 +22,19 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { authClient } from '@/lib/auth-client'
+import { OrganizationUser } from '@/server-actions/organizations'
 
-import { UserWithRole } from 'better-auth/plugins/admin'
 import { MoreHorizontal } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-export function UserRow({
-  user,
-  selfId
-}: {
-  user: UserWithRole
+type UserRowProps = {
+  user: OrganizationUser
   selfId: string
-}) {
+  canAccessAdmin: boolean
+}
+
+export function UserRow({ user, selfId }: UserRowProps) {
   const { refetch } = authClient.useSession()
   const router = useRouter()
   const isSelf = user.id === selfId
@@ -127,8 +127,16 @@ export function UserRow({
         </div>
       </TableCell>
       <TableCell>
-        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-          {user.role}
+        <Badge
+          variant={
+            user.orgRole === 'owner'
+              ? 'destructive'
+              : user.orgRole === 'admin'
+                ? 'default'
+                : 'secondary'
+          }
+        >
+          {user.orgRole}
         </Badge>
       </TableCell>
       <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>

@@ -17,14 +17,15 @@ import { ArrowLeft, Users } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { UserRow } from './_components/user-row'
-import { getAllUsersAdmin } from '@/server-actions/users'
 import { db } from '@/db'
 import { eq } from 'drizzle-orm'
 import { user as userTable } from '@/db/schema'
-import { getUISession } from '@/lib/get-ui-session'
+
+import { getOrganizationUsers } from '@/server-actions/organizations'
+import { requireActiveOrganization } from '@/lib/require-active-organization'
 
 export default async function AdminPage() {
-  const { user } = await getUISession()
+  const { organizationId, user, ui } = await requireActiveOrganization()
 
   if (!user) {
     redirect('/auth')
@@ -45,7 +46,7 @@ export default async function AdminPage() {
     redirect('/auth')
   }
 
-  const users = await getAllUsersAdmin()
+  const users = await getOrganizationUsers(organizationId)
 
   const total = users.length
 
@@ -79,7 +80,12 @@ export default async function AdminPage() {
               </TableHeader>
               <TableBody>
                 {users.map(user => (
-                  <UserRow key={user.id} user={user} selfId={userId} />
+                  <UserRow
+                    key={user.id}
+                    user={user}
+                    selfId={userId}
+                    canAccessAdmin={ui.canAccessAdmin}
+                  />
                 ))}
               </TableBody>
             </Table>

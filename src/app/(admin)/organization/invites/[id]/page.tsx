@@ -9,11 +9,13 @@ import {
 } from '@/components/ui/card'
 import { InviteInformation } from './_components/invite-information'
 import { auth } from '@/lib/auth'
+import { getUISession } from '@/lib/get-ui-session'
 
 export default async function InvitationPage({
   params
 }: PageProps<'/organization/invites/[id]'>) {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const { session } = await getUISession()
+
   if (session == null) return redirect('/auth')
 
   const { id } = await params

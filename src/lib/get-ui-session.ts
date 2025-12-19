@@ -1,24 +1,22 @@
-// lib/get-ui-session.ts
 import { auth } from '@/lib/auth'
 import { db } from '@/db'
-import { user as userTable, member, organization } from '@/db/schema'
-import { eq, count } from 'drizzle-orm'
+import { user as userTable, member } from '@/db/schema'
+import { and, eq } from 'drizzle-orm'
 import { extractUserId } from './extract-user-Id'
 import { nextHeadersToObject } from './nextHeadersToObject'
+import type { AppSession } from './types/auth-session'
+
+export type UISessionUser = {
+  id: string
+  email: string
+  name: string
+  orgRole: 'owner' | 'admin' | 'member'
+  isSuperUser: boolean
+}
 
 export type UISession = {
-  session: typeof auth.$Infer.Session | null
-  user: {
-    id: string
-    email: string
-    name: string
-    role: 'superuser' | 'admin' | 'owner' | 'user'
-    isSuperUser: boolean
-    lastActiveOrganizationId: string | null
-    banned: boolean
-    image?: string
-    organizations: { id: string; name: string; slug: string }[]
-  } | null
+  session: AppSession
+  user: UISessionUser | null
   ui: {
     canCreateOrganization: boolean
     canAccessAdmin: boolean
@@ -27,7 +25,10 @@ export type UISession = {
 
 export async function getUISession(): Promise<UISession> {
   const headersObj = await nextHeadersToObject()
-  const session = (await auth.api.getSession({ headers: headersObj })) ?? null
+
+  const session: AppSession =
+    (await auth.api.getSession({ headers: headersObj })) ?? null
+
   const userId = extractUserId(session)
 
   if (!userId) {
@@ -38,19 +39,15 @@ export async function getUISession(): Promise<UISession> {
     }
   }
 
-  const dbUser = await db.query.user.findFirst({
-    where: eq(userTable.id, userId),
-    columns: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      isSuperUser: true,
-      lastActiveOrganizationId: true,
-      banned: true,
-      image: true
-    }
-  })
+  const [dbUser] = await db
+    .select({
+      id: userTable.id,
+      email: userTable.email,
+      name: userTable.name,
+      isSuperUser: userTable.isSuperUser
+    })
+    .from(userTable)
+    .where(eq(userTable.id, userId))
 
   if (!dbUser) {
     return {
@@ -60,44 +57,47 @@ export async function getUISession(): Promise<UISession> {
     }
   }
 
-  const orgMemberships = await db.query.member.findMany({
-    where: eq(member.userId, dbUser.id),
-    columns: { organizationId: true }
-  })
+  // 🔑 Resolve active organization (single-org safe)
+  let activeOrganizationId = session?.activeOrganizationId ?? null
 
-  const organizations = await Promise.all(
-    orgMemberships.map(async m => {
-      const org = await db.query.organization.findFirst({
-        where: eq(organization.id, m.organizationId),
-        columns: { name: true, slug: true }
-      })
-      return {
-        id: m.organizationId,
-        name: org?.name ?? '',
-        slug: org?.slug ?? ''
-      }
+  if (!activeOrganizationId) {
+    const memberships = await db.query.member.findMany({
+      where: eq(member.userId, userId),
+      columns: { organizationId: true }
     })
-  )
 
-  const [{ value: totalUsers }] = await db
-    .select({ value: count() })
-    .from(userTable)
-
-  const userWithOrgs = {
-    ...dbUser,
-    isSuperUser: dbUser.isSuperUser ?? false,
-    banned: dbUser.banned ?? false,
-    image: dbUser.image ?? undefined,
-    organizations
+    if (memberships.length >= 1) {
+      activeOrganizationId = memberships[0].organizationId
+    }
   }
 
-  const ui = {
-    canCreateOrganization:
-      userWithOrgs.isSuperUser ||
-      (userWithOrgs.role === 'admin' && organizations.length === 0) ||
-      (totalUsers === 1 && organizations.length === 0), // first user gets to create org
-    canAccessAdmin: userWithOrgs.isSuperUser || userWithOrgs.role === 'admin'
+  let orgRole: 'owner' | 'admin' | 'member' = 'member'
+
+  if (activeOrganizationId) {
+    const membership = await db.query.member.findFirst({
+      where: and(
+        eq(member.userId, userId),
+        eq(member.organizationId, activeOrganizationId)
+      )
+    })
+
+    orgRole = membership?.role ?? 'member'
   }
 
-  return { session, user: userWithOrgs, ui }
+  const isSuperUser = dbUser.isSuperUser ?? false
+
+  return {
+    session: session ? { ...session, activeOrganizationId } : null,
+    user: {
+      id: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.name,
+      isSuperUser,
+      orgRole
+    },
+    ui: {
+      canCreateOrganization: isSuperUser || orgRole === 'owner',
+      canAccessAdmin: isSuperUser || orgRole === 'owner' || orgRole === 'admin'
+    }
+  }
 }

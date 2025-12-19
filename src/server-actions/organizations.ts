@@ -7,10 +7,25 @@ import { db } from '@/db'
 import { revalidatePath } from 'next/cache'
 import {
   member as memberTable,
+  user as userTable,
   organization as organizationTable
 } from '@/db/schema'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
+import { getUISession } from '@/lib/get-ui-session'
+
+export type OrganizationUser = {
+  id: string
+  name: string
+  email: string
+  emailVerified: boolean | null
+  banned: boolean | null
+  banReason: string | null
+  createdAt: Date
+  image: string | null
+  isSuperUser: boolean | null
+  orgRole: 'owner' | 'admin' | 'member'
+}
 
 export async function getOrganizationsByUserId() {
   const currentUser = await getCurrentUser()
@@ -92,4 +107,40 @@ export async function getCurrentOrganization() {
   })
 
   return org || null
+}
+
+export async function getOrganizationUsers(
+  organizationId: string
+): Promise<OrganizationUser[]> {
+  // 1️⃣ Get session + UI permissions
+  const { user, ui } = await getUISession()
+
+  if (!user) {
+    throw new Error('Not authenticated')
+  }
+
+  // 2️⃣ Enforce org-level admin access
+  if (!ui.canAccessAdmin) {
+    throw new Error('Forbidden: Admin access required')
+  }
+
+  // 3️⃣ Fetch users via membership table
+  const users = await db
+    .select({
+      id: userTable.id,
+      name: userTable.name,
+      email: userTable.email,
+      emailVerified: userTable.emailVerified,
+      banned: userTable.banned,
+      banReason: userTable.banReason,
+      createdAt: userTable.createdAt,
+      image: userTable.image,
+      isSuperUser: userTable.isSuperUser,
+      orgRole: memberTable.role
+    })
+    .from(memberTable)
+    .innerJoin(userTable, eq(memberTable.userId, userTable.id))
+    .where(eq(memberTable.organizationId, organizationId))
+
+  return users
 }

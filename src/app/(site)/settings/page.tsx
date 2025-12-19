@@ -1,10 +1,9 @@
-import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { auth } from '@/lib/auth'
 import { ArrowLeftIcon, Key, User } from 'lucide-react'
 import { headers } from 'next/headers'
-import Image from 'next/image'
+
 import Link from 'next/link'
 
 import { ProfileUpdateForm } from './_components/profile-update-form'
@@ -13,6 +12,7 @@ import { SessionManagement } from './_components/session-management'
 import { LoadingSuspense } from '@/components/shared/loading-suspense'
 import { getUISession } from '@/lib/get-ui-session'
 import { redirect } from 'next/navigation'
+import { Badge } from '@/components/ui/badge'
 
 export default async function ProfileSettingsPage() {
   const { session, user } = await getUISession()
@@ -35,25 +35,14 @@ export default async function ProfileSettingsPage() {
         </Link>
         <div className='mt-12 flex items-center space-x-4'>
           <div className='bg-muted flex size-16 items-center justify-center overflow-hidden rounded-full'>
-            {user.image ? (
-              <Image
-                width={64}
-                height={64}
-                src={user.image ?? '/avatar.png'}
-                alt='User Avatar'
-                className='object-cover'
-              />
-            ) : (
-              <User className='text-muted-foreground size-8' />
-            )}
+            <User className='text-muted-foreground size-8' />
           </div>
           <div className='flex-1 items-center'>
             <div className='flex items-center justify-between gap-1'>
               <h1 className='text-3xl font-bold'>
                 {user.name || 'User Profile'}
               </h1>
-
-              <Badge className='bg-teal-600'>{user.role}</Badge>
+              <Badge className='bg-teal-600'>{user.orgRole}</Badge>
             </div>
             <p className='text-muted-foreground'>{user.email}</p>
           </div>

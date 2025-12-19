@@ -2,7 +2,8 @@
 
 import { db } from '@/db'
 import { costCentres as costCentresTable } from '@/db/schema'
-import { auth } from '@/lib/auth'
+
+import { getUISession } from '@/lib/get-ui-session'
 import { actionClient } from '@/lib/safe-action'
 
 import {
@@ -13,8 +14,6 @@ import {
 import { asc, eq, and } from 'drizzle-orm'
 import { flattenValidationErrors } from 'next-safe-action'
 import { revalidatePath } from 'next/cache'
-import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
 
 /* -------------------------------------------------------------------------- */
 /*                               QUERY FUNCTIONS                              */
@@ -75,14 +74,16 @@ export const saveCostCentreAction = actionClient
       parsedInput: insertCostCentreSchemaType
     }) => {
       /* ------------------------ AUTHENTICATION CHECK ------------------------ */
-      const session = await auth.api.getSession({
-        headers: await headers()
-      })
+      // 1️⃣ Get session + UI permissions
+      const { user, ui } = await getUISession()
 
-      if (!session) redirect('/auth')
+      if (!user) {
+        throw new Error('Not authenticated')
+      }
 
-      if (!session.user || session.user.role !== 'admin') {
-        throw new Error('You must be an administrator to add/access this data')
+      // 2️⃣ Enforce org-level admin access
+      if (!ui.canAccessAdmin) {
+        throw new Error('Forbidden: Admin access required')
       }
 
       /* ----------------------------- DUPLICATE CHECK ----------------------------- */

@@ -17,7 +17,7 @@ export const user = pgTable('user', {
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').default(false).notNull(),
-  role: role('role').default('user').notNull(),
+
   isSuperUser: boolean('is_super_user').default(false),
   archivedAt: timestamp('archived_at', { withTimezone: true }),
   image: text('image'),
@@ -118,7 +118,10 @@ export const member = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    role: text('role').default('member').notNull(),
+    role: text('role')
+      .$type<'owner' | 'admin' | 'member'>()
+      .notNull()
+      .default('member'),
     createdAt: timestamp('created_at').notNull()
   },
   table => [

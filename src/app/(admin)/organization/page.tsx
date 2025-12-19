@@ -12,31 +12,34 @@ import OrganizationsTable from './_components/organizations-table'
 import { SkeletonArray } from '@/components/shared/skeleton'
 import { SkeletonCustomerCard } from '@/components/shared/skeleton-customer-card'
 import { getUISession } from '@/lib/get-ui-session'
+import { db } from '@/db'
+import {
+  member as memberTable,
+  organization as organizationTable
+} from '@/db/schema'
+import { eq } from 'drizzle-orm'
 
 export default async function OrganizationPage() {
-  // 1️⃣ Get full TS-safe UI session
-  const { user, ui } = await getUISession()
+  const { user } = await getUISession()
 
   if (!user) {
     throw new Error('User not found or not authenticated')
   }
 
-  // 2️⃣ Fetch organizations for this user
-  const organizations = user.organizations
-
-  // 3️⃣ Check permissions
-  if (!ui.canCreateOrganization) {
-    return (
-      <div className='container mx-auto max-w-6xl py-10'>
-        <h2 className='text-3xl text-red-600'>
-          You have reached the maximum number of organizations you can be linked
-          to.
-        </h2>
-      </div>
+  const organizations = await db
+    .select({
+      id: organizationTable.id,
+      name: organizationTable.name,
+      slug: organizationTable.slug,
+      role: memberTable.role
+    })
+    .from(memberTable)
+    .innerJoin(
+      organizationTable,
+      eq(memberTable.organizationId, organizationTable.id)
     )
-  }
+    .where(eq(memberTable.userId, user.id))
 
-  // Map organizations for table, ensuring id, name, slug
   const tableOrgs = organizations.map(o => ({
     id: o.id,
     name: o.name,
@@ -76,14 +79,10 @@ export default async function OrganizationPage() {
           Organizations: (Normally the short form name for your business - but
           it can be anything)
         </h2>
-        <h3 className='text-primary/90'>Select active organization</h3>
       </div>
 
       <div className='mb-8 flex items-center gap-2'>
         <OrganizationSelect />
-        {user.role !== 'user' && (
-          <AddOrganizationButton sessionUserId={user.id} />
-        )}
       </div>
 
       <Suspense
@@ -116,7 +115,11 @@ export default async function OrganizationPage() {
           </p>
         </div>
 
-        <OrganizationsTable total={total} organizations={tableOrgs} />
+        <OrganizationsTable
+          total={total}
+          organizations={tableOrgs}
+          userId={user.id}
+        />
       </Suspense>
     </div>
   )

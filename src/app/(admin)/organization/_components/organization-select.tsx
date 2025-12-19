@@ -47,20 +47,24 @@ export function OrganizationSelect() {
   }
 
   return (
-    <Select
-      value={activeOrganization?.id ?? ''}
-      onValueChange={setActiveOrganization}
-    >
-      <SelectTrigger className='w-full border border-red-600'>
-        <SelectValue placeholder='Select an organization' />
-      </SelectTrigger>
-      <SelectContent>
-        {organizations.map(org => (
-          <SelectItem key={org.id} value={org.id}>
-            {org.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div>
+      <h3 className='text-primary/90'>Select active organization</h3>
+
+      <Select
+        value={activeOrganization?.id ?? ''}
+        onValueChange={setActiveOrganization}
+      >
+        <SelectTrigger className='w-full border border-red-600'>
+          <SelectValue placeholder='Select an organization' />
+        </SelectTrigger>
+        <SelectContent>
+          {organizations.map(org => (
+            <SelectItem key={org.id} value={org.id}>
+              {org.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }

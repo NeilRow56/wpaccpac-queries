@@ -21,9 +21,14 @@ type Props = {
     slug: string
   }[]
   total: number
+  userId: string
 }
 
-export default function OrganizationsTable({ organizations, total }: Props) {
+export default function OrganizationsTable({
+  organizations,
+  total,
+  userId
+}: Props) {
   const [openConfirmationDialog, setOpenConfirmationDialog] = useState(false)
   const [itemToAction, setItemToAction] = useState<Organization>()
 
@@ -67,7 +72,7 @@ export default function OrganizationsTable({ organizations, total }: Props) {
         </div>
 
         <div className='- mt-12 flex w-full justify-center'>
-          <AddOrganizationButton />
+          <AddOrganizationButton sessionUserId={userId} />
         </div>
       </>
     )

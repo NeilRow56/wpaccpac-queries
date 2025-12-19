@@ -37,7 +37,7 @@ type Props = {
   sessionUserId: string // Pass the authenticated user's id from session
 }
 
-export function AddOrganizationDialog({ setOpen, open, sessionUserId }: Props) {
+export function AddOrganizationDialog({ setOpen, open }: Props) {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
@@ -89,17 +89,6 @@ export function AddOrganizationDialog({ setOpen, open, sessionUserId }: Props) {
 
       // Set organization as active
       await authClient.organization.setActive({ organizationId: orgId })
-
-      // ✅ Promote first-ever admin via server-side endpoint
-      const promoteRes = await fetch('/api/promote-first-admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: sessionUserId, organizationId: orgId })
-      })
-      const promoteData = await promoteRes.json()
-      if (!promoteData.success) {
-        console.warn('Promotion failed:', promoteData.error)
-      }
 
       // Success toast & refresh
       toast.success('Organization created successfully!')

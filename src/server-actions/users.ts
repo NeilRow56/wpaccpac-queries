@@ -1,9 +1,13 @@
 'use server'
 
 import { db } from '@/db'
-import { member, user as userTable } from '@/db/schema'
+import {
+  member as memberTable,
+  user as userTable,
+  organization as organizationTable
+} from '@/db/schema'
 import { auth } from '@/lib/auth'
-import { getUISession, UISession } from '@/lib/get-ui-session'
+import { getUISession, UISessionUser } from '@/lib/get-ui-session'
 
 import { asc, eq, inArray, isNull, not } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
@@ -59,12 +63,26 @@ export const signIn = async (email: string, password: string) => {
    GET CURRENT USER (session + DB user)
 ----------------------------------------------------- */
 
-export async function getCurrentUser(): Promise<
-  NonNullable<UISession['user']>
-> {
+// import type { UISessionUser } from '@/lib/get-ui-session'
+
+// export async function getCurrentUser(): Promise<UISessionUser> {
+//   const { user } = await getUISession()
+//   if (!user) redirect('/')
+//   return user
+// }
+
+/**
+ * Returns the currently authenticated user.
+ * Throws redirect if no user is found.
+ */
+export async function getCurrentUser(): Promise<UISessionUser> {
   const { user } = await getUISession()
-  if (!user) redirect('/')
-  return user // now TS sees it as non-null
+
+  if (!user) {
+    redirect('/') // no authenticated user
+  }
+
+  return user
 }
 
 /* -----------------------------------------------------
@@ -99,6 +117,7 @@ export async function getAllUsersAdmin() {
 
   return db.select().from(userTable).orderBy(asc(userTable.name))
 }
+
 /* -----------------------------------------------------
    FIND ALL ACTIVE USERS (admin)
 ----------------------------------------------------- */
@@ -191,7 +210,7 @@ export async function getUsers(organizationId: string) {
   if (!ui.canAccessAdmin) throw new Error('Forbidden')
 
   const membersList = await db.query.member.findMany({
-    where: eq(member.organizationId, organizationId),
+    where: eq(memberTable.organizationId, organizationId),
     columns: { userId: true }
   })
 
@@ -211,7 +230,7 @@ export type UserSummary = {
   id: string
   name: string
   email: string
-  role: 'user' | 'admin' | 'owner' | 'superuser'
+  // role: 'user' | 'admin' | 'owner' | 'superuser'
   isSuperUser: boolean
   lastActiveOrganizationId: string | null
   banned: boolean
@@ -252,7 +271,7 @@ export async function getUsersNotInOrganizationAdmin(
         id: true,
         name: true,
         email: true,
-        role: true,
+        // role: true,
         isSuperUser: true,
         lastActiveOrganizationId: true,
         banned: true
@@ -263,7 +282,7 @@ export async function getUsersNotInOrganizationAdmin(
       id: u.id,
       name: u.name,
       email: u.email,
-      role: u.role,
+      // role: u.role,
       isSuperUser: u.isSuperUser ?? false,
       lastActiveOrganizationId: u.lastActiveOrganizationId ?? null,
       banned: u.banned ?? false
@@ -278,4 +297,58 @@ export async function getUsersNotInOrganizationAdmin(
       error: (error as Error).message ?? 'Unknown error'
     }
   }
+}
+
+export type UserWithOrganizations = {
+  id: string
+  name: string
+  email: string
+  organizations: {
+    id: string
+    name: string
+    role: 'owner' | 'admin' | 'member'
+  }[]
+}
+
+export async function getAllUsersWithOrganizations() {
+  const { ui } = await getUISession()
+  if (!ui.canAccessAdmin) throw new Error('Forbidden')
+
+  const rows = await db
+    .select({
+      userId: userTable.id,
+      name: userTable.name,
+      email: userTable.email,
+      organizationId: organizationTable.id,
+      organizationName: organizationTable.name,
+      role: memberTable.role
+    })
+    .from(memberTable)
+    .innerJoin(userTable, eq(memberTable.userId, userTable.id))
+    .innerJoin(
+      organizationTable,
+      eq(memberTable.organizationId, organizationTable.id)
+    )
+
+  // group rows by user
+  const map = new Map<string, UserWithOrganizations>()
+
+  for (const row of rows) {
+    if (!map.has(row.userId)) {
+      map.set(row.userId, {
+        id: row.userId,
+        name: row.name,
+        email: row.email,
+        organizations: []
+      })
+    }
+
+    map.get(row.userId)!.organizations.push({
+      id: row.organizationId,
+      name: row.organizationName,
+      role: row.role
+    })
+  }
+
+  return Array.from(map.values())
 }

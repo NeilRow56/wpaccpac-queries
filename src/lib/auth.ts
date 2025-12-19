@@ -10,10 +10,9 @@ import { eq } from 'drizzle-orm'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { organization } from 'better-auth/plugins'
-import { admin as adminPlugin } from 'better-auth/plugins/admin'
+
 import { nextCookies } from 'better-auth/next-js'
 
-import { ac, roles } from '@/lib/permissions'
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -141,13 +140,7 @@ export const auth = betterAuth({
         })
       }
     }),
-    nextCookies(),
-    adminPlugin({
-      defaultRole: 'user',
-      adminRoles: ['superuser', 'admin', 'owner'],
-      ac,
-      roles
-    })
+    nextCookies()
   ],
 
   // /** ----------------- Database Hooks ----------------- */
@@ -166,13 +159,14 @@ export const auth = betterAuth({
           await db
             .update(userTable)
             .set({
-              role: fullUser.role ?? 'user',
+              // role: fullUser.role ?? 'user',
               isSuperUser: fullUser.isSuperUser ?? false
             })
             .where(eq(userTable.id, fullUser.id))
 
           // NOTE: Do NOT assign first admin here
-          // The first admin assignment is done **after creating an organization**
+          // Organization creator is automatically assigned `owner` by Better Auth
+
           // in createOrganizationAction to handle multi-org logic correctly
         }
       }
@@ -181,14 +175,17 @@ export const auth = betterAuth({
     session: {
       create: {
         before: async sessionRow => {
+          // If already set, return
           if (sessionRow.activeOrganizationId) return { data: sessionRow }
 
+          // Fetch user's organizations
           const memberships = await db.query.member.findMany({
             where: eq(member.userId, sessionRow.userId),
             columns: { organizationId: true }
           })
 
           if (memberships.length === 1) {
+            // User has exactly one org — set as active
             return {
               data: {
                 ...sessionRow,
@@ -197,6 +194,7 @@ export const auth = betterAuth({
             }
           }
 
+          // Fallback: use lastActiveOrganizationId in user table
           const dbUser = await db.query.user.findFirst({
             where: eq(userTable.id, sessionRow.userId),
             columns: { lastActiveOrganizationId: true }
@@ -211,6 +209,7 @@ export const auth = betterAuth({
             }
           }
 
+          // If no org found, keep undefined (optional: redirect to org selection page)
           return { data: sessionRow }
         }
       }
