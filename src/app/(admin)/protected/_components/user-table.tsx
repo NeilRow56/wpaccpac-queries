@@ -8,12 +8,10 @@ import {
   TableRow
 } from '@/components/ui/table'
 
-import { Role } from '@/db/schema'
-
-import { UserRoleSelect } from './user-role-select'
 import { getAllUsersAdmin } from '@/server-actions/users'
 import { Button } from '@/components/ui/button'
 import { UserArchiveMenu } from './userArchiveMenu'
+import type { AdminOrganizationUser } from '@/server-actions/organizations'
 
 export async function UserTable() {
   const users = await getAllUsersAdmin()
@@ -21,40 +19,46 @@ export async function UserTable() {
   return (
     <Table>
       <TableCaption className='text-xl font-bold'>
-        A list of your users.
+        All users across all organizations
       </TableCaption>
+
       <TableHeader>
         <TableRow>
-          <TableHead className='w-[100px]'>ID</TableHead>
+          <TableHead>ID</TableHead>
           <TableHead>Name</TableHead>
           <TableHead>Email</TableHead>
-          <TableHead>Role</TableHead>
-
+          <TableHead>Organization</TableHead>
+          <TableHead>Org Role</TableHead>
+          <TableHead>Super User</TableHead>
+          <TableHead>Archived</TableHead>
           <TableHead className='text-right'>Actions</TableHead>
         </TableRow>
       </TableHeader>
+
       <TableBody>
-        {users.map(user => (
-          <TableRow key={user.id}>
+        {users.map((user: AdminOrganizationUser) => (
+          <TableRow key={`${user.id}-${user.organizationId}`}>
             <TableCell className='font-medium'>{user.id.slice(0, 8)}</TableCell>
-            <TableCell>{user.name}</TableCell>
+
+            <TableCell>{user.name ?? '—'}</TableCell>
             <TableCell>{user.email}</TableCell>
 
-            <TableCell>
-              <UserRoleSelect userId={user.id} role={user.role as Role} />
-            </TableCell>
+            <TableCell>{user.organizationName}</TableCell>
+            <TableCell>{user.orgRole}</TableCell>
 
-            <TableCell className='space-x-2 text-right'>
-              {user.isSuperUser !== true ? (
+            <TableCell>{user.isSuperUser ? 'Yes' : 'No'}</TableCell>
+            <TableCell>{user.archivedAt?.toLocaleDateString()}</TableCell>
+
+            <TableCell className='text-right'>
+              {!user.isSuperUser ? (
                 <UserArchiveMenu
                   userId={user.id}
                   isArchived={Boolean(user.archivedAt)}
                 />
               ) : (
-                <Button
-                  variant='ghost'
-                  className='mr-2 cursor-pointer'
-                ></Button>
+                <Button variant='ghost' disabled>
+                  —
+                </Button>
               )}
             </TableCell>
           </TableRow>

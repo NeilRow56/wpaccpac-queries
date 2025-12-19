@@ -144,3 +144,18 @@ export async function getOrganizationUsers(
 
   return users
 }
+
+// server-actions/organizations.ts (or users.ts)
+
+export type AdminOrganizationUser = {
+  id: string
+  name: string | null
+  email: string
+
+  isSuperUser: boolean
+  archivedAt: Date | null
+
+  organizationId: string
+  organizationName: string
+  orgRole: 'owner' | 'admin' | 'member'
+}

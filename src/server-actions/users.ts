@@ -8,8 +8,11 @@ import {
 } from '@/db/schema'
 import { auth } from '@/lib/auth'
 import { getUISession, UISessionUser } from '@/lib/get-ui-session'
+import { user, member, organization } from '@/db/schema'
 
-import { asc, eq, inArray, isNull, not } from 'drizzle-orm'
+import type { AdminOrganizationUser } from './organizations'
+
+import { eq, inArray, isNull, not } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
 import { redirect } from 'next/navigation'
@@ -109,13 +112,39 @@ export async function getUserDetails(id: string) {
 /* -----------------------------------------------------
    FIND ALL USERS (admin)
 ----------------------------------------------------- */
+// server-actions/users.ts
 
-export async function getAllUsersAdmin() {
-  // Require session so this call is protected
-  const { ui } = await getUISession()
-  if (!ui.canAccessAdmin) throw new Error('Forbidden: Admin access required')
+// server-actions/users.ts
 
-  return db.select().from(userTable).orderBy(asc(userTable.name))
+export async function getAllUsersAdmin(): Promise<AdminOrganizationUser[]> {
+  const { user: sessionUser, ui } = await getUISession()
+
+  if (!sessionUser || !ui.canAccessAdmin) {
+    throw new Error('Forbidden')
+  }
+
+  const rows = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+
+      isSuperUser: user.isSuperUser,
+      archivedAt: user.archivedAt,
+
+      organizationId: organization.id,
+      organizationName: organization.name,
+      orgRole: member.role
+    })
+    .from(member)
+    .innerJoin(user, eq(member.userId, user.id))
+    .innerJoin(organization, eq(member.organizationId, organization.id))
+
+  // 🔐 normalize nullable boolean
+  return rows.map(row => ({
+    ...row,
+    isSuperUser: row.isSuperUser ?? false
+  }))
 }
 
 /* -----------------------------------------------------

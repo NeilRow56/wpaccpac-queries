@@ -10,7 +10,7 @@ export const insertClientSchema = createInsertSchema(clients, {
       .min(1, 'Name is required')
       .max(100, { error: 'Name must be at most 100 characters!' }),
   organizationId: schema => schema.min(1, 'OrganizationId is required'),
-  costCentreId: schema => schema.min(1, 'costCentreId is required'),
+  costCentreId: schema => schema.min(1, 'Cost center is required'),
   entity_type: schema => schema.min(1, 'Entity type is required'),
   notes: (schema: ZodString) => schema.nullable().optional(),
   active: z.boolean()
