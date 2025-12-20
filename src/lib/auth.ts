@@ -84,6 +84,20 @@ export const auth = betterAuth({
   },
 
   user: {
+    additionalFields: {
+      archivedAt: {
+        type: 'date',
+        nullable: true,
+        input: false,
+        returned: true // Add this
+      },
+      banned: {
+        type: 'boolean',
+        nullable: true,
+        input: false,
+        returned: true // Add this
+      }
+    },
     deleteUser: { enabled: true },
     changeEmail: {
       enabled: true,

@@ -48,7 +48,7 @@ export function OrganizationSelect() {
 
   return (
     <div>
-      <h3 className='text-primary/90'>Select active organization</h3>
+      <h3 className='text-primary/90'>Active organization</h3>
 
       <Select
         value={activeOrganization?.id ?? ''}

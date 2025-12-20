@@ -1,7 +1,7 @@
 'use server'
 
-import { eq } from 'drizzle-orm'
-
+import { and, eq } from 'drizzle-orm'
+import { getUISession } from '@/lib/get-ui-session'
 import { member as memberTable } from '@/db/schema'
 
 import { isAdmin } from './permissions'
@@ -27,4 +27,33 @@ export const removeMember = async (memberId: string) => {
       error: 'Failed to remove member.'
     }
   }
+}
+
+export async function archiveOrganizationMember({
+  userId
+}: {
+  userId: string
+}) {
+  const { session, user, ui } = await getUISession()
+
+  if (!user || !ui.canAccessAdmin) {
+    throw new Error('Forbidden')
+  }
+
+  if (!session?.activeOrganizationId) {
+    throw new Error('No active organization')
+  }
+
+  await db
+    .update(memberTable)
+    .set({
+      archivedAt: new Date(),
+      archivedBy: user.id
+    })
+    .where(
+      and(
+        eq(memberTable.userId, userId),
+        eq(memberTable.organizationId, session.activeOrganizationId)
+      )
+    )
 }

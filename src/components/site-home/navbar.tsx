@@ -72,11 +72,15 @@ export function Navbar({ serverSession, ui }: NavbarProps) {
 
             {!isPending && session && (
               <>
-                {ui?.canCreateOrganization && (
+                {/* {ui?.canCreateOrganization && (
                   <Button variant='outline' asChild size='lg'>
                     <Link href='/organization'>Organization</Link>
                   </Button>
-                )}
+                )} */}
+
+                <Button variant='outline' asChild size='lg'>
+                  <Link href='/organization'>Organization</Link>
+                </Button>
 
                 {ui?.canAccessAdmin && (
                   <>

@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/card'
 import { Field, FieldGroup } from '@/components/ui/field'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { signIn } from '@/server-actions/users'
 import { FormInput, FormPasswordInput } from '@/components/form/form-base'
@@ -34,7 +34,7 @@ interface LoginFormProps {
 
 export default function LoginForm({ redirectTo }: LoginFormProps) {
   const router = useRouter()
-
+  const searchParams = useSearchParams()
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -48,12 +48,21 @@ export default function LoginForm({ redirectTo }: LoginFormProps) {
   async function onSubmit(values: LoginSchemaType) {
     const { success, message } = await signIn(values.email, values.password)
 
-    if (success) {
-      toast.success(message as string)
-      router.replace(redirectTo ?? '/dashboard')
-    } else {
-      toast.error((message as string) || 'Failed to sign up')
+    if (!success) {
+      toast.error((message as string) || 'Failed to sign in')
+      return
     }
+
+    toast.success(message as string)
+
+    const inviteId = searchParams.get('invite')
+
+    if (inviteId) {
+      router.replace(`/organization/invites/${encodeURIComponent(inviteId)}`)
+      return
+    }
+
+    router.replace(redirectTo ?? '/dashboard')
   }
 
   return (

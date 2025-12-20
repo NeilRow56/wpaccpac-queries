@@ -47,7 +47,9 @@ export async function UserTable() {
             <TableCell>{user.orgRole}</TableCell>
 
             <TableCell>{user.isSuperUser ? 'Yes' : 'No'}</TableCell>
-            <TableCell>{user.archivedAt?.toLocaleDateString()}</TableCell>
+            <TableCell>
+              {user.archivedAt?.toLocaleDateString('en-GB')}
+            </TableCell>
 
             <TableCell className='text-right'>
               {!user.isSuperUser ? (

@@ -122,6 +122,8 @@ export const member = pgTable(
       .$type<'owner' | 'admin' | 'member'>()
       .notNull()
       .default('member'),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    archivedBy: text('archived_by'),
     createdAt: timestamp('created_at').notNull()
   },
   table => [

@@ -9,7 +9,11 @@ import { authClient } from '@/lib/auth-client'
 import { MembersTab } from './members-tab'
 import { InvitesTab } from './invites-tab'
 
-export function OrganizationTabs() {
+type OrganizationTabsProps = {
+  canAccessAdmin: boolean
+}
+
+export function OrganizationTabs({ canAccessAdmin }: OrganizationTabsProps) {
   const { data: activeOrganization } = authClient.useActiveOrganization()
 
   return (
@@ -24,7 +28,7 @@ export function OrganizationTabs() {
           <Card>
             <CardContent>
               <TabsContent value='members'>
-                <MembersTab />
+                <MembersTab canAccessAdmin={canAccessAdmin} />
               </TabsContent>
               <TabsContent value='invitations'>
                 <InvitesTab />

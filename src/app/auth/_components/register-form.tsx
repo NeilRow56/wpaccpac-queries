@@ -16,7 +16,7 @@ import {
   CardTitle
 } from '@/components/ui/card'
 import { Field, FieldGroup } from '@/components/ui/field'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { FormInput, FormPasswordInput } from '@/components/form/form-base'
 import { LoadingSwap } from '@/components/shared/loading-swap'
 import { signUp } from '@/server-actions/users'
@@ -73,7 +73,7 @@ function validateRedirect(url?: string) {
  * ------------------------ */
 export default function RegisterForm({ redirectTo }: RegisterFormProps) {
   const router = useRouter()
-
+  const searchParams = useSearchParams()
   const form = useForm<RegisterSchemaType>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -94,19 +94,27 @@ export default function RegisterForm({ redirectTo }: RegisterFormProps) {
         values.name
       )
 
-      if (success) {
-        toast.success(
-          `${message as string} Please check your email for verification.`
-        )
-
-        // Safe redirect
-        const safeRedirect = validateRedirect(redirectTo) ?? '/dashboard'
-        router.replace(safeRedirect)
-
-        form.reset()
-      } else {
+      if (!success) {
         toast.error(message as string)
+        return
       }
+
+      toast.success(
+        `${message as string} Please check your email for verification.`
+      )
+
+      const inviteId = searchParams.get('invite')
+
+      if (inviteId) {
+        router.replace(`/organization/invites/${inviteId}`)
+        return
+      }
+
+      // Fallback safe redirect
+      const safeRedirect = validateRedirect(redirectTo) ?? '/dashboard'
+      router.replace(safeRedirect)
+
+      form.reset()
     } catch (error) {
       console.error(error)
       toast.error('Unexpected error during registration')

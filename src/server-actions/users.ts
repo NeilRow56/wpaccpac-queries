@@ -196,20 +196,30 @@ export async function getActiveUsersAdmin() {
 /* -----------------------------------------------------
    ARCHIVE USER
 ----------------------------------------------------- */
-export async function archiveUser(userId: string) {
+type ActionResult = { success: true } | { success: false; error: string }
+
+export async function archiveUser(userId: string): Promise<ActionResult> {
   const { ui } = await getUISession()
   if (!ui.canAccessAdmin) throw new Error('Forbidden: Admin access required')
-  await db
-    .update(userTable)
-    .set({
-      archivedAt: new Date(),
-      banned: true,
-      banReason: 'Archived by admin',
-      banExpires: null
-    })
-    .where(eq(userTable.id, userId))
+
+  try {
+    await db
+      .update(userTable)
+      .set({
+        archivedAt: new Date(),
+        banned: true,
+        banReason: 'Archived by admin',
+        banExpires: null
+      })
+      .where(eq(userTable.id, userId))
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (error) {
+    return { success: false, error: 'Failed to archive user' }
+  }
 
   revalidatePath('/team')
+
+  return { success: true }
 }
 /* -----------------------------------------------------
    REINSTATE USER
@@ -380,4 +390,31 @@ export async function getAllUsersWithOrganizations() {
   }
 
   return Array.from(map.values())
+}
+
+export async function getUserArchiveStatus(userId: string) {
+  const { ui } = await getUISession()
+  if (!ui.canAccessAdmin) throw new Error('Forbidden')
+
+  const user = await db.query.user.findFirst({
+    where: eq(userTable.id, userId),
+    columns: { archivedAt: true }
+  })
+
+  return Boolean(user?.archivedAt)
+}
+
+// server-actions/users.ts
+export async function getUserArchiveInfo(userId: string) {
+  const { ui } = await getUISession()
+  if (!ui.canAccessAdmin) throw new Error('Forbidden')
+
+  const user = await db.query.user.findFirst({
+    where: eq(userTable.id, userId),
+    columns: {
+      archivedAt: true
+    }
+  })
+
+  return user?.archivedAt ?? null
 }

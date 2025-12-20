@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { AddOrganizationButton } from './_components/add-organization-button'
 import { OrganizationSelect } from './_components/organization-select'
 import { OrganizationTabs } from './_components/organization-tabs'
-import OrganizationsTable from './_components/organizations-table'
+// import OrganizationsTable from './_components/organizations-table'
 
 import { SkeletonArray } from '@/components/shared/skeleton'
 import { SkeletonCustomerCard } from '@/components/shared/skeleton-customer-card'
@@ -20,7 +20,7 @@ import {
 import { eq } from 'drizzle-orm'
 
 export default async function OrganizationPage() {
-  const { user } = await getUISession()
+  const { user, ui } = await getUISession()
 
   if (!user) {
     throw new Error('User not found or not authenticated')
@@ -40,11 +40,15 @@ export default async function OrganizationPage() {
     )
     .where(eq(memberTable.userId, user.id))
 
-  const tableOrgs = organizations.map(o => ({
-    id: o.id,
-    name: o.name,
-    slug: o.slug
-  }))
+  // const data = organizations
+
+  // console.log(data)
+
+  // const tableOrgs = organizations.map(o => ({
+  //   id: o.id,
+  //   name: o.name,
+  //   slug: o.slug
+  // }))
 
   // 4️⃣ Calculate total organizations
   const total = organizations.length
@@ -74,7 +78,7 @@ export default async function OrganizationPage() {
         <span className='text-primary'>Back to Dashboard</span>
       </Link>
 
-      <div className='mt-12 mb-2 space-y-2'>
+      <div className='mt-4 mb-8 space-y-2'>
         <h2 className='text-xl font-bold'>
           Organizations: (Normally the short form name for your business - but
           it can be anything)
@@ -92,7 +96,7 @@ export default async function OrganizationPage() {
           </SkeletonArray>
         }
       >
-        <OrganizationTabs />
+        <OrganizationTabs canAccessAdmin={ui.canAccessAdmin} />
         <div className='text-muted-foreground mt-4 flex-col space-x-4 pl-8'>
           <span className='text-red-600'>
             NB: Organization creation and amendment is only visible to
@@ -114,12 +118,7 @@ export default async function OrganizationPage() {
             <span className='pl-2 text-blue-600'>admin@wpaccpac.org</span>
           </p>
         </div>
-
-        <OrganizationsTable
-          total={total}
-          organizations={tableOrgs}
-          userId={user.id}
-        />
+        <div className='container mx-auto py-10'></div>
       </Suspense>
     </div>
   )
