@@ -6,7 +6,7 @@ import { member as memberTable } from '@/db/schema'
 
 import { isAdmin } from './permissions'
 import { db } from '@/db'
-import { MemberRole } from '@/app/(admin)/organization/_components/member-actions-menu'
+import { MemberRole } from '@/app/(admin)/organisation/_components/member-actions-menu'
 
 export const removeMember = async (memberId: string) => {
   const admin = await isAdmin()
