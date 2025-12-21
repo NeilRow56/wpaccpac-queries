@@ -76,7 +76,7 @@ export function MemberActionsMenu({
 
     // prevent removing last owner
     if (isLastOwner && nextRole !== 'owner') {
-      toast.error('Organization must have at least one owner')
+      toast.error('Organisation must have at least one owner')
       return
     }
 

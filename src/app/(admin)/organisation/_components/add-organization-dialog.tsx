@@ -80,7 +80,7 @@ export function AddOrganizationDialog({ setOpen, open }: Props) {
         console.error('[org.create]', error)
         form.setError('name', {
           type: 'manual',
-          message: error?.message ?? 'Failed to create organization'
+          message: error?.message ?? 'Failed to create organisation'
         })
         return
       }
@@ -91,13 +91,13 @@ export function AddOrganizationDialog({ setOpen, open }: Props) {
       await authClient.organization.setActive({ organizationId: orgId })
 
       // Success toast & refresh
-      toast.success('Organization created successfully!')
+      toast.success('Organisation created successfully!')
       router.refresh()
       setOpen(false)
       form.reset()
     } catch (err) {
       console.error('[org.create]', err)
-      toast.error('Unexpected error occurred while creating organization.')
+      toast.error('Unexpected error occurred while creating organisation.')
     } finally {
       setIsLoading(false)
     }
@@ -109,7 +109,7 @@ export function AddOrganizationDialog({ setOpen, open }: Props) {
         <DialogHeader>
           <DialogTitle>Create New Organization</DialogTitle>
           <DialogDescription>
-            Fill in the name and click create to add a new organization.
+            Fill in the name and click create to add a new organisation.
           </DialogDescription>
         </DialogHeader>
 

@@ -63,7 +63,7 @@ export function OrganizationSelect() {
         onValueChange={setActiveOrganization}
       >
         <SelectTrigger className='mt-2 w-full min-w-[300px] border-red-600'>
-          <SelectValue placeholder='Select an organization' />
+          <SelectValue placeholder='Select an organisation' />
         </SelectTrigger>
 
         <SelectContent>

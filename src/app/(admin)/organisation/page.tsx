@@ -58,8 +58,8 @@ export default async function OrganizationPage() {
       <>
         <div className='mx-auto mt-24 flex max-w-6xl flex-col gap-2'>
           <EmptyState
-            title='Organizations'
-            description='You have no organizations yet. Click on the button below to create your first organization'
+            title='Organisations'
+            description='You have no organisations yet. Click on the button below to create your first organisation'
           />
         </div>
         <div className='-mt-12 flex w-full justify-center'>

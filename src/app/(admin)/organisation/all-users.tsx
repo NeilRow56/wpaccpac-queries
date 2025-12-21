@@ -35,7 +35,7 @@ export default function AllUsers({ users, organizationId }: AllUsersProps) {
       toast.success('Invitation sent to member')
       router.refresh()
     } catch (error) {
-      toast.error('Failed to invite member to organization')
+      toast.error('Failed to invite member to organisation')
       console.error(error)
     } finally {
       setIsLoading(false)
@@ -54,7 +54,7 @@ export default function AllUsers({ users, organizationId }: AllUsersProps) {
               {isLoading ? (
                 <Loader2 className='size-4 animate-spin' />
               ) : (
-                `Invite ${user.name} to organization`
+                `Invite ${user.name} to organisation`
               )}
             </Button>
           </div>
