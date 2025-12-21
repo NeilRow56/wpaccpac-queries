@@ -118,14 +118,14 @@ function AddCostCentreDialog({
             <DialogTitle>
               <div className='items-center justify-center'>
                 <h2 className='text-primary text-xl font-bold lg:text-2xl'>
-                  {costCentre?.id ? 'Edit' : 'New'} Cost Center{' '}
+                  {costCentre?.id ? 'Edit' : 'New'} Cost Centre{' '}
                   {costCentre?.id ? `#${costCentre.name}` : 'Form'}
                 </h2>
               </div>
             </DialogTitle>
 
             <DialogDescription>
-              Create or edit cost centers here. Click save when you&apos;re
+              Create or edit cost centres here. Click save when you&apos;re
               done.
             </DialogDescription>
           </DialogHeader>

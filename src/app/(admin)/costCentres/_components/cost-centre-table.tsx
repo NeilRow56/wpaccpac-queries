@@ -82,7 +82,7 @@ export default function CostCentreTable({ data, total, organization }: Props) {
   return (
     <div className='container mx-auto my-12 max-w-6xl'>
       <div className='mb-12 flex w-full items-center justify-between'>
-        <span className='text-3xl font-bold'>Cost centers </span>
+        <span className='text-3xl font-bold'>Cost centres </span>
 
         {/* <Button asChild size='sm' className='flex'>
           <Link href='/admin/categories/form'>Create category</Link>

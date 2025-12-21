@@ -79,7 +79,7 @@ export function Navbar({ serverSession, ui }: NavbarProps) {
                 )} */}
 
                 <Button variant='outline' asChild size='lg'>
-                  <Link href='/organization'>Organization</Link>
+                  <Link href='/organization'>Organisation</Link>
                 </Button>
 
                 {ui?.canAccessAdmin && (

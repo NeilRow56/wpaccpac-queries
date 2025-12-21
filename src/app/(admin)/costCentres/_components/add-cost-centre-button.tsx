@@ -18,7 +18,7 @@ export const AddCostCentreButton = ({
     <>
       <Button className='cursor-pointer self-end' onClick={() => setOpen(true)}>
         <PlusIcon />
-        Add cost center
+        Add cost centre
       </Button>
       <AddCostCentreDialog
         open={open}

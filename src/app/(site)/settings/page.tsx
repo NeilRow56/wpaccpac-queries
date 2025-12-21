@@ -31,7 +31,7 @@ export default async function ProfileSettingsPage() {
       <div className='mb-8'>
         <Link href='/' className='mb-6 inline-flex items-center'>
           <ArrowLeftIcon className='mr-2 size-4' />
-          Back to Home
+          <span className='text-primary'>Back to Home</span>
         </Link>
         <div className='mt-12 flex items-center space-x-4'>
           <div className='bg-muted flex size-16 items-center justify-center overflow-hidden rounded-full'>
@@ -44,7 +44,7 @@ export default async function ProfileSettingsPage() {
               </h1>
               <Badge className='bg-teal-600'>{user.orgRole}</Badge>
             </div>
-            <p className='text-muted-foreground'>{user.email}</p>
+            <p className='text-blue-500'>{user.email}</p>
           </div>
         </div>
       </div>

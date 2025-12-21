@@ -11,7 +11,7 @@ export default function GettingStartedPage() {
           analysis online.
         </h1>
         <h1 className='text-primary text-2xl font-bold'>
-          Workprogramme templates tailored to the size of the client entity.
+          Work programme templates tailored to the size of the client entity.
         </h1>
       </div>
 
@@ -39,8 +39,9 @@ export default function GettingStartedPage() {
         </p>
 
         <p className='pt-1'>
-          3. Once verified wpaccpac will open in a new window. You can close the
-          old tab. You are now logged in and ready to go.
+          3. Once verified wpaccpac will automatically open the app on the
+          dashboard page in a new window. You can close the old tab. You are now
+          logged in and ready to go.
         </p>
         <p>
           <span className='pl-4 text-blue-600'>
@@ -49,13 +50,13 @@ export default function GettingStartedPage() {
           </span>
         </p>
         <p className='flex flex-col pt-1'>
-          4. Only admin users can perform certain actions. It is very important
-          that your first organization (see below) is set up by the
-          administrator.
-          <span className='pl-4'>
-            The administrator will have full admin. permissions. All subsequent
-            users for that organization will initially not have administator
-            access, unless their status is changed by the administrator.
+          4. Only administarators ( &apos;admin&apos; and &apos;owner&apos;
+          users) can perform certain actions. It is very important that your
+          first organization (see below) is set up by an administrator.
+          <span className=''>
+            The administrator will have full permissions. All subsequent users
+            for that organization will initially not have full access, unless
+            their status is changed by the administrator.
           </span>
         </p>
 
@@ -73,16 +74,18 @@ export default function GettingStartedPage() {
         <p className='pt-1'>
           6. The <span className='pl-1 text-blue-600'>administrator</span> can
           now send out invitations to other team members to join the
-          organization and register with wpaccpac.
+          organization. To be able to accept the invitation the new user should
+          register with wpaccpac, verify their email and then accept the
+          invitation to join the organization.
         </p>
 
         <p className='flex pt-1'>
-          7. Cost centers should now be set up by the{' '}
+          7. Cost centres should now be set up by the{' '}
           <span className='pl-1 text-blue-600'>administrator </span>.
         </p>
         <p></p>
-        <span className='pl-4'>
-          Cost center names are usually the individual members of your team with
+        <span className=''>
+          Cost centre names are usually the individual members of your team with
           ultimate responsibilty for a particular portfolio of clients.
         </span>
 
@@ -92,10 +95,10 @@ export default function GettingStartedPage() {
           </span>
         </p>
         <p className='pt-1'>
-          8. Click the dropdown menu with the avatar in the top navigation bar
-          and select clients.
+          8. Click the dropdown menu with the user icon in the top navigation
+          bar and select clients. Alternatively delect Clients from the sidebar.
         </p>
-        <div className='flex pl-4'>
+        <div className='flex'>
           <span>
             <h3> Any problems please contact </h3>
           </span>

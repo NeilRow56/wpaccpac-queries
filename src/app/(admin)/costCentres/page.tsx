@@ -81,7 +81,7 @@ export default async function CostCentresPage() {
         <div className='text-muted-foreground flex-col space-x-4 pl-8'>
           <span className='text-red-600'>NB: </span>
           <p>
-            Cost centers cannot be deleted, only edited. If the cost centre for
+            Cost centres cannot be deleted, only edited. If the cost centre for
             a client changes e.g. on the retirement of a partner, select the new
             cost centre for the client by using the edit function under Actions
             in the Clients table.

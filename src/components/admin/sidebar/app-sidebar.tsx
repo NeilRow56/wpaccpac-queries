@@ -5,8 +5,7 @@ import * as React from 'react'
 import {
   IconDashboard,
   IconListDetails,
-  IconSettings,
-  IconUsers
+  IconSettings
 } from '@tabler/icons-react'
 
 import {
@@ -33,12 +32,12 @@ const data = {
       icon: IconDashboard
     },
     {
-      title: 'Organization',
-      url: '/organization',
+      title: 'Organisation',
+      url: '/organisation',
       icon: IconDashboard
     },
     {
-      title: 'Cost centers',
+      title: 'Cost centres',
       url: '/costCentres',
       icon: IconDashboard
     },
@@ -47,18 +46,12 @@ const data = {
       title: 'Clients',
       url: '/clients',
       icon: IconListDetails
-    },
+    }
     // {
     //   title: 'Accounts Periods',
     //   url: '/accounts-periods',
     //   icon: IconListDetails
     // },
-
-    {
-      title: 'Team',
-      url: '/team',
-      icon: IconUsers
-    }
   ],
   // navClouds: [
   //   {
