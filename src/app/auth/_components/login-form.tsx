@@ -21,6 +21,7 @@ import Link from 'next/link'
 import { signIn } from '@/server-actions/users'
 import { FormInput, FormPasswordInput } from '@/components/form/form-base'
 import { LoadingSwap } from '@/components/shared/loading-swap'
+import { authClient } from '@/lib/auth-client'
 
 const loginSchema = z.object({
   email: z.email('Please enter a valid email address!'),
@@ -56,6 +57,7 @@ export default function LoginForm({ redirectTo }: LoginFormProps) {
     toast.success(message as string)
 
     const inviteId = searchParams.get('invite')
+    await authClient.organization.setActive({ organizationId: null })
 
     if (inviteId) {
       router.replace(`/organization/invites/${encodeURIComponent(inviteId)}`)

@@ -29,7 +29,7 @@ export function MembersTab({ canAccessAdmin }: MembersTabProps) {
    * Incrementing this value forces ArchivedCell to refetch
    * after archive / reinstate actions.
    */
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [refreshKey, ,] = useState(0)
 
   if (!activeOrganization) return null
 
@@ -86,10 +86,10 @@ export function MembersTab({ canAccessAdmin }: MembersTabProps) {
                   <>
                     <MemberActionsMenu
                       userId={member.userId}
-                      onActionComplete={async () => {
-                        await refetch()
-                        setRefreshKey(k => k + 1)
-                      }}
+                      memberId={member.id}
+                      initialRole={member.role === 'admin' ? 'admin' : 'member'}
+                      initialArchived={false} // UI hint only – real state fetched internally
+                      refetchOrganization={refetch}
                     />
                   </>
                 )}

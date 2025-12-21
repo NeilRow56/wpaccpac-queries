@@ -31,6 +31,7 @@ export const SignOutButton = () => {
         }
       }
     })
+    await authClient.organization.setActive({ organizationId: null })
   }
 
   return (

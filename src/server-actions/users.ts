@@ -217,7 +217,7 @@ export async function archiveUser(userId: string): Promise<ActionResult> {
     return { success: false, error: 'Failed to archive user' }
   }
 
-  revalidatePath('/team')
+  revalidatePath('/organization')
 
   return { success: true }
 }

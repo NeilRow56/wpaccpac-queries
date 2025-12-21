@@ -57,3 +57,17 @@ export async function archiveOrganizationMember({
       )
     )
 }
+
+// src/server-actions/members.ts
+
+export async function updateMemberRole(
+  memberId: string,
+  role: 'admin' | 'member'
+) {
+  const { ui } = await getUISession()
+  if (!ui.canAccessAdmin) {
+    throw new Error('Forbidden')
+  }
+
+  await db.update(memberTable).set({ role }).where(eq(memberTable.id, memberId))
+}

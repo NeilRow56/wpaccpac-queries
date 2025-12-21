@@ -1,91 +1,155 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Archive, RotateCcw, Loader2, MoreVertical } from 'lucide-react'
+import { useState, useTransition } from 'react'
+import {
+  Archive,
+  RotateCcw,
+  Shield,
+  User,
+  Loader2,
+  MoreVertical
+} from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
+import { archiveUser, reinstateUser } from '@/server-actions/users'
+import { updateMemberRole } from '@/server-actions/members'
 
-import {
-  archiveUser,
-  reinstateUser,
-  getUserArchiveInfo
-} from '@/server-actions/users'
+type EditableRole = 'admin' | 'member'
 
 interface MemberActionsMenuProps {
   userId: string
-  onActionComplete: () => Promise<void>
+  memberId: string
+  initialRole: EditableRole
+  initialArchived: boolean
+  refetchOrganization: () => Promise<void>
 }
 
 export function MemberActionsMenu({
   userId,
-  onActionComplete
+  memberId,
+  initialRole,
+  initialArchived,
+  refetchOrganization
 }: MemberActionsMenuProps) {
-  const [isArchived, setIsArchived] = useState<boolean | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isPending, startTransition] = useTransition()
 
-  // Load archive state once
-  useEffect(() => {
-    getUserArchiveInfo(userId).then(date => {
-      setIsArchived(Boolean(date))
-    })
-  }, [userId])
+  // 🔹 optimistic local state
+  const [role, setRole] = useState<'admin' | 'member'>(initialRole)
+  const [isArchived, setIsArchived] = useState(initialArchived)
 
-  if (isArchived === null) return null
+  /* -----------------------------
+     ROLE TOGGLE
+  ----------------------------- */
+  const handleToggleRole = () => {
+    const nextRole = role === 'admin' ? 'member' : 'admin'
 
-  const handleAction = async () => {
-    try {
-      setIsLoading(true)
+    // optimistic update
+    setRole(nextRole)
 
-      if (isArchived) {
-        await reinstateUser(userId)
-        toast.success('Member reinstated')
-        setIsArchived(false)
-      } else {
-        await archiveUser(userId)
-        toast.success('Member archived')
-        setIsArchived(true)
+    startTransition(async () => {
+      try {
+        await updateMemberRole(memberId, nextRole)
+        toast.success(
+          nextRole === 'admin'
+            ? 'Member promoted to admin'
+            : 'Admin demoted to member'
+        )
+        await refetchOrganization()
+      } catch (error) {
+        console.log(error)
+        // rollback
+        setRole(role)
+        toast.error('Failed to update role')
       }
+    })
+  }
 
-      await onActionComplete()
-    } catch (err) {
-      console.error(err)
-      toast.error('Action failed')
-    } finally {
-      setIsLoading(false)
-    }
+  /* -----------------------------
+     ARCHIVE / REINSTATE
+  ----------------------------- */
+  const handleArchiveToggle = () => {
+    const nextArchived = !isArchived
+
+    // optimistic update
+    setIsArchived(nextArchived)
+
+    startTransition(async () => {
+      try {
+        if (nextArchived) {
+          await archiveUser(userId)
+          toast.success('User archived')
+        } else {
+          await reinstateUser(userId)
+          toast.success('User reinstated')
+        }
+
+        await refetchOrganization()
+      } catch (error) {
+        console.log(error)
+        // rollback
+        setIsArchived(!nextArchived)
+        toast.error('Action failed')
+      }
+    })
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant='ghost' size='icon'>
-          <MoreVertical className='size-4' />
+        <Button
+          variant='ghost'
+          size='icon'
+          disabled={isPending}
+          aria-label='Member actions'
+        >
+          {isPending ? (
+            <Loader2 className='size-4 animate-spin' />
+          ) : (
+            <MoreVertical className='size-4' />
+          )}
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align='end'>
-        <DropdownMenuItem
-          onClick={handleAction}
-          disabled={isLoading}
-          className='flex items-center gap-2'
-        >
-          {isLoading ? (
-            <Loader2 className='size-4 animate-spin' />
-          ) : isArchived ? (
+      <DropdownMenuContent align='end' className='w-48'>
+        {/* ROLE */}
+        <DropdownMenuItem onClick={handleToggleRole} disabled={isPending}>
+          {role === 'admin' ? (
             <>
-              <RotateCcw className='size-4' />
+              <User className='mr-2 size-4' />
+              Demote to member
+            </>
+          ) : (
+            <>
+              <Shield className='mr-2 size-4' />
+              Promote to admin
+            </>
+          )}
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        {/* ARCHIVE */}
+        <DropdownMenuItem
+          onClick={handleArchiveToggle}
+          disabled={isPending}
+          className={isArchived ? '' : 'text-red-600'}
+        >
+          {isArchived ? (
+            <>
+              <RotateCcw className='mr-2 size-4' />
               Reinstate member
             </>
           ) : (
             <>
-              <Archive className='size-4 text-red-600' />
+              <Archive className='mr-2 size-4' />
               Archive member
             </>
           )}

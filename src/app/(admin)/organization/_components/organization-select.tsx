@@ -9,24 +9,33 @@ import {
 } from '@/components/ui/select'
 import { authClient } from '@/lib/auth-client'
 import { toast } from 'sonner'
+import { useEffect } from 'react'
 
-/**
- * OrganizationSelect component allows the user to switch their active organization.
- * - Updates session via authClient
- * - Persists the last selected organization in the database via server action
- */
 export function OrganizationSelect() {
-  const { data: activeOrganization } = authClient.useActiveOrganization()
-  const { data: organizations } = authClient.useListOrganizations()
+  const { data: session } = authClient.useSession()
+
+  const { data: activeOrganization, refetch: refetchActive } =
+    authClient.useActiveOrganization()
+
+  const { data: organizations, refetch: refetchOrganizations } =
+    authClient.useListOrganizations()
+
+  /**
+   * 🔑 CRITICAL: when user changes, refetch org data
+   */
+  useEffect(() => {
+    if (!session?.user?.id) return
+
+    refetchOrganizations()
+    refetchActive()
+  }, [session?.user?.id, refetchOrganizations, refetchActive])
 
   if (!organizations || organizations.length === 0) return null
 
   async function setActiveOrganization(organizationId: string) {
     try {
-      // 1️⃣ Update session
       await authClient.organization.setActive({ organizationId })
 
-      // 2️⃣ Persist selection in database
       const res = await fetch('/api/switch-org', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -36,27 +45,27 @@ export function OrganizationSelect() {
       if (!res.ok) {
         throw new Error('Failed to save selected organization')
       }
-    } catch (err: unknown) {
-      // Proper TypeScript-safe error handling
-      if (err instanceof Error) {
-        toast.error(err.message)
-      } else {
-        toast.error('Failed to switch organization')
-      }
+
+      await refetchActive()
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to switch organization'
+      )
     }
   }
 
   return (
     <div>
-      <h3 className='text-primary/90'>Active organization</h3>
+      <h3 className='text-primary text-xl'>Active organization</h3>
 
       <Select
         value={activeOrganization?.id ?? ''}
         onValueChange={setActiveOrganization}
       >
-        <SelectTrigger className='w-full border border-red-600'>
+        <SelectTrigger className='w-full min-w-[300px]'>
           <SelectValue placeholder='Select an organization' />
         </SelectTrigger>
+
         <SelectContent>
           {organizations.map(org => (
             <SelectItem key={org.id} value={org.id}>

@@ -8,13 +8,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { authClient } from '@/lib/auth-client'
 import { MembersTab } from './members-tab'
 import { InvitesTab } from './invites-tab'
+import { useEffect } from 'react'
 
 type OrganizationTabsProps = {
   canAccessAdmin: boolean
 }
 
 export function OrganizationTabs({ canAccessAdmin }: OrganizationTabsProps) {
-  const { data: activeOrganization } = authClient.useActiveOrganization()
+  const { data: session } = authClient.useSession()
+  const { data: activeOrganization, refetch } =
+    authClient.useActiveOrganization()
+
+  useEffect(() => {
+    refetch()
+  }, [session?.user?.id, refetch])
 
   return (
     <div className='space-y-4'>

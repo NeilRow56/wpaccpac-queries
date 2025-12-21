@@ -1,7 +1,7 @@
 // src/app/(admin)/organization/page.tsx
-import Link from 'next/link'
+// import Link from 'next/link'
 import { Suspense } from 'react'
-import { ArrowLeft } from 'lucide-react'
+// import { ArrowLeft } from 'lucide-react'
 
 import { EmptyState } from '@/components/shared/empty-state'
 import { AddOrganizationButton } from './_components/add-organization-button'
@@ -18,12 +18,21 @@ import {
   organization as organizationTable
 } from '@/db/schema'
 import { eq } from 'drizzle-orm'
+import { redirect } from 'next/navigation'
 
 export default async function OrganizationPage() {
   const { user, ui } = await getUISession()
 
   if (!user) {
     throw new Error('User not found or not authenticated')
+  }
+
+  const membership = await db.query.member.findFirst({
+    where: eq(memberTable.userId, user.id)
+  })
+
+  if (!membership) {
+    redirect('/dashboard')
   }
 
   const organizations = await db
@@ -39,16 +48,6 @@ export default async function OrganizationPage() {
       eq(memberTable.organizationId, organizationTable.id)
     )
     .where(eq(memberTable.userId, user.id))
-
-  // const data = organizations
-
-  // console.log(data)
-
-  // const tableOrgs = organizations.map(o => ({
-  //   id: o.id,
-  //   name: o.name,
-  //   slug: o.slug
-  // }))
 
   // 4️⃣ Calculate total organizations
   const total = organizations.length
@@ -73,10 +72,10 @@ export default async function OrganizationPage() {
   // 6️⃣ Render main page
   return (
     <div className='container mx-auto max-w-6xl py-10'>
-      <Link href='/dashboard' className='mb-6 inline-flex items-center'>
+      {/* <Link href='/dashboard' className='mb-6 inline-flex items-center'>
         <ArrowLeft className='mr-2 size-4' />
-        <span className='text-primary'>Back to Dashboard</span>
-      </Link>
+        <span className='text-blue-600'>Back to Dashboard</span>
+      </Link> */}
 
       <div className='mt-4 mb-8 space-y-2'>
         <h2 className='text-xl font-bold'>
