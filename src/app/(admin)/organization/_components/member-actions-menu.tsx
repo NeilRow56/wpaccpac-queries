@@ -6,6 +6,7 @@ import {
   RotateCcw,
   Shield,
   User,
+  Crown,
   Loader2,
   MoreVertical
 } from 'lucide-react'
@@ -19,67 +20,95 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
+
 import { archiveUser, reinstateUser } from '@/server-actions/users'
 import { updateMemberRole } from '@/server-actions/members'
 
-type EditableRole = 'admin' | 'member'
+/* ---------------------------------------
+   Types
+--------------------------------------- */
+
+export type MemberRole = 'member' | 'admin' | 'owner'
 
 interface MemberActionsMenuProps {
   userId: string
   memberId: string
-  initialRole: EditableRole
+  initialRole: MemberRole
   initialArchived: boolean
+
+  /** number of owners in the org */
+  ownerCount: number
+
+  /** callback to update archived state in parent */
+  onArchivedChange: (archived: boolean) => void
+
+  /** refetch active organization */
   refetchOrganization: () => Promise<void>
 }
+
+/* ---------------------------------------
+   Component
+--------------------------------------- */
 
 export function MemberActionsMenu({
   userId,
   memberId,
   initialRole,
   initialArchived,
+  ownerCount,
+  onArchivedChange,
   refetchOrganization
 }: MemberActionsMenuProps) {
   const [isPending, startTransition] = useTransition()
 
-  // 🔹 optimistic local state
-  const [role, setRole] = useState<'admin' | 'member'>(initialRole)
+  // optimistic local state
+  const [role, setRole] = useState<MemberRole>(initialRole)
   const [isArchived, setIsArchived] = useState(initialArchived)
 
-  /* -----------------------------
-     ROLE TOGGLE
-  ----------------------------- */
-  const handleToggleRole = () => {
-    const nextRole = role === 'admin' ? 'member' : 'admin'
+  const isOwner = role === 'owner'
+  const isLastOwner = isOwner && ownerCount === 1
 
-    // optimistic update
+  /* ---------------------------------------
+     ROLE UPDATE
+  --------------------------------------- */
+  const handleSetRole = (nextRole: MemberRole) => {
+    if (role === nextRole) return
+
+    // prevent removing last owner
+    if (isLastOwner && nextRole !== 'owner') {
+      toast.error('Organization must have at least one owner')
+      return
+    }
+
+    const previousRole = role
     setRole(nextRole)
 
     startTransition(async () => {
       try {
         await updateMemberRole(memberId, nextRole)
-        toast.success(
-          nextRole === 'admin'
-            ? 'Member promoted to admin'
-            : 'Admin demoted to member'
-        )
+        toast.success(`Role updated to ${nextRole}`)
         await refetchOrganization()
-      } catch (error) {
-        console.log(error)
-        // rollback
-        setRole(role)
+      } catch (err) {
+        console.error(err)
+        setRole(previousRole) // rollback
         toast.error('Failed to update role')
       }
     })
   }
 
-  /* -----------------------------
+  /* ---------------------------------------
      ARCHIVE / REINSTATE
-  ----------------------------- */
+  --------------------------------------- */
   const handleArchiveToggle = () => {
-    const nextArchived = !isArchived
+    // prevent archiving last owner
+    if (!isArchived && isLastOwner) {
+      toast.error('You cannot archive the last owner')
+      return
+    }
 
-    // optimistic update
+    const nextArchived = !isArchived
     setIsArchived(nextArchived)
+    onArchivedChange(nextArchived)
 
     startTransition(async () => {
       try {
@@ -92,15 +121,18 @@ export function MemberActionsMenu({
         }
 
         await refetchOrganization()
-      } catch (error) {
-        console.log(error)
-        // rollback
+      } catch (err) {
+        console.error(err)
         setIsArchived(!nextArchived)
+        onArchivedChange(!nextArchived)
         toast.error('Action failed')
       }
     })
   }
 
+  /* ---------------------------------------
+     UI
+  --------------------------------------- */
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -118,20 +150,30 @@ export function MemberActionsMenu({
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align='end' className='w-48'>
-        {/* ROLE */}
-        <DropdownMenuItem onClick={handleToggleRole} disabled={isPending}>
-          {role === 'admin' ? (
-            <>
-              <User className='mr-2 size-4' />
-              Demote to member
-            </>
-          ) : (
-            <>
-              <Shield className='mr-2 size-4' />
-              Promote to admin
-            </>
-          )}
+      <DropdownMenuContent align='end' className='w-52'>
+        {/* ROLE MANAGEMENT */}
+        <DropdownMenuItem
+          onClick={() => handleSetRole('member')}
+          disabled={isPending || role === 'member'}
+        >
+          <User className='mr-2 size-4' />
+          Member
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={() => handleSetRole('admin')}
+          disabled={isPending || role === 'admin'}
+        >
+          <Shield className='mr-2 size-4' />
+          Admin
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={() => handleSetRole('owner')}
+          disabled={isPending || role === 'owner'}
+        >
+          <Crown className='mr-2 size-4' />
+          Owner
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />

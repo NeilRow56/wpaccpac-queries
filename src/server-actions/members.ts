@@ -6,6 +6,7 @@ import { member as memberTable } from '@/db/schema'
 
 import { isAdmin } from './permissions'
 import { db } from '@/db'
+import { MemberRole } from '@/app/(admin)/organization/_components/member-actions-menu'
 
 export const removeMember = async (memberId: string) => {
   const admin = await isAdmin()
@@ -60,13 +61,34 @@ export async function archiveOrganizationMember({
 
 // src/server-actions/members.ts
 
-export async function updateMemberRole(
-  memberId: string,
-  role: 'admin' | 'member'
-) {
-  const { ui } = await getUISession()
-  if (!ui.canAccessAdmin) {
-    throw new Error('Forbidden')
+// export async function updateMemberRole(memberId: string, role: MemberRole) {
+//   const { ui } = await getUISession()
+//   if (!ui.canAccessAdmin) {
+//     throw new Error('Forbidden')
+//   }
+
+//   await db.update(memberTable).set({ role }).where(eq(memberTable.id, memberId))
+// }
+
+export async function updateMemberRole(memberId: string, role: MemberRole) {
+  const current = await db.query.member.findFirst({
+    where: eq(memberTable.id, memberId)
+  })
+
+  if (!current) throw new Error('Member not found')
+
+  // 🔒 Prevent removing the last owner
+  if (current.role === 'owner' && role !== 'owner') {
+    const ownerCount = await db.query.member.findMany({
+      where: and(
+        eq(memberTable.organizationId, current.organizationId),
+        eq(memberTable.role, 'owner')
+      )
+    })
+
+    if (ownerCount.length <= 1) {
+      throw new Error('Organization must have at least one owner')
+    }
   }
 
   await db.update(memberTable).set({ role }).where(eq(memberTable.id, memberId))

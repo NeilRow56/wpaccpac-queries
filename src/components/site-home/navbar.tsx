@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { authClient } from '@/lib/auth-client'
 import { UserDropdown } from './user-dropdown'
 import { Session } from '@/lib/auth'
+import { usePathname } from 'next/navigation'
 
 const navItems = [
   { name: 'Features', href: '#features', icon: Zap },
@@ -28,6 +29,9 @@ export function Navbar({ serverSession, ui }: NavbarProps) {
   const { data: clientSession, isPending } = authClient.useSession()
   const session = clientSession ?? serverSession
 
+  const pathname = usePathname()
+  const isHomePage = pathname === '/'
+
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const RightSkeleton = (
@@ -39,7 +43,7 @@ export function Navbar({ serverSession, ui }: NavbarProps) {
 
   return (
     <header className='bg-background/95 sticky top-0 z-50 w-full border-b backdrop-blur'>
-      <div className='mx-auto flex min-h-16 max-w-[2040px] items-center justify-between px-4 md:px-6 lg:px-8'>
+      <div className='mx-auto flex min-h-16 max-w-[1800px] items-center justify-between px-4 md:px-6 lg:pr-48'>
         {/* Logo */}
         <Link href='/' className='flex items-center space-x-2'>
           <Image
@@ -53,19 +57,21 @@ export function Navbar({ serverSession, ui }: NavbarProps) {
 
         {/* Desktop nav */}
         <nav className='hidden lg:flex lg:flex-1 lg:items-center lg:justify-between'>
-          <div className='ml-12 flex items-center gap-4'>
-            {navItems.map(item => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className='hover:text-primary flex items-center gap-2 text-sm font-medium text-blue-600 transition-colors'
-              >
-                <item.icon className='h-4 w-4' />
-                {item.name}
-              </Link>
-            ))}
-          </div>
-
+          {isHomePage && (
+            <div className='ml-12 flex items-center gap-4'>
+              {navItems.map(item => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className='hover:text-primary flex items-center gap-2 text-sm font-medium text-blue-600 transition-colors'
+                >
+                  <item.icon className='h-4 w-4' />
+                  {item.name}
+                </Link>
+              ))}
+            </div>
+          )}
+          <div />
           {/* Right side */}
           <div className='flex items-center gap-4'>
             {isPending && RightSkeleton}

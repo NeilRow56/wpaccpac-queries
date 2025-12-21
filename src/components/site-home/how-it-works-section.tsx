@@ -67,7 +67,7 @@ export function HowItWorksSection() {
             className='animate-fade-in'
             style={{ animationDelay: `${index * 0.2}s` }}
           >
-            <Card className='bg-gradient-card border-primary/20 hover:shadow-glow-primary group relative h-full p-8 backdrop-blur-sm transition-all duration-300'>
+            <Card className='bg-gradient-card border-primary/20 hover:shadow-glow-primary group relative p-8 backdrop-blur-sm transition-all duration-300 md:h-full'>
               <div className='mb-6'>
                 <div className='bg-primary/10 group-hover::bg-primary/20 mb-4 flex h-16 w-16 items-center justify-center rounded-2xl transition-colors'>
                   <step.icon className='text-primary h-8 w-8' />
