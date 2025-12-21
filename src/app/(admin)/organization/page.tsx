@@ -79,7 +79,7 @@ export default async function OrganizationPage() {
 
       <div className='mt-4 mb-8 space-y-2'>
         <h2 className='text-xl font-bold'>
-          Organizations: (Normally the short form name for your business - but
+          Organisations: (Normally the short form name for your business - but
           it can be anything)
         </h2>
       </div>
@@ -98,17 +98,17 @@ export default async function OrganizationPage() {
         <OrganizationTabs canAccessAdmin={ui.canAccessAdmin} />
         <div className='text-muted-foreground mt-4 flex-col space-x-4 pl-8'>
           <span className='text-red-600'>
-            NB: Organization creation and amendment is only visible to
+            NB: Organisation creation and amendment is only visible to
             &quot;admin&quot; users.
           </span>
           <p>
-            Organizations cannot be deleted, only edited. This is to protect
-            your data. All client information is linked to an organization.
+            Organisations cannot be deleted, only edited. This is to protect
+            your data. All client information is linked to an organisation.
           </p>
           <p className='flex flex-col pt-4'>
-            In most cases a business will only have one organization.
+            A business can only have one organization.
             <span>
-              Invite members of your team to join the organization once they
+              Invite members of your team to join the organisation once they
               have registered with the app.
             </span>
           </p>

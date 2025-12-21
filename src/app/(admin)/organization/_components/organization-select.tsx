@@ -56,13 +56,13 @@ export function OrganizationSelect() {
 
   return (
     <div>
-      <h3 className='text-primary text-xl'>Active organization</h3>
+      <h3 className='text-primary text-xl'>Active organisation</h3>
 
       <Select
         value={activeOrganization?.id ?? ''}
         onValueChange={setActiveOrganization}
       >
-        <SelectTrigger className='w-full min-w-[300px]'>
+        <SelectTrigger className='mt-2 w-full min-w-[300px] border-red-600'>
           <SelectValue placeholder='Select an organization' />
         </SelectTrigger>
 
