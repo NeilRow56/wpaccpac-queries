@@ -56,9 +56,15 @@ export default function LoginForm({ redirectTo }: LoginFormProps) {
 
     toast.success(message as string)
 
-    const inviteId = searchParams.get('invite')
-    await authClient.organization.setActive({ organizationId: null })
+    // ✅ Fetch the last active organization from server
+    const res = await fetch('/api/active-org')
+    const { organizationId } = await res.json()
 
+    if (organizationId) {
+      await authClient.organization.setActive({ organizationId })
+    }
+
+    const inviteId = searchParams.get('invite')
     if (inviteId) {
       router.replace(`/organization/invites/${encodeURIComponent(inviteId)}`)
       return

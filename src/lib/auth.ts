@@ -115,7 +115,15 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 24 * 60 * 60, // 60 days
     refresh: { enabled: true, interval: 5 * 60 },
-    cookieCache: { enabled: true, maxAge: 5 * 60 } // Removed sameSite to satisfy TS
+    cookieCache: { enabled: true, maxAge: 5 * 60 }, // Removed sameSite to satisfy TS
+    // 👇 Add additionalFields here
+    additionalFields: {
+      activeOrganizationId: {
+        type: 'string',
+        nullable: true,
+        input: false
+      }
+    }
   },
 
   database: drizzleAdapter(db, { provider: 'pg' }),

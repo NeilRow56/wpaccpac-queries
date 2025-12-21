@@ -3,7 +3,7 @@ import { SiteHeader } from '@/components/admin/site-header'
 
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
-export default async function AdminLayout({
+export default function AdminLayout({
   children
 }: {
   children: React.ReactNode
