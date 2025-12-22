@@ -8,7 +8,7 @@ export default function HeroSection() {
   return (
     <section
       id='features'
-      className='w-full bg-gray-100 pt-[6vh] lg:h-full dark:bg-zinc-950'
+      className='w-full bg-gray-200 pt-[6vh] lg:h-full dark:bg-zinc-950'
     >
       <div className='mx-auto flex w-[90%] flex-col justify-center sm:w-[80%]'>
         <div className='mb-8 flex w-full justify-between'>
@@ -70,7 +70,7 @@ export default function HeroSection() {
 
           {/* Image Content */}
 
-          <div className='hidden w-full lg:block'>
+          <div className='hidden w-full rounded-full bg-gray-300 lg:block'>
             <Image
               src='/images/hero.png'
               alt='Hero image'

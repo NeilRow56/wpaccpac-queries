@@ -42,7 +42,7 @@ export function Navbar({ serverSession, ui }: NavbarProps) {
   )
 
   return (
-    <header className='bg-background/95 sticky top-0 z-50 w-full border-b pr-48 backdrop-blur'>
+    <header className='bg-background/95 sticky top-0 z-50 w-full border-b backdrop-blur'>
       <div className='mx-auto flex min-h-16 max-w-[1800px] items-center justify-between px-4 md:px-6'>
         {/* Logo */}
         <Link href='/' className='flex items-center space-x-2'>
@@ -82,9 +82,6 @@ export function Navbar({ serverSession, ui }: NavbarProps) {
                   <>
                     <Button variant='outline' asChild size='lg'>
                       <Link href='/organisation'>Organisation</Link>
-                    </Button>
-                    <Button variant='outline' asChild size='lg'>
-                      <Link href='/admin'>Admin</Link>
                     </Button>
                   </>
                 )}

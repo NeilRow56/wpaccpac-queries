@@ -10,32 +10,47 @@ import {
   SidebarMenuButton,
   SidebarMenuItem
 } from '@/components/ui/sidebar'
+import { Settings } from 'lucide-react'
 
-export function NavSecondary({
-  items,
-  ...props
-}: {
+interface NavSecondaryProps extends React.ComponentPropsWithoutRef<
+  typeof SidebarGroup
+> {
   items: {
     title: string
     url: string
     icon: Icon
   }[]
-} & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
+  ui?: {
+    canAccessAdmin: boolean
+  }
+}
+
+export function NavSecondary({ ui, items, ...props }: NavSecondaryProps) {
   return (
     <SidebarGroup {...props}>
       <SidebarGroupContent>
-        <SidebarMenu>
-          {items.map(item => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild>
-                <a href={item.url}>
-                  <item.icon />
-                  <span>{item.title}</span>
-                </a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
+        {ui?.canAccessAdmin && (
+          <SidebarMenu>
+            {items.map(item => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton asChild>
+                  <a href={item.url}>
+                    <item.icon />
+                    <span>{item.title}</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        )}
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild>
+            <a href='/settings'>
+              <Settings />
+              <span>Settings</span>
+            </a>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
       </SidebarGroupContent>
     </SidebarGroup>
   )

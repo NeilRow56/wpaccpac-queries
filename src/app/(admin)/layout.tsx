@@ -2,12 +2,14 @@ import { AppSidebar } from '@/components/admin/sidebar/app-sidebar'
 import { SiteHeader } from '@/components/admin/site-header'
 
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { getUISession } from '@/lib/get-ui-session'
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children
 }: {
   children: React.ReactNode
 }) {
+  const { ui } = await getUISession()
   return (
     <SidebarProvider
       style={
@@ -17,7 +19,7 @@ export default function AdminLayout({
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant='inset' />
+      <AppSidebar variant='inset' ui={ui} />
       <SidebarInset>
         <SiteHeader />
         <div className='flex flex-1 flex-col'>

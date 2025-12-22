@@ -159,6 +159,20 @@ export async function getActiveUsersAdmin() {
   return db.select().from(userTable).where(isNull(userTable.archivedAt))
 }
 
+export async function getAllActiveUsersAdmin() {
+  const { user, ui } = await getUISession()
+
+  if (!user || !ui.canAccessAdmin) {
+    throw new Error('Forbidden: Superuser access required')
+  }
+
+  const users = await db.select().from(userTable)
+
+  return users.map(u => ({
+    ...u,
+    banned: Boolean(u.banned) // 👈 normalize here
+  }))
+}
 /* -----------------------------------------------------
    DELETE USER
 ----------------------------------------------------- */

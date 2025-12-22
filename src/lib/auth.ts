@@ -162,6 +162,7 @@ export const auth = betterAuth({
         })
       }
     }),
+
     nextCookies()
   ],
 

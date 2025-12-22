@@ -2,12 +2,7 @@
 
 import * as React from 'react'
 
-import {
-  IconDashboard,
-  IconHelp,
-  IconSearch,
-  IconSettings
-} from '@tabler/icons-react'
+import { IconDashboard, IconHelp, IconSearch } from '@tabler/icons-react'
 
 import {
   Sidebar,
@@ -35,11 +30,11 @@ const data = {
   ],
 
   navSecondary: [
-    {
-      title: 'Settings',
-      url: '/settings',
-      icon: IconSettings
-    },
+    // {
+    //   title: 'Settings',
+    //   url: '/settings',
+    //   icon: IconSettings
+    // },
     {
       title: 'Organisations',
       url: '/organisation',
@@ -52,8 +47,13 @@ const data = {
     }
   ]
 }
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  ui?: {
+    canAccessAdmin: boolean
+  }
+}
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ ui, ...props }: AppSidebarProps) {
   const { data: session } = authClient.useSession()
 
   return (
@@ -79,7 +79,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <NavMain items={data.navMain} />
 
-        <NavSecondary items={data.navSecondary} className='mt-auto' />
+        <NavSecondary items={data.navSecondary} className='mt-auto' ui={ui} />
       </SidebarContent>
       <SidebarFooter className='mb-16 items-start'>
         <UserDropdown

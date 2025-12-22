@@ -21,7 +21,7 @@ export default async function AdministratorPage() {
       {user.isSuperUser === true ? (
         <div className='container mx-auto max-w-5xl space-y-8 px-8 py-16'>
           <div className='space-y-4'>
-            <ReturnButton href='/settings' label='Settings' />
+            {/* <ReturnButton href='/s' label='Settings' /> */}
 
             <h1 className='text-3xl font-bold'>Super user - User Table</h1>
 
