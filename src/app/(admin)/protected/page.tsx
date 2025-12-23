@@ -4,7 +4,11 @@ import { UserTable } from './_components/user-table'
 import { getUISession } from '@/lib/get-ui-session'
 import { redirect } from 'next/navigation'
 
-export default async function AdministratorPage() {
+export default async function AdministratorPage({
+  searchParams
+}: {
+  searchParams: Promise<{ page?: string; q?: string }>
+}) {
   // 1️⃣ Get full TS-safe UI session
   const { user, ui } = await getUISession()
 
@@ -16,6 +20,7 @@ export default async function AdministratorPage() {
   if (!ui.canAccessAdmin) {
     throw new Error('You are not allowed to create an organization')
   }
+
   return (
     <div>
       {user.isSuperUser === true ? (
@@ -23,7 +28,9 @@ export default async function AdministratorPage() {
           <div className='space-y-4'>
             {/* <ReturnButton href='/s' label='Settings' /> */}
 
-            <h1 className='text-3xl font-bold'>Super user - User Table</h1>
+            <h1 className='text-3xl font-bold'>
+              Super user - Full list of app users
+            </h1>
 
             <p className='rounded-md bg-green-600 p-2 text-lg font-bold text-white'>
               ACCESS GRANTED
@@ -31,7 +38,8 @@ export default async function AdministratorPage() {
           </div>
 
           <div className='w-full overflow-x-auto'>
-            <UserTable />
+            {/* Server component handles data + pagination */}
+            <UserTable searchParams={searchParams} />
           </div>
         </div>
       ) : (

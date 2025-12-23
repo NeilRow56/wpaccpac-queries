@@ -182,7 +182,7 @@ export const saveClientAction = actionClient
           .values(normalized)
           .returning({ insertedId: clientsTable.id })
 
-        console.log('Created client:', inserted)
+        // console.log('Created client:', inserted)
         revalidatePath('/clients')
 
         return {
@@ -199,12 +199,12 @@ export const saveClientAction = actionClient
         .where(eq(clientsTable.id, trimmedClient.id!))
         .returning({ updatedId: clientsTable.id })
 
-      console.log('Updated client:', updated)
+      // console.log('Updated client:', updated)
       revalidatePath('/clients')
 
       return {
         success: true,
-        message: `Client created successfully`,
+        message: `Client updated successfully`,
         clientId: updated.updatedId
       }
     }

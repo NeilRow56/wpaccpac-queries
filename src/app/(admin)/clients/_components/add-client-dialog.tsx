@@ -140,7 +140,7 @@ export default function AddClientDialog({
         return
       }
 
-      toast.success(result.data.message ?? 'Client save successfully')
+      toast.success(result.data.message ?? 'Client saved successfully')
 
       setOpen(false)
       router.refresh()

@@ -12,10 +12,21 @@ import { user, member, organization } from '@/db/schema'
 
 import type { AdminOrganizationUser } from './organizations'
 
-import { eq, inArray, isNull, not } from 'drizzle-orm'
+import {
+  asc,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNull,
+  not,
+  or,
+  sql
+} from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
 import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
 
 /* -----------------------------------------------------
    SIGN UP
@@ -114,24 +125,61 @@ export async function getUserDetails(id: string) {
 ----------------------------------------------------- */
 // server-actions/users.ts
 
-// server-actions/users.ts
+type SortKey = 'name' | 'email' | 'organization'
+type SortDir = 'asc' | 'desc'
 
-export async function getAllUsersAdmin(): Promise<AdminOrganizationUser[]> {
+const sortMap = {
+  name: user.name,
+  email: user.email,
+  organization: organization.name
+} as const
+
+type GetUsersArgs = {
+  page: number
+  pageSize: number
+  search?: string
+  sort?: SortKey
+  dir?: SortDir
+}
+
+export async function getAllUsersAdmin({
+  page,
+  pageSize,
+  search,
+  sort = 'name',
+  dir = 'asc'
+}: GetUsersArgs): Promise<{
+  users: AdminOrganizationUser[]
+  total: number
+}> {
+  connection()
   const { user: sessionUser, ui } = await getUISession()
-
   if (!sessionUser || !ui.canAccessAdmin) {
     throw new Error('Forbidden')
   }
+
+  const offset = (page - 1) * pageSize
+
+  const whereClause = search
+    ? or(ilike(user.name, `%${search}%`), ilike(user.email, `%${search}%`))
+    : undefined
+
+  const orderBy = dir === 'asc' ? asc(sortMap[sort]) : desc(sortMap[sort])
+
+  // ✅ COUNT distinct user-org pairs (or just rows if you want all memberships)
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(member)
+    .innerJoin(user, eq(member.userId, user.id))
+    .where(whereClause)
 
   const rows = await db
     .select({
       id: user.id,
       name: user.name,
       email: user.email,
-
       isSuperUser: user.isSuperUser,
       archivedAt: user.archivedAt,
-
       organizationId: organization.id,
       organizationName: organization.name,
       orgRole: member.role
@@ -139,14 +187,21 @@ export async function getAllUsersAdmin(): Promise<AdminOrganizationUser[]> {
     .from(member)
     .innerJoin(user, eq(member.userId, user.id))
     .innerJoin(organization, eq(member.organizationId, organization.id))
+    .where(whereClause)
+    .orderBy(orderBy)
+    .limit(pageSize)
+    .offset(offset)
 
-  // 🔐 normalize nullable boolean
-  return rows.map(row => ({
+  const users: AdminOrganizationUser[] = rows.map(row => ({
     ...row,
     isSuperUser: row.isSuperUser ?? false
   }))
-}
 
+  return {
+    users,
+    total: count
+  }
+}
 /* -----------------------------------------------------
    FIND ALL ACTIVE USERS (admin)
 ----------------------------------------------------- */

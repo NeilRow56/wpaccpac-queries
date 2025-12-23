@@ -129,7 +129,7 @@ export const columns = (
       cell: ({ row }) => {
         const active = row.getValue('active') as boolean
         return (
-          <span className={active ? '' : 'text-blue-600'}>
+          <span className={active ? '' : 'text-red-600'}>
             {active ? 'Active' : 'Archived'}
           </span>
         )

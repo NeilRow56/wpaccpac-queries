@@ -59,6 +59,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.0.1",
     "jspdf": "^3.0.4",
+    "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.555.0",
     "next": "16.0.7",
     "next-safe-action": "^8.0.11",
@@ -66,7 +67,7 @@
     "prisma": "^5.22.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "react-hook-form": "^7.68.0",
+    "react-hook-form": "^7.69.0",
     "react-resizable-panels": "^3.0.6",
     "reactflow": "^11.11.4",
     "recharts": "2.15.4",
@@ -75,7 +76,8 @@
     "tailwind-merge": "^3.4.0",
     "ua-parser-js": "^2.0.6",
     "vaul": "^1.1.2",
-    "zod": "^4.1.13"
+    "xlsx": "^0.18.5",
+    "zod": "^4.2.1"
   },
   "overrides": {
     "better-auth": {
