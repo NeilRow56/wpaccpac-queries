@@ -35,6 +35,7 @@ import { Button } from '@/components/ui/button'
 import { AssetWithCalculations } from '@/lib/asset-calculations'
 
 const assetFormEditSchema = z.object({
+  id: z.number().min(1, 'Id is required'),
   name: z.string().min(1, 'Name is required'),
   clientId: z.string().min(1, 'Client is required'),
   description: z.string().optional(),

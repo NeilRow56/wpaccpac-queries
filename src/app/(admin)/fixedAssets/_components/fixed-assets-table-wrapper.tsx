@@ -12,7 +12,7 @@ import { AssetWithCalculations } from '@/lib/asset-calculations'
 
 import { toast } from 'sonner'
 import { createAsset, deleteAsset, updateAsset } from '@/server-actions/assets'
-import { EditAssetForm } from './edit-form'
+import { AssetFormEditValues, EditAssetForm } from './edit-form'
 
 interface FixedAssetsTableWrapperProps {
   assets: AssetWithCalculations[]
@@ -68,8 +68,7 @@ export function FixedAssetsTableWrapper({
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleSubmitEdit = async (values: any) => {
+  const handleSubmitEdit = async (values: AssetFormEditValues) => {
     try {
       const result = await updateAsset(values)
 
