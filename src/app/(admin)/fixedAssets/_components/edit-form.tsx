@@ -34,44 +34,56 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { AssetWithCalculations } from '@/lib/asset-calculations'
 
-const assetFormSchema = z.object({
+const assetFormEditSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   clientId: z.string().min(1, 'Client is required'),
   description: z.string().optional(),
+
   cost: z
     .string()
     .min(1, 'Cost is required')
     .refine(
-      val => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+      val => !isNaN(Number(val)) && Number(val) > 0,
       'Cost must be a positive number'
     ),
+
   dateOfPurchase: z.string().min(1, 'Purchase date is required'),
+
   adjustment: z
     .string()
-    .refine(val => !isNaN(parseFloat(val)), 'Adjustment must be a valid number')
-    .optional()
-    .default('0'),
+    .refine(val => !isNaN(Number(val)), 'Adjustment must be a valid number'),
+
   depreciationRate: z
     .string()
     .min(1, 'Depreciation rate is required')
+    .refine(val => {
+      const n = Number(val)
+      return !isNaN(n) && n > 0 && n <= 100
+    }, 'Rate must be between 0 and 100'),
+
+  totalDepreciationToDate: z
+    .string()
     .refine(
-      val =>
-        !isNaN(parseFloat(val)) &&
-        parseFloat(val) > 0 &&
-        parseFloat(val) <= 100,
-      'Rate must be between 0 and 100'
+      val => !isNaN(Number(val)),
+      'Total depreciation must be a valid number'
     ),
-  totalDepreciationToDate: z.string().optional(),
-  disposalValue: z.string().optional()
+
+  disposalValue: z
+    .string()
+    .optional()
+    .refine(
+      val => val === undefined || !isNaN(Number(val)),
+      'Disposal value must be a valid number'
+    )
 })
 
-type AssetFormValues = z.infer<typeof assetFormSchema>
+export type AssetFormEditValues = z.infer<typeof assetFormEditSchema>
 
 interface EditAssetFormProps {
   asset: AssetWithCalculations | null
   open: boolean
   onClose: () => void
-  onSubmit: (values: AssetFormValues & { id: number }) => void
+  onSubmit: (values: AssetFormEditValues & { id: number }) => void
   clients: Array<{ id: string; name: string }>
 }
 
@@ -82,8 +94,8 @@ export function EditAssetForm({
   onSubmit,
   clients
 }: EditAssetFormProps) {
-  const form = useForm<AssetFormValues>({
-    resolver: zodResolver(assetFormSchema),
+  const form = useForm<AssetFormEditValues>({
+    resolver: zodResolver(assetFormEditSchema),
     defaultValues: {
       name: '',
       clientId: '',
@@ -116,7 +128,7 @@ export function EditAssetForm({
     }
   }, [asset, form])
 
-  const handleSubmit = (values: AssetFormValues) => {
+  const handleSubmit = (values: AssetFormEditValues) => {
     if (asset) {
       onSubmit({ ...values, id: asset.id })
       form.reset()
@@ -137,7 +149,8 @@ export function EditAssetForm({
         <DialogHeader>
           <DialogTitle>Edit Fixed Asset</DialogTitle>
           <DialogDescription>
-            Update the details of the fixed asset. Click save when you're done.
+            Update the details of the fixed asset. Click save when you&apos;re
+            done.
           </DialogDescription>
         </DialogHeader>
 
