@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FixedAssetsTable } from './fixed-assets-table'
-import { CreateAssetForm } from './create-asset-form'
+import { AssetFormValues, CreateAssetForm } from './create-asset-form'
 
 import { AssetWithCalculations } from '@/lib/asset-calculations'
 
@@ -30,8 +30,7 @@ export function FixedAssetsTableWrapper({
   const [showCreateModal, setShowCreateModal] = React.useState(false)
   const [showEditModal, setShowEditModal] = React.useState(false)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleCreate = async (values: any) => {
+  const handleCreate = async (values: AssetFormValues) => {
     try {
       const result = await createAsset(values)
 

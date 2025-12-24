@@ -33,38 +33,50 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 
+export type AssetFormValues = z.infer<typeof assetFormSchema>
+
 const assetFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   clientId: z.string().min(1, 'Client is required'),
   description: z.string().optional(),
+
   cost: z
     .string()
     .min(1, 'Cost is required')
     .refine(
-      val => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+      val => !isNaN(Number(val)) && Number(val) > 0,
       'Cost must be a positive number'
     ),
+
   dateOfPurchase: z.string().min(1, 'Purchase date is required'),
+
   adjustment: z
     .string()
-    .refine(val => !isNaN(parseFloat(val)), 'Adjustment must be a valid number')
-    .optional()
-    .default('0'),
+    .refine(val => !isNaN(Number(val)), 'Adjustment must be a valid number'),
+
   depreciationRate: z
     .string()
     .min(1, 'Depreciation rate is required')
-    .refine(
-      val =>
-        !isNaN(parseFloat(val)) &&
-        parseFloat(val) > 0 &&
-        parseFloat(val) <= 100,
-      'Rate must be between 0 and 100'
-    ),
-  totalDepreciationToDate: z.string().optional().default('0'),
-  disposalValue: z.string().optional()
-})
+    .refine(val => {
+      const n = Number(val)
+      return !isNaN(n) && n > 0 && n <= 100
+    }, 'Rate must be between 0 and 100'),
 
-type AssetFormValues = z.infer<typeof assetFormSchema>
+  totalDepreciationToDate: z
+    .string()
+    .refine(
+      val => !isNaN(Number(val)),
+      'Total depreciation must be a valid number'
+    ),
+
+  disposalValue: z
+    .string()
+    .optional()
+    .refine(
+      val => val === undefined || !isNaN(Number(val)),
+      'Disposal value must be a valid number'
+    )
+})
 
 interface CreateAssetFormProps {
   open: boolean
