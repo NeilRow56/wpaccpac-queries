@@ -44,7 +44,7 @@ export const columns = (
     const filterValue = column.getFilterValue() as string | undefined
     return (
       <select
-        className='rounded border p-1'
+        className='h-8 rounded border p-1.5'
         value={filterValue ?? ''}
         onChange={e => column.setFilterValue(e.target.value || undefined)}
       >
@@ -64,7 +64,7 @@ export const columns = (
     const filterValue = column.getFilterValue() as string | undefined
     return (
       <select
-        className='rounded border p-1'
+        className='h-8 rounded border p-1.5'
         value={filterValue ?? ''}
         onChange={e => column.setFilterValue(e.target.value || undefined)}
       >

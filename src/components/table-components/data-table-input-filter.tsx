@@ -18,7 +18,7 @@ export default function DataTableInputFilter<TData>({
       onChange={event =>
         table.getColumn(column)?.setFilterValue(event.target.value)
       }
-      className='max-w-sm'
+      className='h-8 max-w-sm'
     />
   )
 }

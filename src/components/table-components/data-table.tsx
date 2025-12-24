@@ -110,12 +110,12 @@ export function DataTable<TData extends RowData, TValue>({
       placeholder={`Filter ${column.id}...`}
       value={(column.getFilterValue() as string) ?? ''}
       onChange={e => column.setFilterValue(e.target.value)}
-      className='mt-1 h-7 max-w-sm border-red-200'
+      className='mb-1 h-8 max-w-sm border-red-200'
     />
   )
 
   return (
-    <div>
+    <div className='space-y-6'>
       {/* Toolbar: Columns + Clear Filters */}
       <div className='flex items-center px-6 py-4'>
         <DropdownMenu>
@@ -149,7 +149,7 @@ export function DataTable<TData extends RowData, TValue>({
       </div>
 
       {/* Table */}
-      <div className='m-6 overflow-hidden rounded-md border p-6'>
+      <div className='overflow-hidden rounded-md border p-2'>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map(headerGroup => (
@@ -157,7 +157,7 @@ export function DataTable<TData extends RowData, TValue>({
                 {headerGroup.headers.map(header => (
                   <TableHead
                     key={header.id}
-                    className='border-b border-blue-600 pt-2 font-bold text-blue-600'
+                    className='border-primary border-b p-2 font-bold text-blue-600'
                   >
                     {header.isPlaceholder ? null : (
                       <>
@@ -168,7 +168,7 @@ export function DataTable<TData extends RowData, TValue>({
                           )}
                         </div>
                         {header.column.getCanFilter() && (
-                          <div className='mt-1'>
+                          <div className='pt-2'>
                             {header.column.columnDef.meta?.filterComponent
                               ? flexRender(
                                   header.column.columnDef.meta.filterComponent,

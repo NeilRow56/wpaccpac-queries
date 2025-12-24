@@ -26,6 +26,14 @@ export function MembersTab({ canAccessAdmin }: { canAccessAdmin: boolean }) {
   const [archivedMap, setArchivedMap] = useState<Record<string, boolean>>({})
   const [page, setPage] = useState(1)
 
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 250)
+    return () => clearTimeout(id)
+  }, [search])
+
   /* -----------------------------
      FETCH ARCHIVE STATUS
   ----------------------------- */
@@ -60,17 +68,30 @@ export function MembersTab({ canAccessAdmin }: { canAccessAdmin: boolean }) {
     })
   }, [activeOrganization, archivedMap])
 
+  const filteredMembers = useMemo(() => {
+    if (!debouncedSearch) return sortedMembers
+
+    const q = debouncedSearch.toLowerCase()
+
+    return sortedMembers.filter(m => {
+      return (
+        m.user.name?.toLowerCase().includes(q) ||
+        m.user.email?.toLowerCase().includes(q)
+      )
+    })
+  }, [sortedMembers, debouncedSearch])
+
   /* -----------------------------
      PAGINATION
   ----------------------------- */
-  const totalPages = Math.max(1, Math.ceil(sortedMembers.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / PAGE_SIZE))
 
   const safePage = Math.min(page, totalPages)
 
   const pagedMembers = useMemo(() => {
     const start = (safePage - 1) * PAGE_SIZE
-    return sortedMembers.slice(start, start + PAGE_SIZE)
-  }, [sortedMembers, safePage])
+    return filteredMembers.slice(start, start + PAGE_SIZE)
+  }, [filteredMembers, safePage])
 
   /* -----------------------------
      SAFE EARLY RETURN (AFTER HOOKS)
@@ -86,6 +107,17 @@ export function MembersTab({ canAccessAdmin }: { canAccessAdmin: boolean }) {
   ----------------------------- */
   return (
     <div className='space-y-4'>
+      <div className='flex items-center gap-2'>
+        <input
+          value={search}
+          onChange={e => {
+            setSearch(e.target.value)
+            setPage(1) // ✅ reset immediately
+          }}
+          placeholder='Search members…'
+          className='h-9 w-full max-w-sm rounded-md border px-3 text-sm'
+        />
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
