@@ -183,13 +183,23 @@ export function CategoriesClient({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Category Name</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Default Rate</TableHead>
-                <TableHead>Assets</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className='w-[70px]'></TableHead>
+                <TableHead className='text-primary font-bold'>
+                  Category Name
+                </TableHead>
+                <TableHead className='text-primary font-bold'>Client</TableHead>
+                <TableHead className='text-primary font-bold'>
+                  Description
+                </TableHead>
+                <TableHead className='text-primary font-bold'>
+                  Default Rate
+                </TableHead>
+                <TableHead className='text-primary font-bold'>Assets</TableHead>
+                <TableHead className='text-primary font-bold'>
+                  Created
+                </TableHead>
+                <TableHead className='w-[70px] text-blue-600'>
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

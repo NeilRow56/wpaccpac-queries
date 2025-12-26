@@ -39,6 +39,7 @@ import { entity_types } from '@/lib/constants'
 import { OrganizationSchema } from '@/zod-schemas/organizations'
 import { saveClientAction } from '@/server-actions/clients'
 import { Field, FieldGroup } from '@/components/ui/field'
+import Link from 'next/link'
 
 type Props = {
   open: boolean
@@ -190,6 +191,12 @@ export default function AddClientDialog({
                     </SelectItem>
                   ))}
                 </FormSelect>
+
+                <Link href='/costCentres'>
+                  <span className='text-sm text-blue-600 underline'>
+                    Add cost centre
+                  </span>
+                </Link>
 
                 <FormSelect
                   control={form.control}

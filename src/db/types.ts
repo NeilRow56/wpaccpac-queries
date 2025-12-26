@@ -1,7 +1,7 @@
 // db/types.ts
 // db/types.ts
 // db/types.ts
-import { user, member, clients, costCentres, accountsPeriods } from './schema'
+import { user, member, clients, costCentres, accountingPeriods } from './schema'
 
 // Manually define the schema type for Drizzle transactions
 export type DBSchema = {
@@ -9,5 +9,5 @@ export type DBSchema = {
   member: typeof member
   clients: typeof clients
   costCentres: typeof costCentres
-  accountsPeriods: typeof accountsPeriods
+  accountingPeriods: typeof accountingPeriods
 }
