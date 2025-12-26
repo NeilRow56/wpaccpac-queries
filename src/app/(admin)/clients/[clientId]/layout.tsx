@@ -1,36 +1,38 @@
-'use client'
+import { notFound, redirect } from 'next/navigation'
+import { db } from '@/db'
+import { clients } from '@/db/schema'
+import { and, eq } from 'drizzle-orm'
+import { getUISession } from '@/lib/get-ui-session'
+import { ClientContextProvider } from './client-context'
 
-import * as React from 'react'
-import type { clients } from '@/db/schema'
-
-type Client = typeof clients.$inferSelect
-
-interface ClientContextValue {
-  client: Client
-}
-
-const ClientContext = React.createContext<ClientContextValue | null>(null)
-
-export function ClientContextProvider({
-  client,
-  children
+export default async function ClientLayout({
+  children,
+  params
 }: {
-  client: Client
   children: React.ReactNode
+  params: { clientId: string }
 }) {
+  const { session } = await getUISession()
+
+  if (!session) redirect('/auth')
+
+  const organizationId = session.activeOrganizationId
+  if (!organizationId) redirect('/organization')
+
+  const client = await db
+    .select()
+    .from(clients)
+    .where(
+      and(
+        eq(clients.id, params.clientId),
+        eq(clients.organizationId, organizationId)
+      )
+    )
+    .then(res => res[0])
+
+  if (!client) notFound()
+
   return (
-    <ClientContext.Provider value={{ client }}>
-      {children}
-    </ClientContext.Provider>
+    <ClientContextProvider client={client}>{children}</ClientContextProvider>
   )
-}
-
-export function useClient() {
-  const context = React.useContext(ClientContext)
-
-  if (!context) {
-    throw new Error('useClient must be used within ClientContextProvider')
-  }
-
-  return context
 }
