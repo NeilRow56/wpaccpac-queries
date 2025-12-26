@@ -42,7 +42,7 @@ const data = {
     },
     {
       title: 'CostCentres',
-      url: '/costCentres',
+      url: '/organisation/costCentres',
       icon: IconSearch
     }
   ]
