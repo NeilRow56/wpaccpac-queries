@@ -11,7 +11,7 @@ export default async function ClientLayout({
   params
 }: {
   children: React.ReactNode
-  params: { clientId: string }
+  params: Promise<{ clientId: string }>
 }) {
   const { clientId } = await params
 

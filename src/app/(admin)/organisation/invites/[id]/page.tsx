@@ -13,7 +13,7 @@ import { auth } from '@/lib/auth'
 export default async function InvitationPage({
   params
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
   const { id } = await params
 
