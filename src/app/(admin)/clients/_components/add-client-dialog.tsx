@@ -152,7 +152,7 @@ export default function AddClientDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent>
+      <DialogContent className='w-full max-w-6xl'>
         <DialogHeader>
           <DialogTitle>
             {client?.id ? 'Edit' : 'New'} Client{' '}
@@ -163,7 +163,7 @@ export default function AddClientDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Card className='mx-auto w-full sm:max-w-md'>
+        <Card className='mx-auto w-full sm:max-w-5xl'>
           <CardHeader className='text-center'>
             <CardTitle></CardTitle>
             <CardDescription></CardDescription>

@@ -1,100 +1,111 @@
-// components/fixed-assets-table-wrapper.tsx
 'use client'
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
+import { toast } from 'sonner'
+
 import { Button } from '@/components/ui/button'
 import { FixedAssetsTable } from './fixed-assets-table'
-import { AssetFormValues, CreateAssetForm } from './create-asset-form'
+
+import { createAsset, deleteAsset, updateAsset } from '@/server-actions/assets'
 
 import { AssetWithCalculations } from '@/lib/asset-calculations'
+import { AssetFormValues } from '@/zod-schemas/fixedAssets'
 
-import { toast } from 'sonner'
-import { createAsset, deleteAsset, updateAsset } from '@/server-actions/assets'
-import { AssetFormEditValues, EditAssetForm } from './edit-form'
+import { AssetForm } from './asset-form'
 
 interface FixedAssetsTableWrapperProps {
   assets: AssetWithCalculations[]
   clients: Array<{ id: string; name: string }>
+  categories: Array<{ id: string; name: string; clientId: string }>
 }
 
 export function FixedAssetsTableWrapper({
   assets,
-  clients
+  clients,
+  categories
 }: FixedAssetsTableWrapperProps) {
   const router = useRouter()
 
   const [selectedAsset, setSelectedAsset] =
     React.useState<AssetWithCalculations | null>(null)
+
   const [showCreateModal, setShowCreateModal] = React.useState(false)
   const [showEditModal, setShowEditModal] = React.useState(false)
 
+  /* -----------------------------
+     CREATE
+  ----------------------------- */
   const handleCreate = async (values: AssetFormValues) => {
     try {
       const result = await createAsset(values)
 
-      if (result.success) {
-        toast('Asset created successfully')
-        setShowCreateModal(false)
-        router.refresh()
-      } else {
-        toast('Failed to create asset')
+      if (!result.success) {
+        toast.error('Failed to create asset')
+        return
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      toast('An unexpected error occurred')
+
+      toast.success('Asset created successfully')
+      setShowCreateModal(false)
+      router.refresh()
+    } catch {
+      toast.error('An unexpected error occurred')
     }
   }
 
+  /* -----------------------------
+     EDIT
+  ----------------------------- */
   const handleEdit = (asset: AssetWithCalculations) => {
     setSelectedAsset(asset)
     setShowEditModal(true)
   }
 
-  const handleDelete = async (assetId: number) => {
-    try {
-      const result = await deleteAsset(assetId)
-
-      if (result.success) {
-        toast('Asset deleted successfully')
-        router.refresh()
-      } else {
-        toast('Failed to delete asset')
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      toast('An unexpected error occurred')
-    }
-  }
-
-  const handleSubmitEdit = async (values: AssetFormEditValues) => {
+  const handleUpdate = async (values: AssetFormValues & { id: string }) => {
     try {
       const result = await updateAsset(values)
 
-      if (result.success) {
-        toast('Asset edited successfully')
-        setShowEditModal(false)
-        setSelectedAsset(null)
-        router.refresh()
-      } else {
-        toast('Failed to update asset')
+      if (!result.success) {
+        toast.error('Failed to update asset')
+        return
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      toast('An unexpected error occurred')
+
+      toast.success('Asset updated successfully')
+      setShowEditModal(false)
+      setSelectedAsset(null)
+      router.refresh()
+    } catch {
+      toast.error('An unexpected error occurred')
+    }
+  }
+
+  /* -----------------------------
+     DELETE
+  ----------------------------- */
+  const handleDelete = async (assetId: string) => {
+    try {
+      const result = await deleteAsset(assetId)
+
+      if (!result.success) {
+        toast.error('Failed to delete asset')
+        return
+      }
+
+      toast.success('Asset deleted successfully')
+      router.refresh()
+    } catch {
+      toast.error('An unexpected error occurred')
     }
   }
 
   return (
     <>
       <div className='mb-4 flex items-center justify-between'>
-        <div>
-          <p className='text-muted-foreground text-sm'>
-            {assets.length} {assets.length === 1 ? 'asset' : 'assets'}{' '}
-            registered
-          </p>
-        </div>
+        <p className='text-muted-foreground text-sm'>
+          {assets.length} {assets.length === 1 ? 'asset' : 'assets'} registered
+        </p>
+
         <Button onClick={() => setShowCreateModal(true)}>
           <Plus className='mr-2 h-4 w-4' />
           Create New Asset
@@ -107,23 +118,29 @@ export function FixedAssetsTableWrapper({
         onDelete={handleDelete}
       />
 
-      <CreateAssetForm
+      <AssetForm
+        mode='create'
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreate}
         clients={clients}
+        categories={categories}
       />
 
-      <EditAssetForm
-        asset={selectedAsset}
-        open={showEditModal}
-        onClose={() => {
-          setShowEditModal(false)
-          setSelectedAsset(null)
-        }}
-        onSubmit={handleSubmitEdit}
-        clients={clients}
-      />
+      {selectedAsset && (
+        <AssetForm
+          mode='edit'
+          asset={selectedAsset}
+          open={showEditModal}
+          onClose={() => {
+            setShowEditModal(false)
+            setSelectedAsset(null)
+          }}
+          onSubmit={handleUpdate}
+          clients={clients}
+          categories={categories}
+        />
+      )}
     </>
   )
 }

@@ -10,10 +10,12 @@ import { fixedAssets } from '@/db/schema'
 export async function createAsset(data: {
   name: string
   clientId: string
+  categoryId: string
   description?: string
   cost: string
   dateOfPurchase: string
   adjustment?: string
+  depreciationMethod: 'straight_line' | 'reducing_balance'
   depreciationRate: string
   totalDepreciationToDate?: string
   disposalValue?: string
@@ -22,10 +24,12 @@ export async function createAsset(data: {
     await db.insert(fixedAssets).values({
       name: data.name,
       clientId: data.clientId,
+      categoryId: data.categoryId,
       description: data.description || null,
       cost: data.cost,
       dateOfPurchase: data.dateOfPurchase,
       adjustment: data.adjustment || '0',
+      depreciationMethod: data.depreciationMethod,
       depreciationRate: data.depreciationRate,
       totalDepreciationToDate: data.totalDepreciationToDate || '0',
       disposalValue: data.disposalValue || null
@@ -40,13 +44,15 @@ export async function createAsset(data: {
 }
 
 export async function updateAsset(data: {
-  id: number
+  id: string
   name: string
   clientId: string
+  categoryId?: string
   description?: string
   cost: string
   dateOfPurchase: string
   adjustment?: string
+  depreciationMethod: 'straight_line' | 'reducing_balance'
   depreciationRate: string
   totalDepreciationToDate?: string
   disposalValue?: string
@@ -57,10 +63,12 @@ export async function updateAsset(data: {
       .set({
         name: data.name,
         clientId: data.clientId,
+        categoryId: data.categoryId,
         description: data.description || null,
         cost: data.cost,
         dateOfPurchase: data.dateOfPurchase,
         adjustment: data.adjustment || '0',
+        depreciationMethod: data.depreciationMethod,
         depreciationRate: data.depreciationRate,
         totalDepreciationToDate: data.totalDepreciationToDate || '0',
         disposalValue: data.disposalValue || null
@@ -75,7 +83,7 @@ export async function updateAsset(data: {
   }
 }
 
-export async function deleteAsset(id: number) {
+export async function deleteAsset(id: string) {
   try {
     await db.delete(fixedAssets).where(eq(fixedAssets.id, id))
 

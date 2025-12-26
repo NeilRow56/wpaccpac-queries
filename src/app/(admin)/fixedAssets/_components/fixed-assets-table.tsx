@@ -54,7 +54,7 @@ import { DepreciationScheduleModal } from './depreciation-schedule-modal'
 interface FixedAssetsTableProps {
   assets: AssetWithCalculations[]
   onEdit?: (asset: AssetWithCalculations) => void
-  onDelete?: (assetId: number) => void
+  onDelete?: (assetId: string) => void
 }
 
 export function FixedAssetsTable({
@@ -106,6 +106,24 @@ export function FixedAssetsTable({
       )
     },
     {
+      accessorKey: 'categoryName',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant='ghost'
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Category
+            <ArrowUpDown className='ml-2 h-4 w-4' />
+          </Button>
+        )
+      },
+      cell: ({ row }) => {
+        const category = row.getValue('categoryName') as string | null
+        return <div className='text-muted-foreground'>{category || '—'}</div>
+      }
+    },
+    {
       accessorKey: 'dateOfPurchase',
       header: ({ column }) => {
         return (
@@ -119,6 +137,16 @@ export function FixedAssetsTable({
         )
       },
       cell: ({ row }) => formatDate(row.getValue('dateOfPurchase'))
+    },
+    {
+      accessorKey: 'depreciationMethod',
+      header: 'Method',
+      cell: ({ row }) => {
+        const method = row.getValue('depreciationMethod') as string
+        return (
+          <div className='text-sm capitalize'>{method.replace('_', ' ')}</div>
+        )
+      }
     },
     {
       accessorKey: 'cost',
@@ -302,7 +330,9 @@ export function FixedAssetsTable({
       .getFilteredRowModel()
       .rows.map(row => [
         row.original.name,
+        row.original.categoryName || '—',
         formatDate(row.original.dateOfPurchase),
+        row.original.depreciationMethod.replace('_', ' '),
         formatCurrency(row.original.cost),
         formatCurrency(row.original.totalDepreciationToDate),
         formatCurrency(row.original.depreciationForPeriod),
@@ -312,19 +342,21 @@ export function FixedAssetsTable({
     tableData.push([
       'TOTAL',
       '',
+      '',
+      '',
       formatCurrency(totals.cost),
       formatCurrency(totals.totalDepreciationToDate),
       formatCurrency(totals.depreciationForPeriod),
       formatCurrency(totals.netBookValue)
     ])
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     doc.autoTable({
       head: [
         [
           'Asset Name',
+          'Category',
           'Date of Purchase',
+          'Method',
           'Cost',
           'Total Depreciation',
           'Period Depreciation',
@@ -333,15 +365,17 @@ export function FixedAssetsTable({
       ],
       body: tableData,
       startY: 35,
-      styles: { fontSize: 9, cellPadding: 3 },
+      styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [71, 85, 105], fontStyle: 'bold' },
       columnStyles: {
-        0: { cellWidth: 40 },
-        1: { cellWidth: 30 },
-        2: { cellWidth: 25, halign: 'right' },
-        3: { cellWidth: 30, halign: 'right' },
-        4: { cellWidth: 30, halign: 'right' },
-        5: { cellWidth: 30, halign: 'right' }
+        0: { cellWidth: 30 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 20, halign: 'right' },
+        5: { cellWidth: 25, halign: 'right' },
+        6: { cellWidth: 25, halign: 'right' },
+        7: { cellWidth: 25, halign: 'right' }
       }
     })
 
@@ -357,7 +391,9 @@ export function FixedAssetsTable({
       [],
       [
         'Asset Name',
+        'Category',
         'Date of Purchase',
+        'Method',
         'Cost',
         'Total Depreciation To Date',
         'Depreciation for Period',
@@ -367,7 +403,9 @@ export function FixedAssetsTable({
         .getFilteredRowModel()
         .rows.map(row => [
           row.original.name,
+          row.original.categoryName || '—',
           formatDate(row.original.dateOfPurchase),
+          row.original.depreciationMethod.replace('_', ' '),
           row.original.cost,
           row.original.totalDepreciationToDate,
           row.original.depreciationForPeriod,
@@ -376,6 +414,8 @@ export function FixedAssetsTable({
       [],
       [
         'TOTAL',
+        '',
+        '',
         '',
         totals.cost,
         totals.totalDepreciationToDate,
@@ -386,18 +426,18 @@ export function FixedAssetsTable({
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheet_data)
 
-    // Set column widths
     worksheet['!cols'] = [
       { wch: 30 },
+      { wch: 20 },
       { wch: 15 },
+      { wch: 18 },
       { wch: 15 },
       { wch: 25 },
       { wch: 25 },
       { wch: 20 }
     ]
 
-    // Merge title cell
-    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }]
+    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }]
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Fixed Assets')
@@ -498,7 +538,7 @@ export function FixedAssetsTable({
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={2} className='font-bold'>
+              <TableCell colSpan={4} className='font-bold'>
                 Total ({table.getFilteredRowModel().rows.length} assets)
               </TableCell>
               <TableCell className='text-right font-bold'>

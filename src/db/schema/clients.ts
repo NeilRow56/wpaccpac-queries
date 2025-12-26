@@ -1,10 +1,10 @@
 import { relations, sql } from 'drizzle-orm'
 import { boolean, pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core'
 
-import { accountsPeriods } from './accountsPeriods'
 import { organization } from './authSchema'
 import { costCentres } from './costCentres'
 import { fixedAssets } from './fixedAssets'
+import { accountingPeriods } from './accountingPeriods'
 
 export const clients = pgTable('clients', {
   id: text('id')
@@ -40,6 +40,6 @@ export const ClientRelations = relations(clients, ({ many, one }) => ({
     fields: [clients.costCentreId],
     references: [costCentres.id]
   }),
-  accountinPeriods: many(accountsPeriods),
+  accountingPeriods: many(accountingPeriods),
   fixedAssets: many(fixedAssets)
 }))

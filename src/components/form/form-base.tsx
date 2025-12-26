@@ -159,6 +159,50 @@ export const FormInput: FormControlFunc<{ className?: string }> = ({
     </FormBase>
   )
 }
+export const FormInputDate: FormControlFunc<{ className?: string }> = ({
+  className,
+  ...props
+}) => {
+  return (
+    <FormBase {...props}>
+      {({ onChange, onBlur, value, ...field }) => (
+        <Input
+          {...field}
+          type='date'
+          value={value ?? ''}
+          onBlur={onBlur}
+          onChange={e => {
+            onChange(e)
+            onBlur()
+          }}
+          className={cn(transparentInputClasses, className)}
+        />
+      )}
+    </FormBase>
+  )
+}
+export const FormInputNumberString: FormControlFunc<{ className?: string }> = ({
+  className,
+  ...props
+}) => {
+  return (
+    <FormBase {...props}>
+      {({ onChange, onBlur, value, ...field }) => (
+        <Input
+          {...field}
+          type='number'
+          value={value ?? ''}
+          onBlur={onBlur}
+          onChange={e => {
+            onChange(e)
+            onBlur()
+          }}
+          className={cn(transparentInputClasses, className)}
+        />
+      )}
+    </FormBase>
+  )
+}
 
 /* ---------- FormNumberInput ---------- */
 

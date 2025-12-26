@@ -19,6 +19,10 @@ export const entity_types = [
   { id: 'LCM', description: 'Limited company - medium' },
   { id: 'O', description: 'Other' }
 ] as const
+export const depreciation_methods = [
+  { id: 'SL', description: 'Straight line' },
+  { id: 'RB', description: 'Reducing balance' }
+] as const
 
 //Create a lookup map from id -> description
 export const entityTypeMap: Record<string, string> = Object.fromEntries(

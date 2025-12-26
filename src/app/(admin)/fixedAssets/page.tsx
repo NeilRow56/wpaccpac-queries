@@ -1,23 +1,49 @@
 // app/fixed-assets/page.tsx
 
-import { db } from '@/db'
-import { clients, fixedAssets } from '@/db/schema'
 import { enrichAssetWithCalculations } from '@/lib/asset-calculations'
+
+import { eq } from 'drizzle-orm'
 import { FixedAssetsTableWrapper } from './_components/fixed-assets-table-wrapper'
+import { assetCategories, clients, fixedAssets } from '@/db/schema'
+import { db } from '@/db'
 
 export default async function FixedAssetsPage() {
-  // Fetch assets and clients
-  const [rawAssets, allClients] = await Promise.all([
-    db.select().from(fixedAssets),
+  // Fetch assets with category info, clients, and all categories
+  const [rawAssets, allClients, allCategories] = await Promise.all([
+    db
+      .select({
+        asset: fixedAssets,
+        category: assetCategories
+      })
+      .from(fixedAssets)
+      .leftJoin(
+        assetCategories,
+        eq(fixedAssets.categoryId, assetCategories.id)
+      ),
     db
       .select({
         id: clients.id,
         name: clients.name
       })
-      .from(clients)
+      .from(clients),
+    db
+      .select({
+        id: assetCategories.id,
+        name: assetCategories.name,
+        clientId: assetCategories.clientId
+      })
+      .from(assetCategories)
   ])
 
-  const assetsWithCalculations = rawAssets.map(enrichAssetWithCalculations)
+  // Merge asset and category data
+  const assetsWithCategory = rawAssets.map(row => ({
+    ...row.asset,
+    category: row.category
+  }))
+
+  const assetsWithCalculations = assetsWithCategory.map(
+    enrichAssetWithCalculations
+  )
 
   return (
     <div className='container mx-auto py-10'>
@@ -31,6 +57,7 @@ export default async function FixedAssetsPage() {
       <FixedAssetsTableWrapper
         assets={assetsWithCalculations}
         clients={allClients}
+        categories={allCategories}
       />
     </div>
   )
