@@ -3,17 +3,17 @@ import { db } from '@/db'
 import { clients } from '@/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { getUISession } from '@/lib/get-ui-session'
+
+import type LayoutProps from 'next'
 import { ClientContextProvider } from './client-context'
 
 export default async function ClientLayout({
   children,
   params
-}: {
-  children: React.ReactNode
-  params: { clientId: string }
-}) {
-  const { session } = await getUISession()
+}: LayoutProps<'/clients/[clientId]'>) {
+  const { clientId } = await params
 
+  const { session } = await getUISession()
   if (!session) redirect('/auth')
 
   const organizationId = session.activeOrganizationId
@@ -23,10 +23,7 @@ export default async function ClientLayout({
     .select()
     .from(clients)
     .where(
-      and(
-        eq(clients.id, params.clientId),
-        eq(clients.organizationId, organizationId)
-      )
+      and(eq(clients.id, clientId), eq(clients.organizationId, organizationId))
     )
     .then(res => res[0])
 
