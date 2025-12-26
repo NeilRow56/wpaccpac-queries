@@ -9,7 +9,7 @@ import { db } from '@/db'
 import { assetCategories, clients, fixedAssets } from '@/db/schema'
 import { CategoriesClient } from './categories-client'
 
-export default async function CategoriesPage() {
+export default async function AssetCategoriesPage() {
   // Fetch categories with asset counts
   const categoriesWithCounts = await db
     .select({

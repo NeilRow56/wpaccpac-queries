@@ -192,7 +192,7 @@ export default function AddClientDialog({
                   ))}
                 </FormSelect>
 
-                <Link href='/costCentres'>
+                <Link href='/organisation/costCentres'>
                   <span className='text-sm text-blue-600 underline'>
                     Add cost centre
                   </span>

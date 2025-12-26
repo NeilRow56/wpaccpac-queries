@@ -4,13 +4,15 @@ import { clients } from '@/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { getUISession } from '@/lib/get-ui-session'
 
-import type LayoutProps from 'next'
 import { ClientContextProvider } from './client-context'
 
 export default async function ClientLayout({
   children,
   params
-}: LayoutProps<'/clients/[clientId]'>) {
+}: {
+  children: React.ReactNode
+  params: { clientId: string }
+}) {
   const { clientId } = await params
 
   const { session } = await getUISession()

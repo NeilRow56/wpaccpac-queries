@@ -3,13 +3,19 @@ import { SiteHeader } from '@/components/admin/site-header'
 
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { getUISession } from '@/lib/get-ui-session'
+import { redirect } from 'next/navigation'
 
 export default async function AdminLayout({
   children
 }: {
   children: React.ReactNode
 }) {
-  const { ui } = await getUISession()
+  const { session, ui } = await getUISession()
+  if (!session) redirect('/auth')
+
+  if (!session.activeOrganizationId) {
+    redirect('/organization')
+  }
   return (
     <SidebarProvider
       style={

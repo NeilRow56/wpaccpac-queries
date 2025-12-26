@@ -12,7 +12,9 @@ import { auth } from '@/lib/auth'
 
 export default async function InvitationPage({
   params
-}: PageProps<'/organisation/invites/[id]'>) {
+}: {
+  params: { id: string }
+}) {
   const { id } = await params
 
   // ✅ Use raw auth session (NOT getUISession)

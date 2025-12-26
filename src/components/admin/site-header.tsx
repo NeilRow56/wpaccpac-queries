@@ -56,8 +56,8 @@ export async function SiteHeader() {
             icon={UsersRound}
             label='Customers Menu'
             choices={[
-              { title: 'Clients', href: '/clients' },
-              { title: 'Cost centres', href: '/costCentres' }
+              { title: 'Clients', href: '/organisation/clients' },
+              { title: 'Cost centres', href: '/organisation/costCentres' }
             ]}
           />
           <ModeToggle />
