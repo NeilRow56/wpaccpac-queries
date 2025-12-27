@@ -1,37 +1,36 @@
-import { notFound, redirect } from 'next/navigation'
-import { db } from '@/db'
-import { clients } from '@/db/schema'
-import { and, eq } from 'drizzle-orm'
-import { getUISession } from '@/lib/get-ui-session'
+'use client'
+import { useSetSidebarSlots } from '@/components/admin/sidebar/side-bar-slots'
+import { ClientSidebarContent } from '@/components/clientId/client-sidebar-slots'
+import React, { useEffect } from 'react'
 
-import { ClientContextProvider } from './client-context'
-
-export default async function ClientLayout({
+export default function ClientLayout({
   children,
   params
 }: {
   children: React.ReactNode
   params: Promise<{ clientId: string }>
 }) {
-  const { clientId } = await params
+  const [clientId, setClientId] = React.useState<string>('')
+  const setSlots = useSetSidebarSlots()
 
-  const { session } = await getUISession()
-  if (!session) redirect('/auth')
+  useEffect(() => {
+    params.then(({ clientId }) => {
+      setClientId(clientId)
+    })
+  }, [params])
 
-  const organizationId = session.activeOrganizationId
-  if (!organizationId) redirect('/organization')
+  useEffect(() => {
+    if (clientId && setSlots) {
+      setSlots({
+        content: <ClientSidebarContent clientId={clientId} />
+      })
+    }
 
-  const client = await db
-    .select()
-    .from(clients)
-    .where(
-      and(eq(clients.id, clientId), eq(clients.organizationId, organizationId))
-    )
-    .then(res => res[0])
+    // Cleanup: reset slots when unmounting
+    return () => {
+      setSlots?.({})
+    }
+  }, [clientId, setSlots])
 
-  if (!client) notFound()
-
-  return (
-    <ClientContextProvider client={client}>{children}</ClientContextProvider>
-  )
+  return <>{children}</>
 }

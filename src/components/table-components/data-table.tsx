@@ -52,6 +52,7 @@ interface DataTableProps<TData, TValue> {
   data: TData[]
   onRowDelete?: (item: TData) => void
   onRowEdit?: (item: TData) => void
+  onRowClick?: (row: TData) => void // 👈 add this
   columnFilters?: ColumnFiltersState
   setColumnFilters?: React.Dispatch<React.SetStateAction<ColumnFiltersState>>
 }
@@ -60,6 +61,7 @@ export function DataTable<TData extends RowData, TValue>({
   columns,
   data,
   onRowDelete,
+  onRowClick,
   onRowEdit,
   columnFilters,
   setColumnFilters
@@ -192,7 +194,10 @@ export function DataTable<TData extends RowData, TValue>({
               table.getRowModel().rows.map(row => (
                 <TableRow
                   key={row.id}
-                  data-state={row.getIsSelected() ? 'selected' : undefined}
+                  onClick={() => onRowClick?.(row.original)}
+                  className={
+                    onRowClick ? 'hover:bg-muted/50 cursor-pointer' : undefined
+                  }
                 >
                   {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id}>

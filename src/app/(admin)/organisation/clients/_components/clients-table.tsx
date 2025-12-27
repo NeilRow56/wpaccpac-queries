@@ -14,6 +14,7 @@ import { Organization } from '@/db/schema/authSchema'
 import { costCentre } from '@/db/schema'
 import { deleteClient } from '@/server-actions/clients'
 import { ColumnFiltersState } from '@tanstack/react-table'
+import { useRouter } from 'next/navigation'
 
 type Props = {
   data: Client[]
@@ -50,6 +51,8 @@ export default function ClientsTable({
   organization,
   orgCostCentres
 }: Props) {
+  const router = useRouter()
+
   const [openDialog, setOpenDialog] = useState(false)
   const [clientToEdit, setClientToEdit] = useState<Client | undefined>()
   const [openConfirmationDialog, setOpenConfirmationDialog] = useState(false)
@@ -60,7 +63,9 @@ export default function ClientsTable({
   )
 
   const clientColumns = useMemo(() => columns(orgCostCentres), [orgCostCentres])
-
+  const handleRowClick = (client: Client) => {
+    router.push(`/organisation/clients/${client.id}`)
+  }
   const handleRowEdit = (item: Client) => {
     setClientToEdit(item)
     setOpenDialog(true)
@@ -113,6 +118,7 @@ export default function ClientsTable({
       <DataTable<Client, unknown>
         data={data}
         columns={clientColumns}
+        onRowClick={handleRowClick}
         onRowEdit={handleRowEdit}
         columnFilters={columnFilters}
         setColumnFilters={setColumnFilters}

@@ -19,6 +19,7 @@ import { UserDropdown } from '@/components/site-home/user-dropdown'
 import { NavSecondary } from './nav-secondary'
 import { NavMain } from './nav-main'
 import { authClient } from '@/lib/auth-client'
+import { useSidebarSlots } from './side-bar-slots'
 
 const data = {
   navMain: [
@@ -36,7 +37,7 @@ const data = {
     //   icon: IconSettings
     // },
     {
-      title: 'Organisations',
+      title: 'Organisation',
       url: '/organisation',
       icon: IconHelp
     },
@@ -55,6 +56,9 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ ui, ...props }: AppSidebarProps) {
   const { data: session } = authClient.useSession()
+  const slots = useSidebarSlots()
+
+  console.log('AppSidebar slots:', slots) // Add this
 
   return (
     <Sidebar collapsible='offcanvas' {...props}>
@@ -77,6 +81,9 @@ export function AppSidebar({ ui, ...props }: AppSidebarProps) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
+        {slots?.content && (
+          <div className='mb-4 border-b pb-2'>{slots.content}</div>
+        )}
         <NavMain items={data.navMain} />
 
         <NavSecondary items={data.navSecondary} className='mt-auto' ui={ui} />
