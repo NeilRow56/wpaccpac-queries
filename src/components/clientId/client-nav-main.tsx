@@ -38,7 +38,8 @@ export function ClientNavMain({
       <SidebarMenu>
         {items.map(item => {
           const isSectionActive =
-            pathname === item.url || pathname.startsWith(item.url + '/')
+            item.items?.some(sub => pathname === sub.url) ||
+            pathname === item.url
 
           return (
             <Collapsible
@@ -50,13 +51,18 @@ export function ClientNavMain({
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
                   <SidebarMenuButton
-                    tooltip={item.title}
                     isActive={isSectionActive}
+                    data-active={isSectionActive ? 'section' : undefined}
+                    className='data-[active=section]:bg-sidebar-accent data-[active=section]:text-sidebar-accent-foreground relative pl-4'
                   >
+                    <span
+                      className='data-[active=section]:bg-sidebar-accent-foreground/50 absolute top-0 left-0 h-full w-1 bg-transparent transition-colors'
+                      data-active={isSectionActive ? 'section' : undefined}
+                    />
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
                     {item.items?.length && (
-                      <ChevronDown className='ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180' />
+                      <ChevronDown className='ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180' />
                     )}
                   </SidebarMenuButton>
                 </CollapsibleTrigger>
@@ -65,16 +71,32 @@ export function ClientNavMain({
                   <CollapsibleContent>
                     <SidebarMenuSub>
                       {item.items.map(subItem => {
-                        const isItemActive = pathname === subItem.url
+                        const isPageActive = pathname === subItem.url
 
                         return (
                           <SidebarMenuSubItem key={subItem.title}>
                             <SidebarMenuSubButton
                               asChild
-                              isActive={isItemActive}
+                              data-active={isPageActive ? 'page' : undefined}
+                              className='data-[active=page]:bg-primary/10 data-[active=page]:text-primary relative pl-4'
                             >
-                              <Link href={subItem.url}>
-                                <span>{subItem.title}</span>
+                              <Link
+                                href={subItem.url}
+                                className='relative flex w-full items-center'
+                              >
+                                <span
+                                  className='data-[active=page]:bg-primary absolute top-0 left-0 h-full w-1 bg-transparent transition-colors'
+                                  data-active={
+                                    isPageActive ? 'page' : undefined
+                                  }
+                                />
+                                <span
+                                  className={
+                                    isPageActive ? 'font-medium' : undefined
+                                  }
+                                >
+                                  {subItem.title}
+                                </span>
                               </Link>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
