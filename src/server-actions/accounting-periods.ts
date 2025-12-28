@@ -15,7 +15,7 @@ import {
   fixedAssets
 } from '@/db/schema'
 
-export async function createPeriod(data: {
+export async function createAccountingPeriod(data: {
   clientId: string
   periodName: string
   startDate: string
@@ -48,7 +48,7 @@ export async function createPeriod(data: {
   }
 }
 
-export async function updatePeriod(data: {
+export async function updateAccountingPeriod(data: {
   id: string
   periodName: string
   startDate: string
@@ -96,7 +96,7 @@ export async function updatePeriod(data: {
   }
 }
 
-export async function deletePeriod(id: string) {
+export async function deleteAccountingPeriod(id: string) {
   try {
     await db.delete(accountingPeriods).where(eq(accountingPeriods.id, id))
 

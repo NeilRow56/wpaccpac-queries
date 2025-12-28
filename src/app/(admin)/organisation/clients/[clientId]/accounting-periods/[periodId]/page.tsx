@@ -1,67 +1,49 @@
-'use client'
+// // app/(admin)/clients/[clientId]/accounting-periods/[periodId]/page.tsx
+// import { useEffect } from 'react'
+// import { useBreadcrumbContext } from '@/lib/navigation/breadcrumb-context'
+// import { getAccountingPeriod } from '@/server-actions/accounting-periods' // your DB fetch
 
-import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { useSetSidebarSlots } from '@/components/admin/sidebar/side-bar-slots'
-import { ClientSidebarContent } from '@/components/clientId/client-sidebar-slots'
-import { ClientBreadcrumbs } from '@/components/clientId/client-breadcrumbs'
-import { resolveClientBreadcrumbs } from '@/lib/navigation/client-breadcrumbs-resolver'
-import {
-  BreadcrumbProvider,
-  useBreadcrumbContext
-} from '@/lib/navigation/breadcrumb-context'
+// interface AccountingPeriodPageProps {
+//   params: { clientId: string; periodId: string }
+// }
 
-function ClientLayoutInner({
-  children,
-  clientId
-}: {
-  children: React.ReactNode
-  clientId: string
-}) {
-  const pathname = usePathname()
-  const setSlots = useSetSidebarSlots()
-  const [breadcrumbContext] = useBreadcrumbContext()
+// export default async function AccountingPeriodPage({ params }: AccountingPeriodPageProps) {
+//   const { clientId, periodId } = params
+//   const period = await getAccountingPeriod(periodId) // returns { id, name, ... }
 
-  useEffect(() => {
-    if (!setSlots) return
-    setSlots({
-      content: <ClientSidebarContent clientId={clientId} />
-    })
-    return () => setSlots({})
-  }, [clientId, setSlots])
+//   return <ClientAccountingPeriodContent period={period} clientId={clientId} />
+// }
 
-  const crumbs = resolveClientBreadcrumbs({
-    clientId,
-    pathname,
-    periodName: breadcrumbContext.periodName
-  })
+// // Client component is client-side, to set dynamic breadcrumbs
+// 'use client'
+// import React from 'react'
 
-  return (
-    <div className='space-y-4'>
-      <ClientBreadcrumbs crumbs={crumbs} />
-      {children}
-    </div>
-  )
-}
+// export function ClientAccountingPeriodContent({
+//   clientId,
+//   period
+// }: {
+//   clientId: string
+//   period: { id: string; name: string }
+// }) {
+//   const [, setBreadcrumbContext] = useBreadcrumbContext()
 
-export default function ClientLayout({
-  children,
-  params
-}: {
-  children: React.ReactNode
-  params: Promise<{ clientId: string }>
-}) {
-  const [clientId, setClientId] = useState('')
+//   React.useEffect(() => {
+//     setBreadcrumbContext({
+//       periodName: period.name // dynamic label
+//     })
+//     return () => setBreadcrumbContext({})
+//   }, [period.name, setBreadcrumbContext])
 
-  useEffect(() => {
-    params.then(({ clientId }) => setClientId(clientId))
-  }, [params])
+//   return (
+//     <div>
+//       <h1>{period.name}</h1>
+//       <p>Accounting period details for client {clientId}</p>
+//     </div>
+//   )
+// }
 
-  if (!clientId) return null
+import React from 'react'
 
-  return (
-    <BreadcrumbProvider>
-      <ClientLayoutInner clientId={clientId}>{children}</ClientLayoutInner>
-    </BreadcrumbProvider>
-  )
+export default function IndividualAccountingPeriod() {
+  return <div>Individual Accounting Period</div>
 }
