@@ -1,4 +1,3 @@
-// components/accounting-periods-client.tsx
 'use client'
 
 import * as React from 'react'
@@ -21,13 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
+
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { AccountingPeriodForm } from './accounting-period-form'
@@ -50,19 +43,21 @@ interface AccountingPeriod {
 
 interface AccountingPeriodsClientProps {
   periods: AccountingPeriod[]
-  clients: Array<{ id: string; name: string }>
+  clientId: string
+  clientName: string // Add this
 }
 
 export function AccountingPeriodsClient({
   periods,
-  clients
+  clientId,
+  clientName // Add this
 }: AccountingPeriodsClientProps) {
   const router = useRouter()
   const [selectedPeriod, setSelectedPeriod] =
     React.useState<AccountingPeriod | null>(null)
   const [showCreateModal, setShowCreateModal] = React.useState(false)
   const [showEditModal, setShowEditModal] = React.useState(false)
-  const [selectedClient, setSelectedClient] = React.useState<string>('all')
+  const [selectedClient] = React.useState<string>('all')
 
   // Filter periods by selected client
   const filteredPeriods =
@@ -71,9 +66,9 @@ export function AccountingPeriodsClient({
       : periods.filter(p => p.clientId === selectedClient)
 
   // Get client name helper
-  const getClientName = (clientId: string) => {
-    return clients.find(c => c.id === clientId)?.name || clientId
-  }
+  //   const getClientName = (clientId: string) => {
+  //     return client?.name || clientId
+  //   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleCreate = async (values: any) => {
@@ -159,19 +154,6 @@ export function AccountingPeriodsClient({
         {/* Header with filters and actions */}
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-4'>
-            <Select value={selectedClient} onValueChange={setSelectedClient}>
-              <SelectTrigger className='w-[250px]'>
-                <SelectValue placeholder='Filter by client' />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='all'>All Clients</SelectItem>
-                {clients.map(client => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <p className='text-muted-foreground text-sm'>
               {filteredPeriods.length}{' '}
               {filteredPeriods.length === 1 ? 'period' : 'periods'}
@@ -227,7 +209,9 @@ export function AccountingPeriodsClient({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{getClientName(period.clientId)}</TableCell>
+                    <TableCell>{clientName}</TableCell>{' '}
+                    {/* Use clientName instead of period.clientId */}
+                    {/* ... rest of cells */}
                     <TableCell className='text-sm'>
                       {formatDate(period.startDate)}
                     </TableCell>
@@ -290,7 +274,7 @@ export function AccountingPeriodsClient({
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreate}
-        clients={clients}
+        clientId={clientId}
         mode='create'
       />
       {/* Edit Modal */}
@@ -302,7 +286,7 @@ export function AccountingPeriodsClient({
           setSelectedPeriod(null)
         }}
         onSubmit={handleUpdate}
-        clients={clients}
+        clientId={clientId}
         mode='edit'
       />
     </>

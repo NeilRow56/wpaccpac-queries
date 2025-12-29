@@ -1,4 +1,3 @@
-// components/accounting-period-form.tsx
 'use client'
 
 import * as React from 'react'
@@ -15,7 +14,7 @@ import {
 import { Form, FormField } from '@/components/ui/form'
 import type { SubmitHandler, UseFormReturn } from 'react-hook-form'
 import {
-  FormSelect,
+  //   FormSelect,
   FormInputDate,
   FormCheckbox
 } from '@/components/form/form-base'
@@ -27,7 +26,7 @@ import {
   FieldDescription,
   FieldError
 } from '@/components/ui/field'
-import { SelectItem } from '@/components/ui/select'
+// import { SelectItem } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
@@ -42,12 +41,13 @@ import {
   CardFooter,
   CardHeader,
   CardTitle
-} from '../ui/card'
+} from '@/components/ui/card'
 
 type BaseProps = {
   open: boolean
   onClose: () => void
-  clients: Array<{ id: string; name: string }>
+  //   clients: Array<{ id: string; name: string }>
+  clientId: string
 }
 
 type CreateProps = BaseProps & {
@@ -66,14 +66,15 @@ type EditProps = BaseProps & {
 export type AccountingPeriodProps = CreateProps | EditProps
 
 export function AccountingPeriodForm(props: AccountingPeriodProps) {
-  const { open, onClose, clients } = props
+  const { open, onClose, clientId } = props
   const form = useForm({
     resolver: zodResolver(accountingPeriodFormSchema),
     defaultValues: {
-      clientId: '',
+      clientId,
       periodName: '',
       startDate: '',
       endDate: '',
+
       isCurrent: false as boolean // Explicit type
     }
   }) as UseFormReturn<{
@@ -81,6 +82,7 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
     periodName: string
     startDate: string
     endDate: string
+
     isCurrent: boolean
   }>
 
@@ -102,26 +104,30 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
       })
     } else if (props.mode === 'create') {
       form.reset({
-        clientId: '',
+        clientId,
         periodName: '',
         startDate: '',
         endDate: '',
         isCurrent: false
       })
     }
-  }, [props, form])
+  }, [props, form, clientId])
 
   const handleSubmit: SubmitHandler<AccountingPeriodFormValues> = values => {
+    // Ensure clientId is included
+    const formData = {
+      ...values,
+      clientId: clientId // Make sure clientId is in the submitted data
+    }
+
     if (props.mode === 'edit') {
-      // TypeScript KNOWS this is EditProps here
       if (!props.accountingPeriods) return
       props.onSubmit({
-        ...values,
+        ...formData,
         id: props.accountingPeriods.id
       })
     } else {
-      // TypeScript KNOWS this is CreateProps here
-      props.onSubmit(values)
+      props.onSubmit(formData)
     }
 
     form.reset()
@@ -190,8 +196,8 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
                 <FieldGroup>
                   <div className='grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-8'>
                     <div className='text-primary min-w-0 space-y-4 font-medium'>
-                      {/* Client dropdown: display DB value as-is for correct selection */}
-                      <FormSelect
+                      {/* Client selected from clientId */}
+                      {/* <FormSelect
                         control={form.control}
                         name='clientId'
                         label='Client'
@@ -201,7 +207,7 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
                             {cc.name}
                           </SelectItem>
                         ))}
-                      </FormSelect>
+                      </FormSelect> */}
                       {props.mode === 'edit' && (
                         <FieldDescription>
                           Client cannot be changed after creation

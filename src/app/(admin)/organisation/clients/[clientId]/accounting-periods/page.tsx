@@ -1,13 +1,18 @@
 // app/accounting-periods/page.tsx
 
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 
 import { accountingPeriods, clients } from '@/db/schema'
 import { db } from '@/db'
-import { AccountingPeriodsClient } from '@/components/accounting-periods/accounting-periods-client'
+import { AccountingPeriodsClient } from './_components.tsx/accounting-periods-client'
 
-export default async function AccountingPeriodsPage() {
-  // Fetch all periods
+export default async function AccountingPeriodsPage({
+  params
+}: {
+  params: Promise<{ clientId: string }>
+}) {
+  const { clientId } = await params
+  // Fetch periods for this client only
   const allPeriods = await db
     .select({
       id: accountingPeriods.id,
@@ -20,25 +25,34 @@ export default async function AccountingPeriodsPage() {
       createdAt: accountingPeriods.createdAt
     })
     .from(accountingPeriods)
+    .where(eq(accountingPeriods.clientId, clientId))
     .orderBy(sql`${accountingPeriods.startDate} DESC`)
 
-  // Fetch clients
-  const allClients = await db
+  // Fetch the client name
+  const [client] = await db
     .select({
       id: clients.id,
       name: clients.name
     })
     .from(clients)
+    .where(eq(clients.id, clientId))
 
   return (
     <div className='container mx-auto py-10'>
       <div className='mb-8'>
         <h1 className='text-3xl font-bold'>Accounting Periods</h1>
-        <p className='text-muted-foreground mt-2'>
-          Manage accounting periods for all clients
+        <p className='text-muted-foreground/60 mt-2 flex flex-col'>
+          <span className='text-primary text-xl'>
+            {' '}
+            {client?.name || clientId}
+          </span>
         </p>
       </div>
-      <AccountingPeriodsClient periods={allPeriods} clients={allClients} />
+      <AccountingPeriodsClient
+        periods={allPeriods}
+        clientId={clientId}
+        clientName={client?.name || clientId}
+      />
     </div>
   )
 }
