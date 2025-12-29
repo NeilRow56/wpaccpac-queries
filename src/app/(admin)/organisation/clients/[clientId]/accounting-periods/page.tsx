@@ -53,6 +53,19 @@ export default async function AccountingPeriodsPage({
         clientId={clientId}
         clientName={client?.name || clientId}
       />
+      <div className='text-muted-foreground mt-6 flex-col space-x-4 pl-8'>
+        <span className='text-red-600'>NB: </span>
+        <p>
+          Once a period is closed it cannot be deleted. In case a period was
+          closed in error the edit function is still available. Any data
+          relating to a deleted period will be removed from the database.
+        </p>
+
+        <p className='pt-4'>
+          Any problems please contact:
+          <span className='pl-2 text-blue-600'>admin@wpaccpac.org</span>
+        </p>
+      </div>
     </div>
   )
 }

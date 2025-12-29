@@ -10,7 +10,8 @@ export const accountingPeriodFormSchema = z
     isCurrent: z.preprocess(
       val => (val === undefined ? false : val),
       z.boolean()
-    )
+    ),
+    isOpen: z.preprocess(val => (val === undefined ? true : val), z.boolean())
   })
   .refine(
     data => {

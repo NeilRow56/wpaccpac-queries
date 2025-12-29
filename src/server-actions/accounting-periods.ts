@@ -36,7 +36,7 @@ export async function createAccountingPeriod(data: {
       periodName: data.periodName,
       startDate: data.startDate,
       endDate: data.endDate,
-      isCurrent: data.isCurrent || false,
+      isCurrent: data.isCurrent ?? false,
       isOpen: true
     })
 
@@ -54,6 +54,7 @@ export async function updateAccountingPeriod(data: {
   startDate: string
   endDate: string
   isCurrent?: boolean
+  isOpen?: boolean
 }) {
   try {
     const [period] = await db
@@ -84,7 +85,8 @@ export async function updateAccountingPeriod(data: {
         periodName: data.periodName,
         startDate: data.startDate,
         endDate: data.endDate,
-        isCurrent: data.isCurrent || false
+        isCurrent: data.isCurrent ?? false,
+        isOpen: data.isOpen ?? period.isOpen
       })
       .where(eq(accountingPeriods.id, data.id))
 

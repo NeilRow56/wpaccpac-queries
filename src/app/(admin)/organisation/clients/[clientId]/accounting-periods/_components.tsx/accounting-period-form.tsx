@@ -74,16 +74,16 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
       periodName: '',
       startDate: '',
       endDate: '',
-
-      isCurrent: false as boolean // Explicit type
+      isCurrent: false as boolean, // Explicit type,
+      isOpen: true as boolean // Add this
     }
   }) as UseFormReturn<{
     clientId: string
     periodName: string
     startDate: string
     endDate: string
-
     isCurrent: boolean
+    isOpen: boolean // Add this
   }>
 
   React.useEffect(() => {
@@ -100,7 +100,8 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
         periodName: props.accountingPeriods.periodName,
         startDate: formattedStartDate,
         endDate: formattedEndDate,
-        isCurrent: props.accountingPeriods.isCurrent ?? false
+        isCurrent: props.accountingPeriods.isCurrent ?? false,
+        isOpen: props.accountingPeriods.isOpen ?? true // Add this
       })
     } else if (props.mode === 'create') {
       form.reset({
@@ -108,7 +109,8 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
         periodName: '',
         startDate: '',
         endDate: '',
-        isCurrent: false
+        isCurrent: false,
+        isOpen: true // Add this
       })
     }
   }, [props, form, clientId])
@@ -268,6 +270,28 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
                           the default period for calculations.
                         </FieldDescription>
                       </div>
+                      {/* Add isOpen Checkbox - Only show in edit mode */}
+                      {props.mode === 'edit' && (
+                        <>
+                          <FormCheckbox
+                            control={form.control}
+                            name='isOpen'
+                            label='Period is open'
+                          />
+                          <div className='space-y-1 leading-none'>
+                            <FieldLabel
+                              htmlFor='isOpen'
+                              className='cursor-pointer font-normal'
+                            >
+                              Period status
+                            </FieldLabel>
+                            <FieldDescription>
+                              Uncheck to close this period. Closed periods
+                              should not be edited or deleted.
+                            </FieldDescription>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </FieldGroup>

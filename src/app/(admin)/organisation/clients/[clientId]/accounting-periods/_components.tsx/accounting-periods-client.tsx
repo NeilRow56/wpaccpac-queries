@@ -203,13 +203,16 @@ export function AccountingPeriodsClient({
                       <div className='flex items-center gap-2'>
                         <span className='font-medium'>{period.periodName}</span>
                         {period.isCurrent && (
-                          <Badge variant='outline' className='text-xs'>
+                          <Badge
+                            variant='outline'
+                            className='border-primary border text-xs'
+                          >
                             Current
                           </Badge>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{clientName}</TableCell>{' '}
+                    <TableCell>{clientName}</TableCell>
                     {/* Use clientName instead of period.clientId */}
                     {/* ... rest of cells */}
                     <TableCell className='text-sm'>
@@ -223,9 +226,11 @@ export function AccountingPeriodsClient({
                     </TableCell>
                     <TableCell>
                       {period.isOpen ? (
-                        <Badge variant='default'>Open</Badge>
+                        <Badge variant='default' className='bg-green-600'>
+                          Open
+                        </Badge>
                       ) : (
-                        <Badge variant='secondary'>Closed</Badge>
+                        <Badge variant='destructive'>Closed</Badge>
                       )}
                     </TableCell>
                     <TableCell className='text-muted-foreground text-sm'>
@@ -245,7 +250,7 @@ export function AccountingPeriodsClient({
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem
                             onClick={() => handleEdit(period)}
-                            disabled={!period.isOpen}
+                            // disabled={!period.isOpen}
                           >
                             <Pencil className='mr-2 h-4 w-4' />
                             Edit
