@@ -33,16 +33,32 @@ import {
   CardTitle
 } from '@/components/ui/card'
 import { Field, FieldGroup } from '@/components/ui/field'
-import { SelectItem } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { LoadingSwap } from '@/components/shared/loading-swap'
-import { Form, FormDescription } from '@/components/ui/form'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
-import { depreciation_methods } from '@/lib/constants'
+// import { depreciation_methods } from '@/lib/constants'
+import Link from 'next/link'
 
 type BaseProps = {
   open: boolean
   onClose: () => void
-  clients: Array<{ id: string; name: string }>
+  // clients: Array<{ id: string; name: string }>
+  clientId: string
   categories: Array<{ id: string; name: string; clientId: string }>
 }
 
@@ -60,12 +76,12 @@ type EditProps = BaseProps & {
 export type AssetFormProps = CreateProps | EditProps
 
 export function AssetForm(props: AssetFormProps) {
-  const { open, onClose, clients, categories } = props
+  const { open, onClose, clientId, categories } = props
   const form = useForm<AssetFormValues>({
     resolver: zodResolver(assetFormSchema),
     defaultValues: {
       name: '',
-      clientId: '',
+      clientId,
       categoryId: '',
       description: '',
       cost: '',
@@ -125,7 +141,7 @@ export function AssetForm(props: AssetFormProps) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className='max-h-[90vh] max-w-6xl overflow-y-auto'>
+      <DialogContent className='max-h-[90vh] min-w-4xl overflow-y-auto'>
         <DialogHeader>
           <DialogTitle className='text-primary'>
             {props.mode === 'edit' ? 'Edit Fixed Asset' : 'Create Fixed Asset'}
@@ -137,7 +153,7 @@ export function AssetForm(props: AssetFormProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <Card className='mx-auto w-full max-w-5xl'>
+        <Card className='mx-auto w-full'>
           <CardHeader className='text-center'>
             <CardTitle></CardTitle>
             <CardDescription></CardDescription>
@@ -148,9 +164,9 @@ export function AssetForm(props: AssetFormProps) {
               <form id='asset-form' onSubmit={form.handleSubmit(handleSubmit)}>
                 <FieldGroup>
                   <div className='grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-8'>
-                    <div className='text-primary min-w-0 space-y-4 font-medium'>
+                    <div className='text-primary min-w-0 space-y-4 font-bold'>
                       {/* Client dropdown: display DB value as-is for correct selection */}
-                      <FormSelect
+                      {/* <FormSelect
                         control={form.control}
                         name='clientId'
                         label='Client'
@@ -160,11 +176,12 @@ export function AssetForm(props: AssetFormProps) {
                             {cc.name}
                           </SelectItem>
                         ))}
-                      </FormSelect>
+                      </FormSelect> */}
                       <FormSelect
                         control={form.control}
                         name='categoryId'
                         label='Category'
+                        className='font-normal text-gray-900'
                       >
                         {filteredCategories.map(category => (
                           <SelectItem key={category.id} value={category.id}>
@@ -172,16 +189,26 @@ export function AssetForm(props: AssetFormProps) {
                           </SelectItem>
                         ))}
                       </FormSelect>
+                      <Button asChild size='sm'>
+                        <Link
+                          href={`/organisation/clients/${clientId}/asset-categories`}
+                        >
+                          <span className='text-sm text-white'>
+                            Add asset category
+                          </span>
+                        </Link>
+                      </Button>
                       <FormInput<AssetFormValues>
                         control={form.control}
                         name='name'
+                        className='font-normal text-gray-900'
                         label='Asset Name'
                       />
                       <FormDescription className='text-muted-foreground font-light'>
                         Name (add serial or registration number if availabe)
                       </FormDescription>
                       <FormTextarea
-                        className='min-h-24'
+                        className='min-h-24 font-normal text-gray-900'
                         control={form.control}
                         name='description'
                         label='Description'
@@ -193,36 +220,75 @@ export function AssetForm(props: AssetFormProps) {
                         control={form.control}
                         name='cost'
                         label='Cost'
+                        className='font-normal text-gray-900'
                       />
                       <FormInputNumberString<AssetFormValues>
                         control={form.control}
+                        className='font-normal text-gray-900'
                         name='adjustment'
                         label='Revaluation'
                       />
                     </div>
-                    <div className='text-primary min-w-0 space-y-4 font-medium'>
+                    <div className='text-primary min-w-0 space-y-4 font-bold'>
                       <FormInputDate<AssetFormValues>
                         control={form.control}
+                        className='font-normal text-gray-900'
                         name='dateOfPurchase'
                         label='Date of acquiition'
                       />
+                      <FormField
+                        control={form.control}
+                        name='depreciationMethod'
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Depreciation Method *</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder='Select method' />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value='straight_line'>
+                                  Straight Line
+                                </SelectItem>
+                                <SelectItem value='reducing_balance'>
+                                  Reducing Balance
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Straight line: Equal depreciation each year
+                              <br />
+                              Reducing balance: Higher depreciation in early
+                              years
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                      <FormSelect
+                      {/* <FormSelect
                         control={form.control}
                         name='depreciationMethod'
                         label='Depreciation Method'
+                        className='font-normal text-gray-900'
                       >
                         {depreciation_methods.map(dm => (
                           <SelectItem key={dm.id} value={dm.id}>
                             {dm.description}
                           </SelectItem>
                         ))}
-                      </FormSelect>
+                      </FormSelect> */}
 
                       <FormInputNumberString<AssetFormValues>
                         control={form.control}
                         name='depreciationRate'
                         label='Depreciation Rate (%)'
+                        className='font-normal text-gray-900'
                       />
                       <FormDescription className='text-muted-foreground font-light'>
                         Annual rate (0-100)
@@ -232,6 +298,7 @@ export function AssetForm(props: AssetFormProps) {
                         control={form.control}
                         name='totalDepreciationToDate'
                         label='Total Depreciation To Date'
+                        className='font-normal text-gray-900'
                       />
                       <FormDescription className='text-muted-foreground font-light'>
                         Previously recorded
@@ -240,6 +307,7 @@ export function AssetForm(props: AssetFormProps) {
                         control={form.control}
                         name='disposalValue'
                         label='Expected residual value'
+                        className='font-normal text-gray-900'
                       />
                     </div>
                   </div>

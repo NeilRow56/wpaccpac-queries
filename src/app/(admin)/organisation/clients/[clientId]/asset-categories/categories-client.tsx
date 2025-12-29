@@ -21,58 +21,46 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
+// import {
+//   Select,
+//   SelectContent,
+//   SelectItem,
+//   SelectTrigger,
+//   SelectValue
+// } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CategoryForm } from './category-form'
+
 import {
   createCategory,
   deleteCategory,
   updateCategory
 } from '@/server-actions/category-actions'
+import { CategoryForm } from './category-form'
+import { AssetCategory } from '@/db/schema'
 
-interface Category {
-  id: string
-  name: string
-  clientId: string
-  description?: string | null
-  defaultDepreciationRate?: string | null
-  createdAt: Date | null
+type CategoryWithCount = AssetCategory & {
   assetCount: number
 }
 
 interface CategoriesClientProps {
-  categories: Category[]
-  clients: Array<{ id: string; name: string }>
+  categories: CategoryWithCount[]
+  clientId: string
 }
 
 export function CategoriesClient({
   categories,
-  clients
+  clientId
 }: CategoriesClientProps) {
   const router = useRouter()
   const [selectedCategory, setSelectedCategory] =
-    React.useState<Category | null>(null)
+    React.useState<AssetCategory | null>(null)
   const [showCreateModal, setShowCreateModal] = React.useState(false)
   const [showEditModal, setShowEditModal] = React.useState(false)
-  const [selectedClient, setSelectedClient] = React.useState<string>('all')
+  //   const [selectedClient, setSelectedClient] = React.useState<string>('all')
 
   // Filter categories by selected client
-  const filteredCategories =
-    selectedClient === 'all'
-      ? categories
-      : categories.filter(cat => cat.clientId === selectedClient)
-
-  // Get client name helper
-  const getClientName = (clientId: string) => {
-    return clients.find(c => c.id === clientId)?.name || clientId
-  }
+  const filteredCategories = categories.filter(cat => cat.clientId === clientId)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleCreate = async (values: any) => {
@@ -92,7 +80,7 @@ export function CategoriesClient({
     }
   }
 
-  const handleEdit = (category: Category) => {
+  const handleEdit = (category: CategoryWithCount) => {
     setSelectedCategory(category)
     setShowEditModal(true)
   }
@@ -116,7 +104,7 @@ export function CategoriesClient({
     }
   }
 
-  const handleDelete = async (category: Category) => {
+  const handleDelete = async (category: CategoryWithCount) => {
     if (category.assetCount > 0) {
       toast.error(
         `Cannot delete category with ${category.assetCount} assets assigned`
@@ -154,7 +142,7 @@ export function CategoriesClient({
         {/* Header with filters and actions */}
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-4'>
-            <Select value={selectedClient} onValueChange={setSelectedClient}>
+            {/* <Select value={selectedClient} onValueChange={setSelectedClient}>
               <SelectTrigger className='w-[250px]'>
                 <SelectValue placeholder='Filter by client' />
               </SelectTrigger>
@@ -166,7 +154,7 @@ export function CategoriesClient({
                   </SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </Select> */}
             <p className='text-muted-foreground text-sm'>
               {filteredCategories.length}{' '}
               {filteredCategories.length === 1 ? 'category' : 'categories'}
@@ -186,7 +174,7 @@ export function CategoriesClient({
                 <TableHead className='text-primary font-bold'>
                   Category Name
                 </TableHead>
-                <TableHead className='text-primary font-bold'>Client</TableHead>
+                {/* <TableHead className='text-primary font-bold'>Client</TableHead> */}
                 <TableHead className='text-primary font-bold'>
                   Description
                 </TableHead>
@@ -224,7 +212,7 @@ export function CategoriesClient({
                     <TableCell className='font-medium'>
                       {category.name}
                     </TableCell>
-                    <TableCell>{getClientName(category.clientId)}</TableCell>
+                    {/* <TableCell>{getClientName(category.clientId)}</TableCell> */}
                     <TableCell className='max-w-xs truncate'>
                       {category.description || '—'}
                     </TableCell>
@@ -286,22 +274,25 @@ export function CategoriesClient({
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreate}
-        clients={clients}
+        // clients={clients}
+        clientId={clientId}
         mode='create'
       />
 
       {/* Edit Modal */}
-      <CategoryForm
-        category={selectedCategory}
-        open={showEditModal}
-        onClose={() => {
-          setShowEditModal(false)
-          setSelectedCategory(null)
-        }}
-        onSubmit={handleUpdate}
-        clients={clients}
-        mode='edit'
-      />
+      {selectedCategory && (
+        <CategoryForm
+          category={selectedCategory}
+          open={showEditModal}
+          onClose={() => {
+            setShowEditModal(false)
+            setSelectedCategory(null)
+          }}
+          onSubmit={handleUpdate}
+          clientId={clientId}
+          mode='edit'
+        />
+      )}
     </>
   )
 }

@@ -27,6 +27,16 @@ const data = {
       title: 'Dashboard',
       url: '/dashboard',
       icon: IconDashboard
+    },
+    {
+      title: 'Organisation',
+      url: '/organisation',
+      icon: IconHelp
+    },
+    {
+      title: 'Cost Centres',
+      url: '/organisation/costCentres',
+      icon: IconSearch
     }
   ],
 
@@ -36,16 +46,6 @@ const data = {
     //   url: '/settings',
     //   icon: IconSettings
     // },
-    {
-      title: 'Organisation',
-      url: '/organisation',
-      icon: IconHelp
-    },
-    {
-      title: 'CostCentres',
-      url: '/organisation/costCentres',
-      icon: IconSearch
-    }
   ]
 }
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {

@@ -17,13 +17,17 @@ import { AssetForm } from './asset-form'
 
 interface FixedAssetsTableWrapperProps {
   assets: AssetWithCalculations[]
-  clients: Array<{ id: string; name: string }>
+  // clients: Array<{ id: string; name: string }>
+  clientId: string
+  // clientName: string // Add this
   categories: Array<{ id: string; name: string; clientId: string }>
 }
 
 export function FixedAssetsTableWrapper({
   assets,
-  clients,
+  // clients,
+  clientId,
+  // clientName,
   categories
 }: FixedAssetsTableWrapperProps) {
   const router = useRouter()
@@ -39,7 +43,10 @@ export function FixedAssetsTableWrapper({
   ----------------------------- */
   const handleCreate = async (values: AssetFormValues) => {
     try {
-      const result = await createAsset(values)
+      const result = await createAsset({
+        ...values,
+        clientId
+      })
 
       if (!result.success) {
         toast.error('Failed to create asset')
@@ -123,7 +130,8 @@ export function FixedAssetsTableWrapper({
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreate}
-        clients={clients}
+        // clients={clients}
+        clientId={clientId}
         categories={categories}
       />
 
@@ -137,7 +145,8 @@ export function FixedAssetsTableWrapper({
             setSelectedAsset(null)
           }}
           onSubmit={handleUpdate}
-          clients={clients}
+          // clients={clients}
+          clientId={clientId}
           categories={categories}
         />
       )}

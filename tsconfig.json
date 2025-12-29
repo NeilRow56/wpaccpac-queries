@@ -30,7 +30,8 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "src/types/**/*.d.ts",
-    "**/*.mts"
+    "**/*.mts",
+    "src/app/(admin)/organisation/clients/[clientId]/accounting-periods/_components"
   ],
   "exclude": ["node_modules"]
 }

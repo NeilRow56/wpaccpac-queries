@@ -4,7 +4,7 @@ import { eq, sql } from 'drizzle-orm'
 
 import { accountingPeriods, clients } from '@/db/schema'
 import { db } from '@/db'
-import { AccountingPeriodsClient } from './_components.tsx/accounting-periods-client'
+import { AccountingPeriodsClient } from './_components/accounting-periods-client'
 
 export default async function AccountingPeriodsPage({
   params

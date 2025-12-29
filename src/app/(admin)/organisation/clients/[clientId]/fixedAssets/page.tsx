@@ -10,9 +10,15 @@ import { db } from '@/db'
 import { assetCategories, clients, fixedAssets } from '@/db/schema'
 import { FixedAssetsTableWrapper } from './_components/fixed-assets-table-wrapper'
 
-export default async function FixedAssetsPage() {
+export default async function FixedAssetsPage({
+  params
+}: {
+  params: Promise<{ clientId: string }>
+}) {
+  const { clientId } = await params
   // Fetch assets with category info, clients, and all categories
-  const [rawAssets, allClients, allCategories] = await Promise.all([
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [rawAssets, allclients, allCategories] = await Promise.all([
     db
       .select({
         asset: fixedAssets,
@@ -59,7 +65,7 @@ export default async function FixedAssetsPage() {
           </p>
         </div>
         <div className='flex gap-2'>
-          <Link href='/fixedAssets/categories'>
+          <Link href={`/organisation/clients/${clientId}/asset-categories`}>
             <Button variant='outline'>
               <FolderTree className='mr-2 h-4 w-4' />
               Manage Categories
@@ -75,9 +81,22 @@ export default async function FixedAssetsPage() {
       </div>
       <FixedAssetsTableWrapper
         assets={assetsWithCalculations}
-        clients={allClients}
+        // clients={allClients}
+        clientId={clientId}
         categories={allCategories}
       />
+      <div className='text-muted-foreground mt-6 flex-col space-x-4 pl-8'>
+        <span className='text-red-600'>NB: </span>
+        <p className='text-red-500'>
+          These values are estimated Accumulated Depreciation and Net Book
+          Values as at the current date
+        </p>
+
+        <p className='pt-4'>
+          Any problems please contact:
+          <span className='pl-2 text-blue-600'>admin@wpaccpac.org</span>
+        </p>
+      </div>
     </div>
   )
 }

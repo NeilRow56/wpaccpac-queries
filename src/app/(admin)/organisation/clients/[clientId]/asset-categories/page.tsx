@@ -6,10 +6,15 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import { db } from '@/db'
-import { assetCategories, clients, fixedAssets } from '@/db/schema'
+import { assetCategories, fixedAssets } from '@/db/schema'
 import { CategoriesClient } from './categories-client'
 
-export default async function AssetCategoriesPage() {
+export default async function AssetCategoriesPage({
+  params
+}: {
+  params: Promise<{ clientId: string }>
+}) {
+  const { clientId } = await params
   // Fetch categories with asset counts
   const categoriesWithCounts = await db
     .select({
@@ -23,35 +28,26 @@ export default async function AssetCategoriesPage() {
     })
     .from(assetCategories)
     .leftJoin(fixedAssets, eq(assetCategories.id, fixedAssets.categoryId))
+    .where(eq(assetCategories.clientId, clientId))
     .groupBy(assetCategories.id)
     .orderBy(assetCategories.name)
-
-  // Fetch clients
-  const allClients = await db
-    .select({
-      id: clients.id,
-      name: clients.name
-    })
-    .from(clients)
 
   return (
     <div className='container mx-auto py-10'>
       <div className='mb-8'>
-        <Link href='/fixed-assets'>
+        <Link href={`/organisation/clients/${clientId}/fixedAssets`}>
           <Button variant='ghost' className='mb-4'>
             <ArrowLeft className='mr-2 h-4 w-4' />
             <span className='text-primary'>Back to Assets</span>
           </Button>
         </Link>
+
         <h1 className='text-3xl font-bold'>Asset Categories</h1>
         <p className='text-muted-foreground mt-2'>
           Manage asset categories to organize your fixed assets
         </p>
       </div>
-      <CategoriesClient
-        categories={categoriesWithCounts}
-        clients={allClients}
-      />
+      <CategoriesClient categories={categoriesWithCounts} clientId={clientId} />
     </div>
   )
 }

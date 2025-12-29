@@ -22,16 +22,17 @@ import {
   FormLabel,
   FormMessage
 } from '@/components/ui/form'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
+// import {
+//   Select,
+//   SelectContent,
+//   SelectItem,
+//   SelectTrigger,
+//   SelectValue
+// } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import { AssetCategory } from '@/db/schema'
 
 const categoryFormSchema = z.object({
   name: z.string().min(1, 'Category name is required'),
@@ -52,62 +53,63 @@ const categoryFormSchema = z.object({
 
 type CategoryFormValues = z.infer<typeof categoryFormSchema>
 
-interface CategoryFormProps {
-  category?: {
-    id: string
-    name: string
-    clientId: string
-    description?: string | null
-    defaultDepreciationRate?: string | null
-  } | null
+type BaseProps = {
   open: boolean
   onClose: () => void
-  onSubmit: (values: CategoryFormValues & { id?: string }) => void
-  clients: Array<{ id: string; name: string }>
-  mode: 'create' | 'edit'
+  clientId: string
 }
 
-export function CategoryForm({
-  category,
-  open,
-  onClose,
-  onSubmit,
-  clients,
-  mode
-}: CategoryFormProps) {
+type CreateProps = BaseProps & {
+  mode: 'create'
+  onSubmit: (values: CategoryFormValues) => void
+}
+
+type EditProps = BaseProps & {
+  mode: 'edit'
+  category: AssetCategory
+  onSubmit: (values: CategoryFormValues & { id: string }) => void
+}
+
+export type CategoryFormProps = CreateProps | EditProps
+
+export function CategoryForm(props: CategoryFormProps) {
+  const { open, onClose, clientId } = props
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
     defaultValues: {
+      clientId,
       name: '',
-      clientId: '',
       description: '',
       defaultDepreciationRate: ''
     }
   })
 
   React.useEffect(() => {
-    if (category && mode === 'edit') {
+    if (props.mode === 'edit' && props.category) {
       form.reset({
-        name: category.name,
-        clientId: category.clientId,
-        description: category.description || '',
-        defaultDepreciationRate: category.defaultDepreciationRate || ''
+        name: props.category.name,
+        clientId: props.category.clientId,
+        description: props.category.description || '',
+        defaultDepreciationRate: props.category.defaultDepreciationRate || ''
       })
-    } else if (mode === 'create') {
+    } else if (props.mode === 'create') {
       form.reset({
         name: '',
-        clientId: '',
+        clientId,
         description: '',
         defaultDepreciationRate: ''
       })
     }
-  }, [category, mode, form])
+  }, [props, clientId, form])
 
   const handleSubmit = (values: CategoryFormValues) => {
-    if (mode === 'edit' && category) {
-      onSubmit({ ...values, id: category.id })
+    if (props.mode === 'edit') {
+      // TypeScript KNOWS this is EditProps here
+      if (!props.category) return
+      props.onSubmit({ ...values, id: props.category.id })
     } else {
-      onSubmit(values)
+      // TypeScript KNOWS this is CreateProps here
+      props.onSubmit(values)
     }
     form.reset()
     onClose()
@@ -120,13 +122,13 @@ export function CategoryForm({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className='max-w-xl'>
+      <DialogContent className='max-w-2xl'>
         <DialogHeader>
           <DialogTitle>
-            {mode === 'create' ? 'Create New Category' : 'Edit Category'}
+            {props.mode === 'create' ? 'Create New Category' : 'Edit Category'}
           </DialogTitle>
           <DialogDescription>
-            {mode === 'create'
+            {props.mode === 'create'
               ? 'Add a new asset category. Categories help organize your assets.'
               : 'Update the category details.'}
           </DialogDescription>
@@ -137,7 +139,7 @@ export function CategoryForm({
             onSubmit={form.handleSubmit(handleSubmit)}
             className='space-y-6'
           >
-            <FormField
+            {/* <FormField
               control={form.control}
               name='clientId'
               render={({ field }) => (
@@ -169,7 +171,7 @@ export function CategoryForm({
                   <FormMessage />
                 </FormItem>
               )}
-            />
+            /> */}
 
             <FormField
               control={form.control}
@@ -235,7 +237,7 @@ export function CategoryForm({
                 Cancel
               </Button>
               <Button type='submit'>
-                {mode === 'create' ? 'Create Category' : 'Save Changes'}
+                {props.mode === 'create' ? 'Create Category' : 'Save Changes'}
               </Button>
             </DialogFooter>
           </form>
