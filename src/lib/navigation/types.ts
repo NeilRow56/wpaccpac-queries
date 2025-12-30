@@ -1,10 +1,10 @@
 export interface NavItem {
-  title: string
+  label: string
   href: string
 }
 
 export interface NavSection {
-  title: string
+  label: string
   href: string
   items?: NavItem[]
 }

@@ -13,7 +13,7 @@ export function resolveClientBreadcrumbs({
 }: ResolveClientBreadcrumbsArgs): Breadcrumb[] {
   const crumbs: Breadcrumb[] = [
     {
-      title: 'Current client',
+      label: 'Current client',
       href: `/organisation/clients/${clientId}`
     }
   ]
@@ -21,7 +21,7 @@ export function resolveClientBreadcrumbs({
   // Accounting periods list
   if (pathname.includes('/accounting-periods')) {
     crumbs.push({
-      title: 'Accounting periods',
+      label: 'Accounting periods',
       href: `/organisation/clients/${clientId}/accounting-periods`
     })
   }
@@ -29,7 +29,7 @@ export function resolveClientBreadcrumbs({
   // Individual accounting period
   if (periodName) {
     crumbs.push({
-      title: periodName,
+      label: periodName,
       href: pathname
     })
   }

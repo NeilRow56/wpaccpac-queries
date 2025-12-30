@@ -1,8 +1,9 @@
 import type { NavSection } from './types'
 
-export interface Breadcrumb {
-  title: string
+export type Breadcrumb = {
+  label: string
   href: string
+  icon?: React.ReactNode
 }
 
 export function resolveBreadcrumbs(
@@ -14,7 +15,7 @@ export function resolveBreadcrumbs(
   for (const section of nav) {
     if (pathname === section.href || pathname.startsWith(section.href + '/')) {
       crumbs.push({
-        title: section.title,
+        label: section.label,
         href: section.href
       })
 
@@ -26,7 +27,7 @@ export function resolveBreadcrumbs(
         // ✅ only add if href is different
         if (sub && sub.href !== section.href) {
           crumbs.push({
-            title: sub.title,
+            label: sub.label,
             href: sub.href
           })
         }

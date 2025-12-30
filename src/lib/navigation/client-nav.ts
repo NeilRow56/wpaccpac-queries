@@ -5,16 +5,16 @@ export function getClientNav(clientId: string): NavSection[] {
 
   return [
     {
-      title: 'Current Client',
+      label: 'Current Client',
       href: base,
-      items: [{ title: 'Overview', href: base }]
+      items: [{ label: 'Overview', href: base }]
     },
     {
-      title: 'Accounting Periods',
+      label: 'Accounting Periods',
       href: `${base}/accounting-periods`,
       items: [
         {
-          title: 'Periods',
+          label: 'Periods',
           href: `${base}/accounting-periods`
         }
       ]

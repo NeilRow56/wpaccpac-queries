@@ -173,12 +173,31 @@ export function enrichAssetWithCalculations(asset: any): AssetWithCalculations {
   const adjustment = parseFloat(asset.adjustment || '0')
   const adjustedCost = cost + adjustment
 
-  const depreciationForPeriod = calculateDepreciationForPeriod(
-    cost,
-    adjustment,
-    parseFloat(asset.depreciationRate),
-    daysSince
-  )
+  // Use the method-aware calculation instead
+  const depreciationMethod = asset.depreciationMethod as
+    | 'straight_line'
+    | 'reducing_balance'
+
+  let depreciationForPeriod: number
+
+  if (depreciationMethod === 'straight_line') {
+    // Straight line calculation
+    depreciationForPeriod = calculateStraightLineDepreciation(
+      adjustedCost,
+      parseFloat(asset.depreciationRate),
+      daysSince
+    )
+  } else {
+    // Reducing balance calculation
+    const totalDepToDate = parseFloat(asset.totalDepreciationToDate || '0')
+    const currentNBV = adjustedCost - totalDepToDate
+
+    depreciationForPeriod = calculateReducingBalanceDepreciation(
+      currentNBV,
+      parseFloat(asset.depreciationRate),
+      daysSince
+    )
+  }
 
   const netBookValue = calculateNetBookValue(
     cost,

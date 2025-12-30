@@ -10,6 +10,7 @@ import {
   insertClientSchemaType
 } from '@/zod-schemas/clients'
 import { asc, eq } from 'drizzle-orm'
+
 import { flattenValidationErrors } from 'next-safe-action'
 import { revalidatePath } from 'next/cache'
 
@@ -209,3 +210,16 @@ export const saveClientAction = actionClient
       }
     }
   )
+
+export async function getClientById(id: string) {
+  try {
+    const clientById = await db.query.clients.findFirst({
+      where: eq(clientsTable.id, id)
+    })
+
+    return clientById
+  } catch (error) {
+    console.error(error)
+    return null
+  }
+}

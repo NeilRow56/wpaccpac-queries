@@ -1,67 +1,35 @@
-'use client'
+// app/organisations/clients/[clientId]/layout.tsx
 
-import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { useSetSidebarSlots } from '@/components/admin/sidebar/side-bar-slots'
-import { ClientSidebarContent } from '@/components/clientId/client-sidebar-slots'
-import { ClientBreadcrumbs } from '@/components/clientId/client-breadcrumbs'
-import { resolveClientBreadcrumbs } from '@/lib/navigation/client-breadcrumbs-resolver'
-import {
-  BreadcrumbProvider,
-  useBreadcrumbContext
-} from '@/lib/navigation/breadcrumb-context'
+import { Breadcrumbs } from '@/components/navigation/breadcrumb'
+import type { Breadcrumb } from '@/lib/navigation/breadcrumbs'
+import { getClientById } from '@/server-actions/clients'
+import { notFound } from 'next/navigation'
 
-function ClientLayoutInner({
-  children,
-  clientId
-}: {
-  children: React.ReactNode
-  clientId: string
-}) {
-  const pathname = usePathname()
-  const setSlots = useSetSidebarSlots()
-  const [breadcrumbContext] = useBreadcrumbContext()
-
-  useEffect(() => {
-    if (!setSlots) return
-    setSlots({
-      content: <ClientSidebarContent clientId={clientId} />
-    })
-    return () => setSlots({})
-  }, [clientId, setSlots])
-
-  const crumbs = resolveClientBreadcrumbs({
-    clientId,
-    pathname,
-    periodName: breadcrumbContext.periodName
-  })
-
-  return (
-    <div className='space-y-4'>
-      <ClientBreadcrumbs crumbs={crumbs} />
-      {children}
-    </div>
-  )
-}
-
-export default function ClientLayout({
+export default async function ClientLayout({
   children,
   params
 }: {
   children: React.ReactNode
-  params: Promise<{ clientId: string }>
+  params: { clientId: string }
 }) {
-  const [clientId, setClientId] = useState('')
+  const client = await getClientById(params.clientId)
 
-  useEffect(() => {
-    params.then(({ clientId }) => setClientId(clientId))
-  }, [params])
+  if (!client) {
+    notFound()
+  }
 
-  if (!clientId) return null
+  const baseCrumbs: Breadcrumb[] = [
+    { label: 'Clients', href: '/organisations/clients' },
+    {
+      label: client.name,
+      href: `/organisations/clients/${params.clientId}`
+    }
+  ]
 
   return (
-    <BreadcrumbProvider>
-      <ClientLayoutInner clientId={clientId}>{children}</ClientLayoutInner>
-    </BreadcrumbProvider>
+    <>
+      <Breadcrumbs baseCrumbs={baseCrumbs} />
+      {children}
+    </>
   )
 }
