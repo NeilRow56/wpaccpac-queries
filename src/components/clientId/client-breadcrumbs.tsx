@@ -22,13 +22,13 @@ export function ClientBreadcrumbs({ crumbs }: { crumbs: Breadcrumb[] }) {
             )}
 
             {isLast ? (
-              <span className='text-foreground font-medium'>{crumb.title}</span>
+              <span className='text-foreground font-medium'>{crumb.label}</span>
             ) : (
               <Link
                 href={crumb.href}
                 className='hover:text-foreground transition-colors'
               >
-                {crumb.title}
+                {crumb.label}
               </Link>
             )}
           </span>
