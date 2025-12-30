@@ -41,7 +41,8 @@ export async function resolveClientBreadcrumbs(
 
     if (period) {
       crumbs.push({
-        label: period.periodName
+        label: period.periodName,
+        href: `/organisations/clients/accounting-periods/${client.id}`
       })
     }
   }
