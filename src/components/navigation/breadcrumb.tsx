@@ -1,4 +1,3 @@
-// components/navigation/breadcrumbs.tsx
 'use client'
 
 import { usePathname } from 'next/navigation'
@@ -9,6 +8,29 @@ import type { Breadcrumb } from '@/lib/navigation/breadcrumbs'
 
 interface BreadcrumbsProps {
   baseCrumbs: Breadcrumb[]
+}
+
+export function Breadcrumbs({ baseCrumbs }: BreadcrumbsProps) {
+  const pathname = usePathname()
+
+  const baseHref: string =
+    baseCrumbs.length === 0 ? '' : baseCrumbs[baseCrumbs.length - 1].href
+
+  const dynamicCrumbs = buildRouteCrumbs(pathname, baseHref)
+  const crumbs = [...baseCrumbs, ...dynamicCrumbs]
+
+  return (
+    <nav className='text-muted-foreground flex items-center text-sm'>
+      {crumbs.map((crumb, i) => (
+        <span key={crumb.href} className='flex items-center gap-1'>
+          {i > 0 && <ChevronRight className='h-4 w-4' />}
+          <Link href={crumb.href} className='hover:text-foreground'>
+            {crumb.label}
+          </Link>
+        </span>
+      ))}
+    </nav>
+  )
 }
 
 function buildRouteCrumbs(pathname: string, baseHref: string): Breadcrumb[] {
@@ -31,28 +53,4 @@ function buildRouteCrumbs(pathname: string, baseHref: string): Breadcrumb[] {
   }
 
   return crumbs
-}
-
-export function Breadcrumbs({ baseCrumbs }: BreadcrumbsProps) {
-  const pathname = usePathname()
-
-  const baseHref =
-    baseCrumbs.length > 0 ? baseCrumbs[baseCrumbs.length - 1].href : ''
-
-  const dynamicCrumbs = buildRouteCrumbs(pathname, baseHref)
-
-  const crumbs = [...baseCrumbs, ...dynamicCrumbs]
-
-  return (
-    <nav className='text-muted-foreground flex items-center text-sm'>
-      {crumbs.map((crumb, i) => (
-        <span key={crumb.href} className='flex items-center gap-1'>
-          {i > 0 && <ChevronRight className='h-4 w-4' />}
-          <Link href={crumb.href} className='hover:text-foreground'>
-            {crumb.label}
-          </Link>
-        </span>
-      ))}
-    </nav>
-  )
 }

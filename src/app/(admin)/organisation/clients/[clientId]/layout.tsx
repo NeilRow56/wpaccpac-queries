@@ -10,9 +10,10 @@ export default async function ClientLayout({
   params
 }: {
   children: React.ReactNode
-  params: { clientId: string }
+  params: Promise<{ clientId: string }>
 }) {
-  const client = await getClientById(params.clientId)
+  const { clientId } = await params
+  const client = await getClientById(clientId)
 
   if (!client) {
     notFound()
@@ -22,7 +23,7 @@ export default async function ClientLayout({
     { label: 'Clients', href: '/organisations/clients' },
     {
       label: client.name,
-      href: `/organisations/clients/${params.clientId}`
+      href: `/organisations/clients/${clientId}`
     }
   ]
 
