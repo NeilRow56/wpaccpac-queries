@@ -23,9 +23,7 @@ export const clients = pgTable('clients', {
 
   entity_type: varchar('entity_type').notNull(),
 
-  notes: text('notes')
-    .$type<string | null>()
-    .default(sql`null`),
+  notes: text('notes'),
 
   active: boolean('active').notNull().default(true),
 
