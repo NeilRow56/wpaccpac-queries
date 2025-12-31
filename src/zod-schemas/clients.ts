@@ -1,4 +1,4 @@
-import { z, ZodString } from 'zod/v4'
+import { z, ZodString } from 'zod'
 
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod'
 import { clients } from '@/db/schema'
