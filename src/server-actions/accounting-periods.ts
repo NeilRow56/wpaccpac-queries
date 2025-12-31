@@ -10,7 +10,7 @@ import {
 } from '@/lib/asset-calculations'
 import { db } from '@/db'
 import {
-  accountingPeriods,
+  accountingPeriods as accountingPeriodsTable,
   depreciationEntries,
   fixedAssets
 } from '@/db/schema'
@@ -26,12 +26,12 @@ export async function createAccountingPeriod(data: {
     // If setting as current, unset other current periods
     if (data.isCurrent) {
       await db
-        .update(accountingPeriods)
+        .update(accountingPeriodsTable)
         .set({ isCurrent: false })
-        .where(eq(accountingPeriods.clientId, data.clientId))
+        .where(eq(accountingPeriodsTable.clientId, data.clientId))
     }
 
-    await db.insert(accountingPeriods).values({
+    await db.insert(accountingPeriodsTable).values({
       clientId: data.clientId,
       periodName: data.periodName,
       startDate: data.startDate,
@@ -59,8 +59,8 @@ export async function updateAccountingPeriod(data: {
   try {
     const [period] = await db
       .select()
-      .from(accountingPeriods)
-      .where(eq(accountingPeriods.id, data.id))
+      .from(accountingPeriodsTable)
+      .where(eq(accountingPeriodsTable.id, data.id))
 
     if (!period) {
       return { success: false, error: 'Period not found' }
@@ -69,18 +69,18 @@ export async function updateAccountingPeriod(data: {
     // If setting as current, unset other current periods
     if (data.isCurrent) {
       await db
-        .update(accountingPeriods)
+        .update(accountingPeriodsTable)
         .set({ isCurrent: false })
         .where(
           and(
-            eq(accountingPeriods.clientId, period.clientId),
-            sql`${accountingPeriods.id} != ${data.id}`
+            eq(accountingPeriodsTable.clientId, period.clientId),
+            sql`${accountingPeriodsTable.id} != ${data.id}`
           )
         )
     }
 
     await db
-      .update(accountingPeriods)
+      .update(accountingPeriodsTable)
       .set({
         periodName: data.periodName,
         startDate: data.startDate,
@@ -88,7 +88,7 @@ export async function updateAccountingPeriod(data: {
         isCurrent: data.isCurrent ?? false,
         isOpen: data.isOpen ?? period.isOpen
       })
-      .where(eq(accountingPeriods.id, data.id))
+      .where(eq(accountingPeriodsTable.id, data.id))
 
     revalidatePath('/fixed-assets/periods')
     return { success: true }
@@ -100,7 +100,9 @@ export async function updateAccountingPeriod(data: {
 
 export async function deleteAccountingPeriod(id: string) {
   try {
-    await db.delete(accountingPeriods).where(eq(accountingPeriods.id, id))
+    await db
+      .delete(accountingPeriodsTable)
+      .where(eq(accountingPeriodsTable.id, id))
 
     revalidatePath('/fixed-assets/periods')
     return { success: true }
@@ -118,11 +120,11 @@ export async function calculatePeriodDepreciationForClient(
     // Get the period
     const [period] = await db
       .select()
-      .from(accountingPeriods)
+      .from(accountingPeriodsTable)
       .where(
         and(
-          eq(accountingPeriods.id, periodId),
-          eq(accountingPeriods.clientId, clientId)
+          eq(accountingPeriodsTable.id, periodId),
+          eq(accountingPeriodsTable.clientId, clientId)
         )
       )
 
@@ -209,9 +211,9 @@ export async function closePeriod(periodId: string) {
   try {
     // Mark period as closed
     await db
-      .update(accountingPeriods)
+      .update(accountingPeriodsTable)
       .set({ isOpen: false })
-      .where(eq(accountingPeriods.id, periodId))
+      .where(eq(accountingPeriodsTable.id, periodId))
 
     // Update totalDepreciationToDate for all assets
     const entries = await db
@@ -234,5 +236,18 @@ export async function closePeriod(periodId: string) {
   } catch (error) {
     console.error('Error closing period:', error)
     return { success: false, error: 'Failed to close period' }
+  }
+}
+
+export async function getAccountingPeriodById(periodId: string) {
+  try {
+    const accountingPeriodById = await db.query.accountingPeriods.findFirst({
+      where: eq(accountingPeriodsTable.id, periodId)
+    })
+
+    return accountingPeriodById
+  } catch (error) {
+    console.error(error)
+    return null
   }
 }

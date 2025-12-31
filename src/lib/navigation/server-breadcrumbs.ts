@@ -13,7 +13,7 @@ export async function resolveClientBreadcrumbs(
   params: Params
 ): Promise<Breadcrumb[]> {
   const crumbs: Breadcrumb[] = [
-    { label: 'Clients', href: '/organisations/clients' }
+    { label: 'Clients', href: '/organisation/clients' }
   ]
 
   // Client
@@ -26,7 +26,7 @@ export async function resolveClientBreadcrumbs(
 
   crumbs.push({
     label: client.name,
-    href: `/organisations/clients/${client.id}`
+    href: `/organisation/clients/${client.id}`
   })
 
   // Accounting period (optional)
@@ -42,7 +42,7 @@ export async function resolveClientBreadcrumbs(
     if (period) {
       crumbs.push({
         label: period.periodName,
-        href: `/organisations/clients/accounting-periods/${client.id}`
+        href: `/organisation/clients/accounting-periods/${client.id}`
       })
     }
   }

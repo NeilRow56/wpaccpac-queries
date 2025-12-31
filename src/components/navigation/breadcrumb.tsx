@@ -20,11 +20,17 @@ export function Breadcrumbs({ baseCrumbs }: BreadcrumbsProps) {
   const crumbs = [...baseCrumbs, ...dynamicCrumbs]
 
   return (
-    <nav className='text-muted-foreground flex items-center text-sm'>
+    <nav className='flex items-center gap-1 overflow-x-auto text-sm whitespace-nowrap'>
       {crumbs.map((crumb, i) => (
         <span key={crumb.href} className='flex items-center gap-1'>
-          {i > 0 && <ChevronRight className='h-4 w-4' />}
-          <Link href={crumb.href} className='hover:text-foreground'>
+          {i > 0 && (
+            <ChevronRight className='text-muted-foreground/70 h-4 w-4 shrink-0' />
+          )}
+          <Link
+            href={crumb.href}
+            className='hover:text-foreground max-w-[250px] truncate'
+            title={crumb.label}
+          >
             {crumb.label}
           </Link>
         </span>
@@ -34,7 +40,10 @@ export function Breadcrumbs({ baseCrumbs }: BreadcrumbsProps) {
 }
 
 function buildRouteCrumbs(pathname: string, baseHref: string): Breadcrumb[] {
-  const segments = pathname.replace(baseHref, '').split('/').filter(Boolean)
+  if (!pathname.startsWith(baseHref)) return []
+
+  const relative = pathname.slice(baseHref.length)
+  const segments = relative.split('/').filter(Boolean)
 
   let href = baseHref
   const crumbs: Breadcrumb[] = []
@@ -42,7 +51,7 @@ function buildRouteCrumbs(pathname: string, baseHref: string): Breadcrumb[] {
   for (const segment of segments) {
     href += `/${segment}`
 
-    // Skip UUIDs for now (we’ll resolve dynamically later)
+    // Skip UUIDs (resolved later)
     if (/^[a-f0-9-]{36}$/.test(segment)) continue
 
     const label =

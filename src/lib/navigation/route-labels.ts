@@ -2,5 +2,5 @@
 export const ROUTE_LABELS: Record<string, string> = {
   'fixed-assets': 'Fixed assets',
   categories: 'Asset categories',
-  periods: 'Accounting periods'
+  'accounting-periods': 'Accounting periods'
 }
