@@ -1,34 +1,31 @@
+// lib/navigation/breadcrumb-context.tsx
 'use client'
 
-import React from 'react'
+import { createContext, useContext, useState } from 'react'
+import type { Breadcrumb } from './breadcrumbs'
 
-export interface BreadcrumbContextValue {
-  periodName?: string
+type BreadcrumbContextValue = {
+  crumbs: Breadcrumb[]
+  setCrumbs: (crumbs: Breadcrumb[]) => void
 }
 
-const BreadcrumbContext = React.createContext<
-  [BreadcrumbContextValue, (v: BreadcrumbContextValue) => void] | undefined
->(undefined)
+const BreadcrumbContext = createContext<BreadcrumbContextValue | null>(null)
 
 export function BreadcrumbProvider({
   children
 }: {
   children: React.ReactNode
 }) {
-  const state = React.useState<BreadcrumbContextValue>({})
+  const [crumbs, setCrumbs] = useState<Breadcrumb[]>([])
   return (
-    <BreadcrumbContext.Provider value={state}>
+    <BreadcrumbContext.Provider value={{ crumbs, setCrumbs }}>
       {children}
     </BreadcrumbContext.Provider>
   )
 }
 
 export function useBreadcrumbContext() {
-  const ctx = React.useContext(BreadcrumbContext)
-  if (!ctx) {
-    throw new Error(
-      'useBreadcrumbContext must be used inside BreadcrumbProvider'
-    )
-  }
+  const ctx = useContext(BreadcrumbContext)
+  if (!ctx) throw new Error('BreadcrumbProvider missing')
   return ctx
 }

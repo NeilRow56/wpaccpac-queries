@@ -1,9 +1,7 @@
 // app/organisations/clients/[clientId]/accounting-periods/[periodId]/layout.tsx
-
-import { Breadcrumbs } from '@/components/navigation/breadcrumb'
-import type { Breadcrumb } from '@/lib/navigation/breadcrumbs'
+import { RegisterBreadcrumbs } from '@/components/navigation/register-breadcrumbs'
 import { getAccountingPeriodById } from '@/server-actions/accounting-periods'
-import { notFound } from 'next/navigation'
+import type { Breadcrumb } from '@/lib/navigation/breadcrumbs'
 
 export default async function PeriodLayout({
   children,
@@ -13,20 +11,28 @@ export default async function PeriodLayout({
   params: Promise<{ clientId: string; periodId: string }>
 }) {
   const { clientId, periodId } = await params
-
   const period = await getAccountingPeriodById(periodId)
-  if (!period) notFound()
 
   const crumbs: Breadcrumb[] = [
+    { label: 'Clients', href: '/organisation/clients' },
     {
-      label: period.periodName,
-      href: `/organisation/clients/${clientId}/accounting-periods/${periodId}`
+      label: 'First Client - JS',
+      href: `/organisation/clients/${clientId}`
+    },
+    {
+      label: 'Accounting Periods',
+      href: `/organisation/clients/${clientId}/accounting-periods`
+    },
+    {
+      label: period?.periodName ?? 'Accounting Period',
+      href: `/organisation/clients/${clientId}/accounting-periods/${periodId}`,
+      isCurrentPage: true
     }
   ]
 
   return (
     <>
-      <Breadcrumbs baseCrumbs={crumbs} />
+      <RegisterBreadcrumbs crumbs={crumbs} />
       {children}
     </>
   )

@@ -4,6 +4,7 @@ export type Breadcrumb = {
   label: string
   href: string
   icon?: React.ReactNode
+  isCurrentPage?: boolean
 }
 
 export function resolveBreadcrumbs(

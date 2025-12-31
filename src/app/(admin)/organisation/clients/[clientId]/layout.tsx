@@ -1,9 +1,9 @@
-// app/organisations/clients/[clientId]/layout.tsx
-
-import { Breadcrumbs } from '@/components/navigation/breadcrumb'
-import type { Breadcrumb } from '@/lib/navigation/breadcrumbs'
-import { getClientById } from '@/server-actions/clients'
 import { notFound } from 'next/navigation'
+import { getClientById } from '@/server-actions/clients'
+
+import ClientLayoutInner from './client-layout-inner'
+import { Breadcrumbs } from '@/components/navigation/breadcrumb'
+import { BreadcrumbProvider } from '@/lib/navigation/breadcrumb-context'
 
 export default async function ClientLayout({
   children,
@@ -17,18 +17,15 @@ export default async function ClientLayout({
 
   if (!client) notFound()
 
-  const crumbs: Breadcrumb[] = [
-    { label: 'Clients', href: '/organisation/clients' },
-    {
-      label: client.name,
-      href: `/organisation/clients/${clientId}`
-    }
-  ]
-
   return (
-    <>
-      <Breadcrumbs baseCrumbs={crumbs} />
-      {children}
-    </>
+    <div className='space-y-4'>
+      <BreadcrumbProvider>
+        {/* ✅ Breadcrumbs rendered ONCE, but listen to context */}
+        <Breadcrumbs />
+
+        {/* ✅ Everything below can register crumbs */}
+        <ClientLayoutInner clientId={clientId}>{children}</ClientLayoutInner>
+      </BreadcrumbProvider>
+    </div>
   )
 }

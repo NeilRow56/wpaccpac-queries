@@ -1,6 +1,6 @@
 // app/organisations/clients/[clientId]/accounting-periods/layout.tsx
 
-import { Breadcrumbs } from '@/components/navigation/breadcrumb'
+import { RegisterBreadcrumbs } from '@/components/navigation/register-breadcrumbs'
 import type { Breadcrumb } from '@/lib/navigation/breadcrumbs'
 
 export default async function AccountingPeriodsLayout({
@@ -13,15 +13,21 @@ export default async function AccountingPeriodsLayout({
   const { clientId } = await params
 
   const crumbs: Breadcrumb[] = [
+    { label: 'Clients', href: '/organisation/clients' },
+    {
+      label: 'First Client - JS',
+      href: `/organisation/clients/${clientId}`
+    },
     {
       label: 'Accounting Periods',
-      href: `/organisation/clients/${clientId}/accounting-periods`
+      href: `/organisation/clients/${clientId}/accounting-periods`,
+      isCurrentPage: true
     }
   ]
 
   return (
     <>
-      <Breadcrumbs baseCrumbs={crumbs} />
+      <RegisterBreadcrumbs crumbs={crumbs} />
       {children}
     </>
   )
