@@ -10,15 +10,17 @@ export default async function PeriodLayout({
   params
 }: {
   children: React.ReactNode
-  params: { clientId: string; periodId: string }
+  params: Promise<{ clientId: string; periodId: string }>
 }) {
-  const period = await getAccountingPeriodById(params.periodId)
+  const { clientId, periodId } = await params
+
+  const period = await getAccountingPeriodById(periodId)
   if (!period) notFound()
 
   const crumbs: Breadcrumb[] = [
     {
       label: period.periodName,
-      href: `/organisation/clients/${params.clientId}/accounting-periods/${params.periodId}`
+      href: `/organisation/clients/${clientId}/accounting-periods/${periodId}`
     }
   ]
 

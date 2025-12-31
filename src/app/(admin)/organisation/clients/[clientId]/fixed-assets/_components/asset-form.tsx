@@ -9,7 +9,6 @@ import {
   FormInput,
   FormSelect,
   FormTextarea,
-  FormNumberInput,
   FormInputDate,
   FormInputNumberString
 } from '@/components/form/form-base'
@@ -293,13 +292,13 @@ export function AssetForm(props: AssetFormProps) {
                       <FormDescription className='text-muted-foreground font-light'>
                         Annual rate (0-100)
                       </FormDescription>
-
-                      <FormNumberInput<AssetFormValues>
+                      <FormInputNumberString<AssetFormValues>
                         control={form.control}
                         name='totalDepreciationToDate'
                         label='Total Depreciation To Date'
                         className='font-normal text-gray-900'
                       />
+
                       <FormDescription className='text-muted-foreground font-light'>
                         Previously recorded
                       </FormDescription>

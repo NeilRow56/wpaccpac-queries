@@ -35,7 +35,7 @@ export default async function AssetCategoriesPage({
   return (
     <div className='container mx-auto py-10'>
       <div className='mb-8'>
-        <Link href={`/organisation/clients/${clientId}/fixedAssets`}>
+        <Link href={`/organisation/clients/${clientId}/fixed-assets`}>
           <Button variant='ghost' className='mb-4'>
             <ArrowLeft className='mr-2 h-4 w-4' />
             <span className='text-primary'>Back to Assets</span>
