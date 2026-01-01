@@ -5,37 +5,11 @@ import { clients as clientsTable, costCentres } from '@/db/schema'
 
 import { getUISession } from '@/lib/get-ui-session'
 import { actionClient } from '@/lib/safe-action'
-import {
-  insertClientSchema,
-  insertClientSchemaType
-} from '@/zod-schemas/clients'
+import { clientFormSchema, ClientFormValues } from '@/zod-schemas/clients'
 import { asc, eq } from 'drizzle-orm'
 
 import { flattenValidationErrors } from 'next-safe-action'
 import { revalidatePath } from 'next/cache'
-
-/**
- * Get all active clients for an organization with cost centre name
- */
-// export async function getActiveOrganizationClients(organizationId: string) {
-//   const clientsByOrganizationId = await db
-//     .select({
-//       id: clients.id,
-//       name: clients.name,
-//       organizationId: clients.organizationId,
-//       entity_type: clients.entity_type,
-//       costCentreId: clients.costCentreId,
-//       costCentreName: costCentres.name, // join column
-//       notes: clients.notes,
-//       active: clients.active
-//     })
-//     .from(clients)
-//     .leftJoin(costCentres, eq(costCentres.id, clients.costCentreId))
-//     .where(eq(clients.organizationId, organizationId))
-//     .orderBy(asc(clients.name))
-
-//   return clientsByOrganizationId
-// }
 
 export type ClientServer = {
   id: string
@@ -105,16 +79,12 @@ export async function deleteClient(id: string) {
  */
 export const saveClientAction = actionClient
   .metadata({ actionName: 'saveClientAction' })
-  .inputSchema(insertClientSchema, {
+  .inputSchema(clientFormSchema, {
     handleValidationErrorsShape: async ve =>
       flattenValidationErrors(ve).fieldErrors
   })
   .action(
-    async ({
-      parsedInput: client
-    }: {
-      parsedInput: insertClientSchemaType
-    }) => {
+    async ({ parsedInput: client }: { parsedInput: ClientFormValues }) => {
       console.log('--- saveClientAction called ---')
       console.log('Incoming client:', client)
 

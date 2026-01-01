@@ -7,14 +7,19 @@ import { getUISession } from '@/lib/get-ui-session'
 import { actionClient } from '@/lib/safe-action'
 
 import {
-  insertCostCentreSchema,
-  insertCostCentreSchemaType
+  CostCentreFormValues,
+  costCentreFormSchema
 } from '@/zod-schemas/costCentre'
 
 import { asc, eq, and } from 'drizzle-orm'
 import { flattenValidationErrors } from 'next-safe-action'
 import { revalidatePath } from 'next/cache'
 
+export type CostCentreServer = {
+  id: string
+  name: string
+  organizationId: string // directly included from organisation
+}
 /* -------------------------------------------------------------------------- */
 /*                               QUERY FUNCTIONS                              */
 /* -------------------------------------------------------------------------- */
@@ -63,7 +68,7 @@ export async function deleteCostCentre(id: string, path: string) {
 
 export const saveCostCentreAction = actionClient
   .metadata({ actionName: 'saveCostCentreAction' })
-  .inputSchema(insertCostCentreSchema, {
+  .inputSchema(costCentreFormSchema, {
     handleValidationErrorsShape: async ve =>
       flattenValidationErrors(ve).fieldErrors
   })
@@ -71,8 +76,18 @@ export const saveCostCentreAction = actionClient
     async ({
       parsedInput: costCentre
     }: {
-      parsedInput: insertCostCentreSchemaType
+      parsedInput: CostCentreFormValues
     }) => {
+      console.log('--- saveCostCentreAction called ---')
+      console.log('Incoming costCentre:', costCentre)
+
+      const trimmedCostCentre = {
+        ...costCentre,
+        name: costCentre.name.trim(),
+        organizationId: costCentre.organizationId
+      }
+
+      console.log('Trimmed costCentre:', trimmedCostCentre)
       /* ------------------------ AUTHENTICATION CHECK ------------------------ */
       // 1️⃣ Get session + UI permissions
       const { user, ui } = await getUISession()
@@ -93,7 +108,11 @@ export const saveCostCentreAction = actionClient
       )
 
       // Editing: allow duplicate if it is THIS record
-      const isEditing = costCentre.id !== ''
+
+      const isEditing = Boolean(costCentre.id)
+      // Works for:
+      //undefined → false (create)
+      //real id → true (edit)
       if (duplicates.length > 0) {
         const isSameRecord = isEditing && duplicates[0].id === costCentre.id
 
@@ -102,33 +121,43 @@ export const saveCostCentreAction = actionClient
         }
       }
 
+      // Normalized payload for Drizzle
+      const normalized = {
+        name: trimmedCostCentre.name,
+        organizationId: trimmedCostCentre.organizationId
+      } as const
+
       /* ---------------------------------- CREATE ---------------------------------- */
       if (!isEditing) {
-        const result = await db
+        const [inserted] = await db
           .insert(costCentresTable)
-          .values({
-            name: costCentre.name,
-            organizationId: costCentre.organizationId
-          })
+          .values(normalized)
           .returning({ insertedId: costCentresTable.id })
 
+        revalidatePath('/costCentres')
+
         return {
-          message: `Cost centre #${result[0].insertedId} created successfully`
+          message: `Cost centre created successfully`,
+          success: true,
+          costCentreId: inserted.insertedId
         }
       }
 
       /* ---------------------------------- UPDATE ---------------------------------- */
-      const result = await db
+      // ---- UPDATE ----
+      const [updated] = await db
         .update(costCentresTable)
-        .set({
-          name: costCentre.name,
-          organizationId: costCentre.organizationId
-        })
-        .where(eq(costCentresTable.id, costCentre.id!))
+        .set(normalized)
+        .where(eq(costCentresTable.id, trimmedCostCentre.id!))
         .returning({ updatedId: costCentresTable.id })
 
+      // console.log('Updated cost center:', updated)
+      revalidatePath('/costCentres')
+
       return {
-        message: `Cost centre #${result[0].updatedId} updated successfully`
+        success: true,
+        message: `Cost centre updated successfully`,
+        costCentreId: updated.updatedId
       }
     }
   )

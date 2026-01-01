@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -21,28 +21,43 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { useAction } from 'next-safe-action/hooks'
-
 import { Button } from '@/components/ui/button'
 
 import { useRouter } from 'next/navigation'
 
 import { FormInput } from '@/components/form/form-base'
 import { LoadingSwap } from '@/components/shared/loading-swap'
-import { Organization } from '@/db/schema/authSchema'
-import { CostCentre } from './columns'
+
 import { saveCostCentreAction } from '@/server-actions/cost-centres'
 import {
-  insertCostCentreSchema,
-  insertCostCentreSchemaType
+  costCentreFormSchema,
+  CostCentreFormValues
 } from '@/zod-schemas/costCentre'
+import { OrganizationSchema } from '@/zod-schemas/organizations'
 
 type Props = {
   open: boolean
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
-  organization: Organization // You must have an organization to start a cost center - so it is not optional
-  costCentre?: CostCentre
+  organization: ReturnType<typeof OrganizationSchema.parse>
+  // organization: Organization // You must have an organization to start a cost center - so it is not optional
+  costCentre?: CostCentreDialogType
 }
+
+export type CostCentreInsertPayload = {
+  id?: string
+  name: string
+  organizationId: string
+}
+
+// -----------------------------------------
+// Empty cost centre template
+// -----------------------------------------
+const initialEmptyCostCentre: Omit<CostCentreFormValues, 'organizationId'> = {
+  // id: '',
+  name: ''
+}
+
+// UI Component
 
 function AddCostCentreDialog({
   setOpen,
@@ -52,62 +67,69 @@ function AddCostCentreDialog({
 }: Props) {
   // const searchParams = useSearchParams()
   const router = useRouter()
-  const hasCostCentreId = costCentre?.id
 
-  const emptyValues: insertCostCentreSchemaType = {
-    id: '',
-    name: '',
-    organizationId: organization.id ?? ''
-  }
+  // -----------------------------------------
+  // Initial values (for edit or new client)
+  // -----------------------------------------
 
-  const defaultValues: insertCostCentreSchemaType = hasCostCentreId
-    ? {
-        id: costCentre?.id ?? 0,
-        name: costCentre?.name ?? '',
-        organizationId: organization.id ?? ''
-      }
-    : emptyValues
-
-  const form = useForm<insertCostCentreSchemaType>({
-    resolver: zodResolver(insertCostCentreSchema),
-    mode: 'onSubmit',
-    defaultValues
-  })
-
-  useEffect(() => {
+  const normalizedInitialValues = useMemo<CostCentreFormValues>(() => {
     if (costCentre) {
-      form.setValue('id', costCentre.id)
-      form.setValue('name', costCentre.name)
+      return normalizeCostCentreForInsert(costCentre, organization.id)
     }
-  }, [costCentre, form])
 
-  const {
-    execute: executeSave,
-
-    isPending: isSaving
-  } = useAction(saveCostCentreAction, {
-    onSuccess({ data }) {
-      if (data) {
-        toast.success(
-          `CostCentre ${costCentre ? 'updated ' : 'added'} successfully`
-        )
-        router.refresh()
-        setOpen(false)
-        form.reset()
-      }
-    },
-
-    onError({ error }) {
-      console.log(error)
-
-      toast.error(
-        `Failed to ${costCentre ? 'update' : 'add'} cost center. Cost center may already exist`
-      )
+    return {
+      ...initialEmptyCostCentre,
+      organizationId: organization.id
     }
+  }, [costCentre, organization.id])
+
+  // -----------------------------------------
+  // Form setup
+  // -----------------------------------------
+
+  const form = useForm<CostCentreFormValues>({
+    resolver: zodResolver(costCentreFormSchema),
+    defaultValues: normalizedInitialValues
   })
 
-  async function submitForm(data: insertCostCentreSchemaType) {
-    executeSave(data)
+  // -----------------------------------------
+  // Reset form ONLY when dialog opens or cost centre changes
+  // -----------------------------------------
+  useEffect(() => {
+    if (open) {
+      form.reset(normalizedInitialValues)
+    }
+  }, [open, normalizedInitialValues, form])
+
+  const handleSubmit = async (values: CostCentreDialogType) => {
+    try {
+      const payload = normalizeCostCentreForInsert(values, organization.id)
+
+      const result = await saveCostCentreAction(payload)
+
+      if (result.serverError) {
+        toast.error(result.serverError)
+        return
+      }
+
+      if (result.validationErrors) {
+        toast.error('Validation failed')
+        return
+      }
+
+      if (!result.data?.success) {
+        toast.error(result.data?.message ?? 'Operation failed')
+        return
+      }
+
+      toast.success(result.data.message ?? 'Cost centre saved successfully')
+
+      setOpen(false)
+      router.refresh()
+    } catch (error) {
+      console.error(error)
+      toast.error('Unexpected cost centre error')
+    }
   }
 
   return (
@@ -137,10 +159,10 @@ function AddCostCentreDialog({
             <CardContent>
               <form
                 id='create-costCentre-form'
-                onSubmit={form.handleSubmit(submitForm)}
+                onSubmit={form.handleSubmit(handleSubmit)}
               >
                 <FieldGroup>
-                  <FormInput<insertCostCentreSchemaType>
+                  <FormInput<CostCentreFormValues>
                     control={form.control}
                     name='name'
                     label='Name'
@@ -154,9 +176,11 @@ function AddCostCentreDialog({
                   type='submit'
                   form='create-costCentre-form'
                   className='w-full max-w-[150px] cursor-pointer dark:bg-blue-600 dark:text-white'
-                  disabled={isSaving}
+                  disabled={form.formState.isSubmitting}
                 >
-                  <LoadingSwap isLoading={isSaving}>Save</LoadingSwap>
+                  <LoadingSwap isLoading={form.formState.isSubmitting}>
+                    Save
+                  </LoadingSwap>
                 </Button>
                 <Button
                   className='border-red-500'
@@ -177,3 +201,24 @@ function AddCostCentreDialog({
 }
 
 export default AddCostCentreDialog
+
+// -----------------------------------------
+// Types and normalization ( Ui + DB)
+// -----------------------------------------
+
+export type CostCentreDialogType = {
+  id?: string
+  name: string
+  organizationId: string
+}
+
+function normalizeCostCentreForInsert(
+  values: CostCentreDialogType,
+  organizationId: string
+): CostCentreInsertPayload {
+  return {
+    id: values.id,
+    name: values.name,
+    organizationId
+  }
+}

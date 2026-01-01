@@ -19,10 +19,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
-import {
-  insertClientSchema,
-  insertClientSchemaType
-} from '@/zod-schemas/clients'
+
 import { Button } from '@/components/ui/button'
 import {
   FormInput,
@@ -40,6 +37,7 @@ import { OrganizationSchema } from '@/zod-schemas/organizations'
 import { saveClientAction } from '@/server-actions/clients'
 import { Field, FieldGroup } from '@/components/ui/field'
 import Link from 'next/link'
+import { clientFormSchema, ClientFormValues } from '@/zod-schemas/clients'
 
 type Props = {
   open: boolean
@@ -49,11 +47,21 @@ type Props = {
   client?: ClientDialogType
 }
 
+export type ClientInsertPayload = {
+  id?: string
+  name: string
+  organizationId: string
+  costCentreId: string
+  entity_type: string
+  notes: string | null
+  active: boolean
+}
+
 // -----------------------------------------
 // Empty client template
 // -----------------------------------------
-const initialEmptyClient: Omit<insertClientSchemaType, 'organizationId'> = {
-  id: '',
+const initialEmptyClient: Omit<ClientFormValues, 'organizationId'> = {
+  // id: '',
   name: '',
   entity_type: '',
   costCentreId: '',
@@ -74,7 +82,7 @@ export default function AddClientDialog({
   // -----------------------------------------
   // Initial values (for edit or new client)
   // -----------------------------------------
-  const normalizedInitialValues = useMemo<insertClientSchemaType>(() => {
+  const normalizedInitialValues = useMemo<ClientFormValues>(() => {
     if (client) {
       return normalizeClientForInsert(client, organization.id)
     }
@@ -89,8 +97,8 @@ export default function AddClientDialog({
   // -----------------------------------------
   // Form setup
   // -----------------------------------------
-  const form = useForm<insertClientSchemaType>({
-    resolver: zodResolver(insertClientSchema),
+  const form = useForm<ClientFormValues>({
+    resolver: zodResolver(clientFormSchema),
     defaultValues: normalizedInitialValues
   })
 
@@ -103,23 +111,6 @@ export default function AddClientDialog({
     }
   }, [open, normalizedInitialValues, form])
 
-  // -----------------------------------------
-  // Submit handler
-  // -----------------------------------------
-  // const handleSubmit = async (values: ClientDialogType) => {
-  //   try {
-  //     const payload = normalizeClientForInsert(values, organization.id)
-
-  //     await saveClientAction(payload)
-
-  //     toast.success(client ? 'Client updated successfully' : 'Client created successfully')
-  //     setOpen(false)
-  //     router.refresh()
-  //   } catch (error) {
-  //     console.error(error)
-  //     toast.error('Failed to save client')
-  //   }
-  // }
   const handleSubmit = async (values: ClientDialogType) => {
     try {
       const payload = normalizeClientForInsert(values, organization.id)
@@ -173,7 +164,7 @@ export default function AddClientDialog({
           <CardContent>
             <form id='client-form' onSubmit={form.handleSubmit(handleSubmit)}>
               <FieldGroup>
-                <FormInput<insertClientSchemaType>
+                <FormInput<ClientFormValues>
                   control={form.control}
                   name='name'
                   label='Name'
@@ -269,10 +260,14 @@ export type ClientDialogType = {
 function normalizeClientForInsert(
   values: ClientDialogType,
   organizationId: string
-): insertClientSchemaType {
+): ClientInsertPayload {
   return {
-    ...values,
+    id: values.id,
+    name: values.name,
     organizationId,
-    active: values.active ?? true // ✅ GUARANTEED
+    costCentreId: values.costCentreId,
+    entity_type: values.entity_type,
+    notes: values.notes ?? null,
+    active: values.active ?? true
   }
 }

@@ -1,17 +1,12 @@
 import { z } from 'zod'
 
-import { costCentres } from '@/db/schema'
-import { createInsertSchema, createSelectSchema } from 'drizzle-zod'
-
-export const insertCostCentreSchema = createInsertSchema(costCentres, {
-  name: schema =>
-    schema
-      .min(1, 'Name is required')
-      .max(100, { error: 'Name must be at most 100 characters!' })
+export const costCentreFormSchema = z.object({
+  id: z.string().optional(),
+  name: z
+    .string()
+    .min(1, 'Name is required')
+    .max(100, 'Name must be at most 100 characters'),
+  organizationId: z.string().min(1, 'Organisation is required')
 })
 
-export const selectCostCentreSchema = createSelectSchema(costCentres)
-
-export type insertCostCentreSchemaType = z.infer<typeof insertCostCentreSchema>
-
-export type selectCostCentreSchemaType = z.infer<typeof selectCostCentreSchema>
+export type CostCentreFormValues = z.infer<typeof costCentreFormSchema>

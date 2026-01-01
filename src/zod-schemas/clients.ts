@@ -1,23 +1,17 @@
+// zod-schemas/client-schema.ts
 import { z } from 'zod'
 
-import { createInsertSchema, createSelectSchema } from 'drizzle-zod'
-import { clients } from '@/db/schema'
-
-export const insertClientSchema = createInsertSchema(clients, {
-  id: schema => schema.optional(),
-  name: schema =>
-    schema
-      .min(1, 'Name is required')
-      .max(100, { error: 'Name must be at most 100 characters!' }),
-  organizationId: schema => schema.min(1, 'OrganizationId is required'),
-  costCentreId: schema => schema.min(1, 'Cost center is required'),
-  entity_type: schema => schema.min(1, 'Entity type is required'),
-  notes: schema => schema.optional(), // Remove ZodString type
-  active: z.boolean()
+export const clientFormSchema = z.object({
+  id: z.string().optional(),
+  name: z
+    .string()
+    .min(1, 'Name is required')
+    .max(100, 'Name must be at most 100 characters'),
+  organizationId: z.string().min(1, 'Organisation is required'),
+  costCentreId: z.string().min(1, 'Cost Centre is required'),
+  entity_type: z.string().min(1, 'Entity type is required'),
+  notes: z.string().nullable().optional(),
+  active: z.boolean().optional()
 })
 
-export const selectClientSchema = createSelectSchema(clients)
-
-export type insertClientSchemaType = z.infer<typeof insertClientSchema>
-
-export type selectClientSchemaType = z.infer<typeof selectClientSchema>
+export type ClientFormValues = z.infer<typeof clientFormSchema>

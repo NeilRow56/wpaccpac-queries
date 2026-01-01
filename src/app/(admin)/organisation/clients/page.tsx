@@ -112,8 +112,8 @@ export default async function ClientsPage() {
         <p>
           Clients cannot be deleted, only edited. This is to ensure you always
           have access to the data. If a client is no longer Active change the
-          status to Archived using the edit function under Actions and
-          unchecking the active checkbox.
+          status to Archived using the edit function under Actions and uncheck
+          the active checkbox.
         </p>
 
         <p className='pt-4'>
