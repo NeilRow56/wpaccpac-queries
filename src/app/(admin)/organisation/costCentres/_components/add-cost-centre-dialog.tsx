@@ -209,7 +209,6 @@ export default AddCostCentreDialog
 export type CostCentreDialogType = {
   id?: string
   name: string
-  organizationId: string
 }
 
 function normalizeCostCentreForInsert(

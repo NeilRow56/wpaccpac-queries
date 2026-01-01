@@ -15,11 +15,6 @@ import { asc, eq, and } from 'drizzle-orm'
 import { flattenValidationErrors } from 'next-safe-action'
 import { revalidatePath } from 'next/cache'
 
-export type CostCentreServer = {
-  id: string
-  name: string
-  organizationId: string // directly included from organisation
-}
 /* -------------------------------------------------------------------------- */
 /*                               QUERY FUNCTIONS                              */
 /* -------------------------------------------------------------------------- */
@@ -152,6 +147,10 @@ export const saveCostCentreAction = actionClient
         .returning({ updatedId: costCentresTable.id })
 
       // console.log('Updated cost center:', updated)
+
+      if (!updated) {
+        throw new Error('Cost centre not found or update failed')
+      }
       revalidatePath('/costCentres')
 
       return {

@@ -171,6 +171,9 @@ export const saveClientAction = actionClient
         .returning({ updatedId: clientsTable.id })
 
       // console.log('Updated client:', updated)
+      if (!updated) {
+        throw new Error('Client not found or update failed')
+      }
       revalidatePath('/clients')
 
       return {
