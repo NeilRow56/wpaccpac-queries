@@ -1,14 +1,20 @@
 // app/fixed-assets/page.tsx
 
-import { enrichAssetWithCalculations } from '@/lib/asset-calculations'
+import { enrichAssetWithPeriodCalculations } from '@/lib/asset-calculations'
 
 import { eq } from 'drizzle-orm'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { FolderTree, Calendar } from 'lucide-react'
 import { db } from '@/db'
-import { assetCategories, clients, fixedAssets } from '@/db/schema'
+import {
+  assetCategories,
+  clients,
+  depreciationEntries,
+  fixedAssets
+} from '@/db/schema'
 import { FixedAssetsTableWrapper } from './_components/fixed-assets-table-wrapper'
+import { getCurrentAccountingPeriod } from '@/server-actions/accounting-periods'
 
 export default async function FixedAssetsPage({
   params
@@ -16,25 +22,34 @@ export default async function FixedAssetsPage({
   params: Promise<{ clientId: string }>
 }) {
   const { clientId } = await params
-  // Fetch assets with category info, clients, and all categories
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [rawAssets, allclients, allCategories] = await Promise.all([
+  /* ----------------------- Get current accounting period ---------------------- */
+  const period = await getCurrentAccountingPeriod(clientId)
+
+  if (!period) {
+    return <div>No open accounting period</div>
+  }
+  const [rawAssets, client, categories, periodEntries] = await Promise.all([
+    // Assets + category
     db
       .select({
         asset: fixedAssets,
         category: assetCategories
       })
       .from(fixedAssets)
-      .leftJoin(
-        assetCategories,
-        eq(fixedAssets.categoryId, assetCategories.id)
-      ),
+      .leftJoin(assetCategories, eq(fixedAssets.categoryId, assetCategories.id))
+      .where(eq(fixedAssets.clientId, clientId)),
+
+    // Client
     db
       .select({
         id: clients.id,
         name: clients.name
       })
-      .from(clients),
+      .from(clients)
+      .where(eq(clients.id, clientId))
+      .then(rows => rows[0]),
+
+    // Categories for client
     db
       .select({
         id: assetCategories.id,
@@ -42,16 +57,33 @@ export default async function FixedAssetsPage({
         clientId: assetCategories.clientId
       })
       .from(assetCategories)
+      .where(eq(assetCategories.clientId, clientId)),
+
+    // depreciation entries for this period
+    db
+      .select()
+      .from(depreciationEntries)
+      .where(eq(depreciationEntries.periodId, period.id))
   ])
 
-  // Merge asset and category data
+  if (!client) {
+    return <div>Client not found</div>
+  }
+
+  const depreciationByAssetId = new Map(
+    periodEntries.map(entry => [entry.assetId, entry])
+  )
+
   const assetsWithCategory = rawAssets.map(row => ({
     ...row.asset,
     category: row.category
   }))
 
-  const assetsWithCalculations = assetsWithCategory.map(
-    enrichAssetWithCalculations
+  const enrichedAssets = assetsWithCategory.map(asset =>
+    enrichAssetWithPeriodCalculations(asset, {
+      startDate: new Date(period.startDate),
+      endDate: new Date(period.endDate)
+    })
   )
 
   return (
@@ -80,10 +112,11 @@ export default async function FixedAssetsPage({
         </div>
       </div>
       <FixedAssetsTableWrapper
-        assets={assetsWithCalculations}
-        // clients={allClients}
-        clientId={clientId}
-        categories={allCategories}
+        assets={enrichedAssets}
+        period={period}
+        clientId={client.id}
+        clientName={client.name}
+        categories={categories}
       />
       <div className='text-muted-foreground mt-6 flex-col space-x-4 pl-8'>
         <span className='text-red-600'>NB: </span>

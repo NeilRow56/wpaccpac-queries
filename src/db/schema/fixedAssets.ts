@@ -66,6 +66,12 @@ export const fixedAssets = pgTable('fixed_assets', {
   adjustment: decimal('adjustment', { precision: 10, scale: 2 })
     .notNull()
     .default('0'),
+  depreciationAdjustment: decimal('depreciation_adjustment', {
+    precision: 10,
+    scale: 2
+  })
+    .notNull()
+    .default('0'),
   depreciationMethod: varchar('depreciation_method').notNull(),
   depreciationRate: decimal('depreciation_rate', {
     precision: 5,

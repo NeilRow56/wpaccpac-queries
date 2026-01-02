@@ -251,3 +251,16 @@ export async function getAccountingPeriodById(periodId: string) {
     return null
   }
 }
+export async function getCurrentAccountingPeriod(clientId: string) {
+  try {
+    const currentaccountingPeriod = await db.query.accountingPeriods.findFirst({
+      where: (cap, { eq, and }) =>
+        and(eq(cap.clientId, clientId), eq(cap.isCurrent, true))
+    })
+
+    return currentaccountingPeriod
+  } catch (error) {
+    console.error(error)
+    return null
+  }
+}

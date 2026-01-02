@@ -13,15 +13,7 @@ import {
   getSortedRowModel,
   useReactTable
 } from '@tanstack/react-table'
-import {
-  ArrowUpDown,
-  Download,
-  Search,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  Calendar
-} from 'lucide-react'
+import { Download, Search, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -44,16 +36,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { AssetWithCalculations } from '@/lib/asset-calculations'
+
 import { DepreciationScheduleModal } from './depreciation-schedule-modal'
+import { AssetWithPeriodCalculations } from '@/lib/types/fixed-assets'
 
 interface FixedAssetsTableProps {
-  assets: AssetWithCalculations[]
-  onEdit?: (asset: AssetWithCalculations) => void
+  assets: AssetWithPeriodCalculations[]
+  onEdit?: (asset: AssetWithPeriodCalculations) => void
   onDelete?: (assetId: string) => void
 }
 
@@ -68,7 +59,7 @@ export function FixedAssetsTable({
   )
   const [globalFilter, setGlobalFilter] = React.useState('')
   const [selectedAsset, setSelectedAsset] =
-    React.useState<AssetWithCalculations | null>(null)
+    React.useState<AssetWithPeriodCalculations | null>(null)
   const [showScheduleModal, setShowScheduleModal] = React.useState(false)
 
   const formatCurrency = (value: number) => {
@@ -78,193 +69,87 @@ export function FixedAssetsTable({
     }).format(value)
   }
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-GB').format(date)
+  const formatDate = (date: Date | string) => {
+    return new Intl.DateTimeFormat('en-GB').format(new Date(date))
   }
 
-  const handleViewSchedule = (asset: AssetWithCalculations) => {
+  const handleViewSchedule = (asset: AssetWithPeriodCalculations) => {
     setSelectedAsset(asset)
     setShowScheduleModal(true)
   }
 
-  const columns: ColumnDef<AssetWithCalculations>[] = [
+  const columns: ColumnDef<AssetWithPeriodCalculations>[] = [
     {
       accessorKey: 'name',
-      header: ({ column }) => {
-        return (
-          <Button
-            variant='ghost'
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          >
-            Asset Name
-            <ArrowUpDown className='ml-2 h-4 w-4' />
-          </Button>
-        )
-      },
+      header: 'Asset',
       cell: ({ row }) => (
         <div className='font-medium'>{row.getValue('name')}</div>
       )
     },
     {
-      accessorKey: 'categoryName',
-      header: ({ column }) => {
-        return (
-          <Button
-            variant='ghost'
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          >
-            Category
-            <ArrowUpDown className='ml-2 h-4 w-4' />
-          </Button>
-        )
-      },
-      cell: ({ row }) => {
-        const category = row.getValue('categoryName') as string | null
-        return <div className='text-muted-foreground'>{category || '—'}</div>
-      }
+      accessorKey: 'category.name',
+      header: 'Category',
+      cell: ({ row }) => row.original.category?.name ?? '—'
     },
     {
       accessorKey: 'dateOfPurchase',
-      header: ({ column }) => {
-        return (
-          <Button
-            variant='ghost'
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          >
-            Date of Purchase
-            <ArrowUpDown className='ml-2 h-4 w-4' />
-          </Button>
-        )
-      },
-      cell: ({ row }) => formatDate(row.getValue('dateOfPurchase'))
+      header: 'Purchased',
+      cell: ({ row }) => formatDate(row.original.dateOfPurchase)
     },
     {
-      accessorKey: 'depreciationMethod',
-      header: 'Method',
-      cell: ({ row }) => {
-        const method = row.getValue('depreciationMethod') as string
-        return (
-          <div className='text-sm capitalize'>{method.replace('_', ' ')}</div>
-        )
-      }
-    },
-    {
-      accessorKey: 'cost',
-      header: ({ column }) => {
-        return (
-          <Button
-            variant='ghost'
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className='w-full justify-end'
-          >
-            Cost
-            <ArrowUpDown className='ml-2 h-4 w-4' />
-          </Button>
-        )
-      },
-      cell: ({ row }) => (
-        <div className='text-right'>{formatCurrency(row.getValue('cost'))}</div>
-      )
-    },
-    {
-      accessorKey: 'totalDepreciationToDate',
-      header: ({ column }) => {
-        return (
-          <Button
-            variant='ghost'
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className='w-full justify-end'
-          >
-            Total Depreciation To Date
-            <ArrowUpDown className='ml-2 h-4 w-4' />
-          </Button>
-        )
-      },
+      accessorKey: 'openingNBV',
+      header: 'Opening NBV',
       cell: ({ row }) => (
         <div className='text-right'>
-          {formatCurrency(row.getValue('totalDepreciationToDate'))}
+          {formatCurrency(row.original.openingNBV)}
         </div>
       )
     },
     {
       accessorKey: 'depreciationForPeriod',
-      header: ({ column }) => {
-        return (
-          <Button
-            variant='ghost'
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className='w-full justify-end'
-          >
-            Depreciation for Period
-            <ArrowUpDown className='ml-2 h-4 w-4' />
-          </Button>
-        )
-      },
+      header: 'Depreciation',
       cell: ({ row }) => (
         <div className='text-right'>
-          {formatCurrency(row.getValue('depreciationForPeriod'))}
+          {formatCurrency(row.original.depreciationForPeriod)}
         </div>
       )
     },
     {
-      accessorKey: 'netBookValue',
-      header: ({ column }) => {
-        return (
-          <Button
-            variant='ghost'
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className='w-full justify-end'
-          >
-            Net Book Value
-            <ArrowUpDown className='ml-2 h-4 w-4' />
-          </Button>
-        )
-      },
+      accessorKey: 'closingNBV',
+      header: 'Closing NBV',
       cell: ({ row }) => (
         <div className='text-right font-medium'>
-          {formatCurrency(row.getValue('netBookValue'))}
+          {formatCurrency(row.original.closingNBV)}
         </div>
       )
     },
     {
       id: 'actions',
       cell: ({ row }) => {
-        const asset = row.original
+        // const asset = row.original
 
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant='ghost' className='h-8 w-8 p-0'>
-                <span className='sr-only'>Open menu</span>
                 <MoreHorizontal className='h-4 w-4' />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => handleViewSchedule(asset)}>
-                <Calendar className='mr-2 h-4 w-4' />
-                View Schedule
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              <DropdownMenuItem>View depreciation</DropdownMenuItem>
               {onEdit && (
-                <DropdownMenuItem onClick={() => onEdit(asset)}>
+                <DropdownMenuItem onClick={() => onEdit(row.original)}>
                   <Pencil className='mr-2 h-4 w-4' />
-                  Edit Asset
+                  Edit
                 </DropdownMenuItem>
               )}
               {onDelete && (
                 <DropdownMenuItem
-                  onClick={() => {
-                    if (
-                      confirm(`Are you sure you want to delete ${asset.name}?`)
-                    ) {
-                      onDelete(asset.id)
-                    }
-                  }}
                   className='text-red-600'
+                  onClick={() => onDelete(row.original.id)}
                 >
                   <Trash2 className='mr-2 h-4 w-4' />
-                  Delete Asset
+                  Delete
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -299,19 +184,11 @@ export function FixedAssetsTable({
   // Calculate totals from filtered rows
   const totals = table.getFilteredRowModel().rows.reduce(
     (acc, row) => ({
-      cost: acc.cost + row.original.cost,
-      totalDepreciationToDate:
-        acc.totalDepreciationToDate + row.original.totalDepreciationToDate,
-      depreciationForPeriod:
-        acc.depreciationForPeriod + row.original.depreciationForPeriod,
-      netBookValue: acc.netBookValue + row.original.netBookValue
+      openingNBV: acc.openingNBV + row.original.openingNBV,
+      depreciation: acc.depreciation + row.original.depreciationForPeriod,
+      closingNBV: acc.closingNBV + row.original.closingNBV
     }),
-    {
-      cost: 0,
-      totalDepreciationToDate: 0,
-      depreciationForPeriod: 0,
-      netBookValue: 0
-    }
+    { openingNBV: 0, depreciation: 0, closingNBV: 0 }
   )
 
   const exportToPDF = async () => {
@@ -330,39 +207,34 @@ export function FixedAssetsTable({
       .getFilteredRowModel()
       .rows.map(row => [
         row.original.name,
-        row.original.categoryName || '—',
+        row.original.category?.name ?? '—',
         formatDate(row.original.dateOfPurchase),
-        row.original.depreciationMethod.replace('_', ' '),
-        formatCurrency(row.original.cost),
-        formatCurrency(row.original.totalDepreciationToDate),
+        formatCurrency(row.original.openingNBV),
         formatCurrency(row.original.depreciationForPeriod),
-        formatCurrency(row.original.netBookValue)
+        formatCurrency(row.original.closingNBV)
       ])
 
     tableData.push([
       'TOTAL',
       '',
       '',
-      '',
-      formatCurrency(totals.cost),
-      formatCurrency(totals.totalDepreciationToDate),
-      formatCurrency(totals.depreciationForPeriod),
-      formatCurrency(totals.netBookValue)
+      formatCurrency(totals.openingNBV),
+      formatCurrency(totals.depreciation),
+      formatCurrency(totals.closingNBV)
     ])
 
     doc.autoTable({
       head: [
         [
-          'Asset Name',
+          'Asset',
           'Category',
-          'Date of Purchase',
-          'Method',
-          'Cost',
-          'Total Depreciation',
-          'Period Depreciation',
-          'Net Book Value'
+          'Purchased',
+          'Opening NBV',
+          'Depreciation',
+          'Closing NBV'
         ]
       ],
+
       body: tableData,
       startY: 35,
       styles: { fontSize: 8, cellPadding: 2 },
@@ -387,40 +259,34 @@ export function FixedAssetsTable({
 
     const worksheet_data = [
       ['Fixed Assets Register'],
-      [`Generated: ${new Date().toLocaleDateString('en-GB')}`],
+      [`Period ending: ${new Date().toLocaleDateString('en-GB')}`],
       [],
       [
-        'Asset Name',
+        'Asset',
         'Category',
-        'Date of Purchase',
-        'Method',
-        'Cost',
-        'Total Depreciation To Date',
-        'Depreciation for Period',
-        'Net Book Value'
+        'Purchased',
+        'Opening NBV',
+        'Depreciation',
+        'Closing NBV'
       ],
       ...table
         .getFilteredRowModel()
         .rows.map(row => [
           row.original.name,
-          row.original.categoryName || '—',
+          row.original.category?.name ?? '—',
           formatDate(row.original.dateOfPurchase),
-          row.original.depreciationMethod.replace('_', ' '),
-          row.original.cost,
-          row.original.totalDepreciationToDate,
+          row.original.openingNBV,
           row.original.depreciationForPeriod,
-          row.original.netBookValue
+          row.original.closingNBV
         ]),
       [],
       [
         'TOTAL',
         '',
         '',
-        '',
-        totals.cost,
-        totals.totalDepreciationToDate,
-        totals.depreciationForPeriod,
-        totals.netBookValue
+        totals.openingNBV,
+        totals.depreciation,
+        totals.closingNBV
       ]
     ]
 
@@ -538,22 +404,19 @@ export function FixedAssetsTable({
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={4} className='font-bold'>
-                Total ({table.getFilteredRowModel().rows.length} assets)
+              <TableCell colSpan={3} className='font-bold'>
+                Totals
               </TableCell>
               <TableCell className='text-right font-bold'>
-                {formatCurrency(totals.cost)}
+                {formatCurrency(totals.openingNBV)}
               </TableCell>
               <TableCell className='text-right font-bold'>
-                {formatCurrency(totals.totalDepreciationToDate)}
+                {formatCurrency(totals.depreciation)}
               </TableCell>
               <TableCell className='text-right font-bold'>
-                {formatCurrency(totals.depreciationForPeriod)}
+                {formatCurrency(totals.closingNBV)}
               </TableCell>
-              <TableCell className='text-right font-bold'>
-                {formatCurrency(totals.netBookValue)}
-              </TableCell>
-              <TableCell></TableCell>
+              <TableCell />
             </TableRow>
           </TableFooter>
         </Table>
@@ -599,13 +462,13 @@ export function FixedAssetsTable({
       </div>
 
       {/* Depreciation Schedule Modal */}
-      {selectedAsset && (
+      {/* {selectedAsset && (
         <DepreciationScheduleModal
           asset={selectedAsset}
           open={showScheduleModal}
           onClose={() => setShowScheduleModal(false)}
         />
-      )}
+      )} */}
     </div>
   )
 }

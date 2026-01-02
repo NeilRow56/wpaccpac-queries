@@ -10,30 +10,41 @@ import { FixedAssetsTable } from './fixed-assets-table'
 
 import { createAsset, deleteAsset, updateAsset } from '@/server-actions/assets'
 
-import { AssetWithCalculations } from '@/lib/asset-calculations'
 import { AssetFormValues } from '@/zod-schemas/fixedAssets'
 
 import { AssetForm } from './asset-form'
+import { AccountingPeriod } from '@/db/schema'
+import { AssetWithPeriodCalculations } from '@/lib/types/fixed-assets'
+import {
+  AssetWithCalculations,
+  DepreciationMethod
+} from '@/lib/asset-calculations'
 
 interface FixedAssetsTableWrapperProps {
-  assets: AssetWithCalculations[]
-  // clients: Array<{ id: string; name: string }>
+  assets: AssetWithPeriodCalculations[]
+  period: AccountingPeriod
+
   clientId: string
-  // clientName: string // Add this
-  categories: Array<{ id: string; name: string; clientId: string }>
+  clientName: string
+
+  categories: Array<{
+    id: string
+    name: string
+    clientId: string
+  }>
 }
 
 export function FixedAssetsTableWrapper({
   assets,
-  // clients,
+
   clientId,
-  // clientName,
+
   categories
 }: FixedAssetsTableWrapperProps) {
   const router = useRouter()
 
   const [selectedAsset, setSelectedAsset] =
-    React.useState<AssetWithCalculations | null>(null)
+    React.useState<AssetWithPeriodCalculations | null>(null)
 
   const [showCreateModal, setShowCreateModal] = React.useState(false)
   const [showEditModal, setShowEditModal] = React.useState(false)
@@ -64,7 +75,7 @@ export function FixedAssetsTableWrapper({
   /* -----------------------------
      EDIT
   ----------------------------- */
-  const handleEdit = (asset: AssetWithCalculations) => {
+  const handleEdit = (asset: AssetWithPeriodCalculations) => {
     setSelectedAsset(asset)
     setShowEditModal(true)
   }
@@ -121,8 +132,8 @@ export function FixedAssetsTableWrapper({
 
       <FixedAssetsTable
         assets={assets}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
+        // onEdit={handleEdit}
+        // onDelete={handleDelete}
       />
 
       <AssetForm
@@ -138,7 +149,7 @@ export function FixedAssetsTableWrapper({
       {selectedAsset && (
         <AssetForm
           mode='edit'
-          asset={selectedAsset}
+          asset={toEditableAsset(selectedAsset)}
           open={showEditModal}
           onClose={() => {
             setShowEditModal(false)
@@ -152,4 +163,42 @@ export function FixedAssetsTableWrapper({
       )}
     </>
   )
+}
+
+function toEditableAsset(
+  asset: AssetWithPeriodCalculations
+): AssetWithCalculations {
+  const cost = Number(asset.cost)
+  const adjustment = Number(asset.adjustment ?? 0)
+  const adjustedCost = cost + adjustment
+  const totalDep = Number(asset.totalDepreciationToDate ?? 0)
+
+  return {
+    id: asset.id,
+    name: asset.name,
+    clientId: asset.clientId,
+    categoryId: asset.categoryId,
+    categoryName: asset.category?.name ?? null,
+    description: asset.description ?? null,
+    dateOfPurchase: new Date(asset.dateOfPurchase),
+
+    cost,
+    adjustment,
+    adjustedCost,
+
+    depreciationRate: Number(asset.depreciationRate),
+    depreciationMethod: asset.depreciationMethod as DepreciationMethod,
+
+    totalDepreciationToDate: totalDep,
+
+    disposalValue:
+      asset.disposalValue !== null && asset.disposalValue !== undefined
+        ? Number(asset.disposalValue)
+        : null,
+
+    // required by AssetWithCalculations but not used in edit form
+    daysSinceAcquisition: 0,
+    depreciationForPeriod: 0,
+    netBookValue: Math.max(0, adjustedCost - totalDep)
+  }
 }

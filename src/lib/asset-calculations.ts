@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // lib/asset-calculations.ts
 
+import { DepreciationEntry, FixedAsset } from '@/db/schema'
+import { AssetWithPeriodCalculations } from './types/fixed-assets'
+
 export type DepreciationMethod = 'straight_line' | 'reducing_balance'
 
 export interface PeriodDepreciationParams {
@@ -228,42 +231,34 @@ export function enrichAssetWithCalculations(asset: any): AssetWithCalculations {
 }
 
 /**
- * Enhanced interface with period-specific calculations
- */
-export interface AssetWithPeriodCalculations extends AssetWithCalculations {
-  periodDepreciation: number
-  daysInPeriod: number
-}
-
-/**
  * Enrich asset with period-specific calculations
  */
+
 export function enrichAssetWithPeriodCalculations(
-  asset: any,
-  currentPeriod: { startDate: Date; endDate: Date }
+  asset: FixedAsset & { category?: any },
+  context: {
+    startDate: Date
+    endDate: Date
+    depreciationEntry?: DepreciationEntry | null
+  }
 ): AssetWithPeriodCalculations {
-  const baseCalculations = enrichAssetWithCalculations(asset)
+  const entry = context.depreciationEntry
 
-  const periodDepreciation = calculatePeriodDepreciation({
-    cost: baseCalculations.cost,
-    adjustment: baseCalculations.adjustment,
-    depreciationRate: baseCalculations.depreciationRate,
-    method: asset.depreciationMethod as DepreciationMethod,
-    periodStartDate: currentPeriod.startDate,
-    periodEndDate: currentPeriod.endDate,
-    purchaseDate: baseCalculations.dateOfPurchase,
-    totalDepreciationToDate: baseCalculations.totalDepreciationToDate
-  })
+  const openingNBV = entry
+    ? Number(entry.openingBalance)
+    : Number(asset.cost) + Number(asset.adjustment)
 
-  const daysInPeriod = calculateDaysInPeriod(
-    currentPeriod.startDate,
-    currentPeriod.endDate,
-    baseCalculations.dateOfPurchase
-  )
+  const depreciationForPeriod = entry ? Number(entry.depreciationAmount) : 0
+
+  const closingNBV = entry
+    ? Number(entry.closingBalance)
+    : openingNBV - depreciationForPeriod
 
   return {
-    ...baseCalculations,
-    periodDepreciation,
-    daysInPeriod
+    ...asset,
+    openingNBV,
+    depreciationForPeriod,
+    closingNBV,
+    depreciationEntry: entry ?? null
   }
 }

@@ -30,6 +30,16 @@ export function getClientNav(clientId: string): ClientNavItem[] {
           url: `/organisation/clients/${clientId}/accounting-periods`
         }
       ]
+    },
+    {
+      title: 'Fixed Assets Summary',
+      url: `/organisation/clients/${clientId}/fixed-assets`,
+      items: [
+        {
+          title: 'Fixed Assets',
+          url: `/organisation/clients/${clientId}/fixed-assets`
+        }
+      ]
     }
   ]
 }
