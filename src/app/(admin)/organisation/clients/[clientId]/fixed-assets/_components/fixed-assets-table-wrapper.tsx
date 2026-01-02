@@ -101,9 +101,14 @@ export function FixedAssetsTableWrapper({
   /* -----------------------------
      DELETE
   ----------------------------- */
-  const handleDelete = async (assetId: string) => {
+  const handleDelete = async (asset: AssetWithPeriodCalculations) => {
+    const confirmed = window.confirm(
+      'Are you sure? Assets with posted depreciation cannot be deleted.'
+    )
+    if (!confirmed) return
+
     try {
-      const result = await deleteAsset(assetId)
+      const result = await deleteAsset(asset.id)
 
       if (!result.success) {
         toast.error('Failed to delete asset')
@@ -132,8 +137,8 @@ export function FixedAssetsTableWrapper({
 
       <FixedAssetsTable
         assets={assets}
-        // onEdit={handleEdit}
-        // onDelete={handleDelete}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
       />
 
       <AssetForm
@@ -169,21 +174,26 @@ function toEditableAsset(
   asset: AssetWithPeriodCalculations
 ): AssetWithCalculations {
   const cost = Number(asset.cost)
-  const adjustment = Number(asset.adjustment ?? 0)
-  const adjustedCost = cost + adjustment
+  const costAdjustment = Number(asset.costAdjustment ?? 0)
+  const depreciationAdjustment = Number(asset.depreciationAdjustment ?? 0)
+
+  const adjustedCost = cost + costAdjustment
   const totalDep = Number(asset.totalDepreciationToDate ?? 0)
 
   return {
     id: asset.id,
     name: asset.name,
     clientId: asset.clientId,
+
     categoryId: asset.categoryId,
     categoryName: asset.category?.name ?? null,
     description: asset.description ?? null,
+
     dateOfPurchase: new Date(asset.dateOfPurchase),
 
     cost,
-    adjustment,
+    costAdjustment,
+    depreciationAdjustment,
     adjustedCost,
 
     depreciationRate: Number(asset.depreciationRate),
@@ -196,9 +206,9 @@ function toEditableAsset(
         ? Number(asset.disposalValue)
         : null,
 
-    // required by AssetWithCalculations but not used in edit form
+    // Required by AssetWithCalculations (not used in edit form)
     daysSinceAcquisition: 0,
     depreciationForPeriod: 0,
-    netBookValue: Math.max(0, adjustedCost - totalDep)
+    netBookValue: Math.max(0, adjustedCost - totalDep - depreciationAdjustment)
   }
 }

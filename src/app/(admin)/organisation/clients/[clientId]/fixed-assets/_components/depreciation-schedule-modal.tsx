@@ -56,7 +56,7 @@ export function DepreciationScheduleModal({
   const generateSchedule = (): ScheduleEntry[] => {
     const schedule: ScheduleEntry[] = []
     const purchaseDate = new Date(asset.dateOfPurchase)
-    const adjustedCost = asset.cost + asset.adjustment
+    const adjustedCost = asset.cost + asset.costAdjustment
     const annualDepreciation = (adjustedCost * asset.depreciationRate) / 100
 
     let currentBalance = adjustedCost

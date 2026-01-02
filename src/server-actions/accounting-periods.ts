@@ -142,20 +142,25 @@ export async function calculatePeriodDepreciationForClient(
     const entries = []
 
     for (const asset of assets) {
-      const adjustedCost =
-        parseFloat(asset.cost) + parseFloat(asset.adjustment || '0')
-      const totalDepToDate = parseFloat(asset.totalDepreciationToDate || '0')
-      const openingBalance = adjustedCost - totalDepToDate
+      const cost = Number(asset.cost)
+      const costAdjustment = Number(asset.costAdjustment || 0)
+      const depreciationAdjustment = Number(asset.depreciationAdjustment || 0)
+      const totalDepToDate = Number(asset.totalDepreciationToDate || 0)
 
-      // Type guard to ensure valid depreciation method
+      const adjustedCost = cost + costAdjustment
+      const accumulatedDepreciation = totalDepToDate + depreciationAdjustment
+
+      const openingBalance = Math.max(0, adjustedCost - accumulatedDepreciation)
+
       const depreciationMethod = asset.depreciationMethod as
         | 'straight_line'
         | 'reducing_balance'
 
       const periodDepreciation = calculatePeriodDepreciation({
-        cost: parseFloat(asset.cost),
-        adjustment: parseFloat(asset.adjustment || '0'),
-        depreciationRate: parseFloat(asset.depreciationRate),
+        cost,
+        costAdjustment,
+        depreciationAdjustment,
+        depreciationRate: Number(asset.depreciationRate),
         method: depreciationMethod,
         periodStartDate: new Date(period.startDate),
         periodEndDate: new Date(period.endDate),
@@ -163,7 +168,7 @@ export async function calculatePeriodDepreciationForClient(
         totalDepreciationToDate: totalDepToDate
       })
 
-      const closingBalance = openingBalance - periodDepreciation
+      const closingBalance = Math.max(0, openingBalance - periodDepreciation)
 
       const daysInPeriod = calculateDaysInPeriod(
         new Date(period.startDate),
@@ -178,7 +183,7 @@ export async function calculatePeriodDepreciationForClient(
         depreciationAmount: periodDepreciation.toFixed(2),
         closingBalance: closingBalance.toFixed(2),
         daysInPeriod,
-        depreciationMethod: depreciationMethod,
+        depreciationMethod,
         rateUsed: asset.depreciationRate
       })
     }

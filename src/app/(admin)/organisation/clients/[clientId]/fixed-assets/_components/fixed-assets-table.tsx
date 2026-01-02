@@ -42,10 +42,10 @@ import {
 import { DepreciationScheduleModal } from './depreciation-schedule-modal'
 import { AssetWithPeriodCalculations } from '@/lib/types/fixed-assets'
 
-interface FixedAssetsTableProps {
+export interface FixedAssetsTableProps {
   assets: AssetWithPeriodCalculations[]
   onEdit?: (asset: AssetWithPeriodCalculations) => void
-  onDelete?: (assetId: string) => void
+  onDelete?: (asset: AssetWithPeriodCalculations) => void
 }
 
 export function FixedAssetsTable({
@@ -131,22 +131,35 @@ export function FixedAssetsTable({
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant='ghost' className='h-8 w-8 p-0'>
+              <Button
+                variant='ghost'
+                className='h-8 w-8 p-0'
+                onClick={e => e.stopPropagation()}
+              >
                 <MoreHorizontal className='h-4 w-4' />
               </Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align='end'>
-              <DropdownMenuItem>View depreciation</DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  // future: open depreciation schedule modal
+                }}
+              >
+                View depreciation
+              </DropdownMenuItem>
+
               {onEdit && (
                 <DropdownMenuItem onClick={() => onEdit(row.original)}>
                   <Pencil className='mr-2 h-4 w-4' />
                   Edit
                 </DropdownMenuItem>
               )}
+
               {onDelete && (
                 <DropdownMenuItem
                   className='text-red-600'
-                  onClick={() => onDelete(row.original.id)}
+                  onClick={() => onDelete(row.original)}
                 >
                   <Trash2 className='mr-2 h-4 w-4' />
                   Delete

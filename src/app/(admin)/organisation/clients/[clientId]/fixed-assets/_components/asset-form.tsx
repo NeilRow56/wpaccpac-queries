@@ -84,8 +84,9 @@ export function AssetForm(props: AssetFormProps) {
       categoryId: '',
       description: '',
       cost: '',
+      costAdjustment: '0',
+      depreciationAdjustment: '0',
       dateOfPurchase: '',
-      adjustment: '0',
       depreciationMethod: 'reducing_balance',
       depreciationRate: '',
       totalDepreciationToDate: '0',
@@ -111,7 +112,8 @@ export function AssetForm(props: AssetFormProps) {
         description: props.asset.description ?? '',
         cost: props.asset.cost.toString(),
         dateOfPurchase: formattedDate,
-        adjustment: props.asset.adjustment?.toString() ?? '0',
+        costAdjustment: props.asset.costAdjustment?.toString() ?? '0',
+        depreciationAdjustment: props.asset.costAdjustment?.toString() ?? '0',
         depreciationMethod: props.asset.depreciationMethod,
         depreciationRate: props.asset.depreciationRate.toString(),
         totalDepreciationToDate: props.asset.totalDepreciationToDate.toString(),
@@ -223,10 +225,24 @@ export function AssetForm(props: AssetFormProps) {
                       />
                       <FormInputNumberString<AssetFormValues>
                         control={form.control}
+                        name='costAdjustment'
+                        label='Cost adjustment'
                         className='font-normal text-gray-900'
-                        name='adjustment'
-                        label='Revaluation'
                       />
+                      <FormDescription className='text-muted-foreground font-light'>
+                        Capitalised improvements or revaluation (added to cost)
+                      </FormDescription>
+
+                      <FormInputNumberString<AssetFormValues>
+                        control={form.control}
+                        name='depreciationAdjustment'
+                        label='Depreciation adjustment'
+                        className='font-normal text-gray-900'
+                      />
+                      <FormDescription className='text-muted-foreground font-light'>
+                        Impairment or write-down (does not affect future
+                        depreciation)
+                      </FormDescription>
                     </div>
                     <div className='text-primary min-w-0 space-y-4 font-bold'>
                       <FormInputDate<AssetFormValues>

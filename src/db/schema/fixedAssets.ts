@@ -63,7 +63,7 @@ export const fixedAssets = pgTable('fixed_assets', {
   description: text('description'),
   cost: decimal('cost', { precision: 10, scale: 2 }).notNull(),
   dateOfPurchase: date('date_of_purchase').notNull(),
-  adjustment: decimal('adjustment', { precision: 10, scale: 2 })
+  costAdjustment: decimal('cost_adjustment', { precision: 10, scale: 2 })
     .notNull()
     .default('0'),
   depreciationAdjustment: decimal('depreciation_adjustment', {
@@ -72,7 +72,7 @@ export const fixedAssets = pgTable('fixed_assets', {
   })
     .notNull()
     .default('0'),
-  depreciationMethod: varchar('depreciation_method').notNull(),
+  depreciationMethod: depreciationMethodEnum('depreciation_method').notNull(),
   depreciationRate: decimal('depreciation_rate', {
     precision: 5,
     scale: 2

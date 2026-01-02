@@ -119,7 +119,7 @@ export default async function FixedAssetsPage({
         categories={categories}
       />
       <div className='text-muted-foreground mt-6 flex-col space-x-4 pl-8'>
-        <span className='text-red-600'>NB: </span>
+        {/* <span className='text-red-600'>NB: </span>
         <p className='text-red-500'>
           These values are estimated Accumulated Depreciation and Net Book
           Values as at the current date
@@ -128,7 +128,7 @@ export default async function FixedAssetsPage({
         <p className='pt-4'>
           Any problems please contact:
           <span className='pl-2 text-blue-600'>admin@wpaccpac.org</span>
-        </p>
+        </p> */}
       </div>
     </div>
   )
