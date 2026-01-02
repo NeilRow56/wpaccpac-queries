@@ -14,8 +14,9 @@ export async function createAsset(data: {
   description?: string
   cost: string
   dateOfPurchase: string
-  adjustment?: string
+  costAdjustment: string
   depreciationMethod: 'straight_line' | 'reducing_balance'
+  depreciationAdjustment: string
   depreciationRate: string
   totalDepreciationToDate?: string
   disposalValue?: string
@@ -28,7 +29,8 @@ export async function createAsset(data: {
       description: data.description || null,
       cost: data.cost,
       dateOfPurchase: data.dateOfPurchase,
-      adjustment: data.adjustment || '0',
+      costAdjustment: data.costAdjustment || '0',
+      depreciationAdjustment: data.depreciationAdjustment || '0',
       depreciationMethod: data.depreciationMethod,
       depreciationRate: data.depreciationRate,
       totalDepreciationToDate: data.totalDepreciationToDate || '0',
@@ -51,8 +53,9 @@ export async function updateAsset(data: {
   description?: string
   cost: string
   dateOfPurchase: string
-  adjustment?: string
+  costAdjustment?: string
   depreciationMethod: 'straight_line' | 'reducing_balance'
+  depreciationAdjustment: string
   depreciationRate: string
   totalDepreciationToDate?: string
   disposalValue?: string
@@ -67,8 +70,9 @@ export async function updateAsset(data: {
         description: data.description || null,
         cost: data.cost,
         dateOfPurchase: data.dateOfPurchase,
-        adjustment: data.adjustment || '0',
+        costAdjustment: data.costAdjustment || '0',
         depreciationMethod: data.depreciationMethod,
+        depreciationAdjustment: data.depreciationAdjustment || '0',
         depreciationRate: data.depreciationRate,
         totalDepreciationToDate: data.totalDepreciationToDate || '0',
         disposalValue: data.disposalValue || null
