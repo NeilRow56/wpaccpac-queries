@@ -137,6 +137,11 @@ export function FixedAssetsTableWrapper({
 
       <FixedAssetsTable
         assets={assets}
+        onRowClick={asset => {
+          router.push(
+            `/organisation/clients/${clientId}/fixed-assets/${asset.id}`
+          )
+        }}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />

@@ -46,12 +46,14 @@ export interface FixedAssetsTableProps {
   assets: AssetWithPeriodCalculations[]
   onEdit?: (asset: AssetWithPeriodCalculations) => void
   onDelete?: (asset: AssetWithPeriodCalculations) => void
+  onRowClick?: (asset: AssetWithPeriodCalculations) => void
 }
 
 export function FixedAssetsTable({
   assets,
   onEdit,
-  onDelete
+  onDelete,
+  onRowClick
 }: FixedAssetsTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -61,6 +63,13 @@ export function FixedAssetsTable({
   const [selectedAsset, setSelectedAsset] =
     React.useState<AssetWithPeriodCalculations | null>(null)
   const [showScheduleModal, setShowScheduleModal] = React.useState(false)
+
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat('en-GB', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value)
+  }
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-GB', {
@@ -81,50 +90,68 @@ export function FixedAssetsTable({
   const columns: ColumnDef<AssetWithPeriodCalculations>[] = [
     {
       accessorKey: 'name',
-      header: 'Asset',
+      header: () => (
+        <div className='text-primary text-left font-bold'>Asset</div>
+      ),
       cell: ({ row }) => (
         <div className='font-medium'>{row.getValue('name')}</div>
       )
     },
     {
       accessorKey: 'category.name',
-      header: 'Category',
+      header: () => (
+        <div className='text-primary text-left font-bold'>Category</div>
+      ),
       cell: ({ row }) => row.original.category?.name ?? '—'
     },
     {
       accessorKey: 'dateOfPurchase',
-      header: 'Purchased',
+      header: () => (
+        <div className='text-primary text-left font-bold'>Purchase date</div>
+      ),
       cell: ({ row }) => formatDate(row.original.dateOfPurchase)
     },
     {
       accessorKey: 'openingNBV',
-      header: 'Opening NBV',
+
+      header: () => (
+        <div className='text-primary text-right font-bold'>Opening NBV (£)</div>
+      ),
       cell: ({ row }) => (
         <div className='text-right'>
-          {formatCurrency(row.original.openingNBV)}
+          {formatNumber(row.original.openingNBV)}
         </div>
       )
     },
     {
       accessorKey: 'depreciationForPeriod',
-      header: 'Depreciation',
+      header: () => (
+        <div className='text-primary text-right font-bold'>
+          Depreciation (£)
+        </div>
+      ),
       cell: ({ row }) => (
         <div className='text-right'>
-          {formatCurrency(row.original.depreciationForPeriod)}
+          {formatNumber(row.original.depreciationForPeriod)}
         </div>
       )
     },
     {
       accessorKey: 'closingNBV',
-      header: 'Closing NBV',
+      header: () => (
+        <div className='text-primary text-right font-bold'>Closing NBV (£)</div>
+      ),
       cell: ({ row }) => (
         <div className='text-right font-medium'>
-          {formatCurrency(row.original.closingNBV)}
+          {formatNumber(row.original.closingNBV)}
         </div>
       )
     },
     {
       id: 'actions',
+      header: () => (
+        <div className='text-left font-bold text-blue-600'>Actions</div>
+      ),
       cell: ({ row }) => {
         // const asset = row.original
 
@@ -206,7 +233,7 @@ export function FixedAssetsTable({
 
   const exportToPDF = async () => {
     const { jsPDF } = await import('jspdf')
-    await import('jspdf-autotable')
+    const autoTableModule = await import('jspdf-autotable')
 
     const doc = new jsPDF()
 
@@ -236,7 +263,8 @@ export function FixedAssetsTable({
       formatCurrency(totals.closingNBV)
     ])
 
-    doc.autoTable({
+    // ✅ THIS is the key change
+    autoTableModule.default(doc, {
       head: [
         [
           'Asset',
@@ -247,20 +275,14 @@ export function FixedAssetsTable({
           'Closing NBV'
         ]
       ],
-
       body: tableData,
       startY: 35,
       styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [71, 85, 105], fontStyle: 'bold' },
       columnStyles: {
-        0: { cellWidth: 30 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 22 },
-        3: { cellWidth: 20 },
-        4: { cellWidth: 20, halign: 'right' },
-        5: { cellWidth: 25, halign: 'right' },
-        6: { cellWidth: 25, halign: 'right' },
-        7: { cellWidth: 25, halign: 'right' }
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+        5: { halign: 'right' }
       }
     })
 
@@ -371,7 +393,7 @@ export function FixedAssetsTable({
       {/* Table */}
       <div className='rounded-md border'>
         <Table>
-          <TableHeader>
+          <TableHeader className=''>
             {table.getHeaderGroups().map(headerGroup => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
@@ -393,6 +415,12 @@ export function FixedAssetsTable({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
+                  onClick={() => onRowClick?.(row.original)}
+                  className={
+                    onRowClick
+                      ? 'hover:bg-muted/50 cursor-pointer transition-colors'
+                      : undefined
+                  }
                 >
                   {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id}>
@@ -415,19 +443,19 @@ export function FixedAssetsTable({
               </TableRow>
             )}
           </TableBody>
-          <TableFooter>
+          <TableFooter className='bg-gray-100'>
             <TableRow>
               <TableCell colSpan={3} className='font-bold'>
-                Totals
+                Totals (£)
               </TableCell>
               <TableCell className='text-right font-bold'>
-                {formatCurrency(totals.openingNBV)}
+                {formatNumber(totals.openingNBV)}
               </TableCell>
               <TableCell className='text-right font-bold'>
-                {formatCurrency(totals.depreciation)}
+                {formatNumber(totals.depreciation)}
               </TableCell>
               <TableCell className='text-right font-bold'>
-                {formatCurrency(totals.closingNBV)}
+                {formatNumber(totals.closingNBV)}
               </TableCell>
               <TableCell />
             </TableRow>

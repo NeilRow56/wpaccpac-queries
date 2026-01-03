@@ -92,7 +92,7 @@ export default async function FixedAssetsPage({
         <div>
           <h1 className='text-3xl font-bold'>Fixed Assets Register</h1>
           <p className='text-muted-foreground mt-2'>
-            View and manage your organization&apos;s fixed assets with real-time
+            View and manage your organisation&apos;s fixed assets with real-time
             depreciation calculations
           </p>
         </div>
@@ -103,7 +103,7 @@ export default async function FixedAssetsPage({
               Manage Categories
             </Button>
           </Link>
-          <Link href='/fixed-assets/periods'>
+          <Link href={`/organisation/clients/${clientId}/accounting-periods`}>
             <Button variant='outline'>
               <Calendar className='mr-2 h-4 w-4' />
               Manage Periods

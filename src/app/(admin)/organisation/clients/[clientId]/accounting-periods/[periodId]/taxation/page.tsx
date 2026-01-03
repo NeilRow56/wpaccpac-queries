@@ -1,7 +1,11 @@
-// app/organisations/clients/[clientId]/accounting-periods/[periodId]/taxation/page.tsx
-import { RegisterBreadcrumbs } from '@/components/navigation/register-breadcrumbs'
+// app/organisation/clients/[clientId]/accounting-periods/[periodId]/taxation/page.tsx
+
+import { notFound } from 'next/navigation'
+import { Breadcrumbs } from '@/components/navigation/breadcrumb'
+
+import { getClientById } from '@/server-actions/clients'
 import { getAccountingPeriodById } from '@/server-actions/accounting-periods'
-import type { Breadcrumb } from '@/lib/navigation/breadcrumbs'
+import { buildPeriodLeafBreadcrumbs } from '@/lib/period-breadcrumbs'
 
 export default async function TaxationPage({
   params
@@ -9,33 +13,29 @@ export default async function TaxationPage({
   params: Promise<{ clientId: string; periodId: string }>
 }) {
   const { clientId, periodId } = await params
+
+  const client = await getClientById(clientId)
   const period = await getAccountingPeriodById(periodId)
 
-  const crumbs: Breadcrumb[] = [
-    { label: 'Clients', href: '/organisation/clients' },
-    {
-      label: 'First Client - JS',
-      href: `/organisation/clients/${clientId}`
-    },
-    {
-      label: 'Accounting Periods',
-      href: `/organisation/clients/${clientId}/accounting-periods`
-    },
-    {
-      label: period?.periodName ?? 'Accounting Period',
-      href: `/organisation/clients/${clientId}/accounting-periods/${periodId}`
-    },
-    {
-      label: 'Taxation',
-      href: `/organisation/clients/${clientId}/accounting-periods/${periodId}/taxation`,
-      isCurrentPage: true
-    }
-  ]
+  if (!client || !period) notFound()
+
+  const crumbs = buildPeriodLeafBreadcrumbs({
+    clientId,
+    clientName: client.name,
+    periodId,
+    periodName: period.periodName,
+    leafLabel: 'Taxation',
+    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/taxation`
+  })
 
   return (
-    <>
-      <RegisterBreadcrumbs crumbs={crumbs} />
-      <h1 className='text-3xl font-bold'>Taxation</h1>
-    </>
+    <div className='space-y-4'>
+      <Breadcrumbs crumbs={crumbs} />
+
+      {/* Taxation UI */}
+      <h1 className='text-xl font-semibold'>Taxation</h1>
+
+      {/* Dialog + table + forms live here */}
+    </div>
   )
 }
