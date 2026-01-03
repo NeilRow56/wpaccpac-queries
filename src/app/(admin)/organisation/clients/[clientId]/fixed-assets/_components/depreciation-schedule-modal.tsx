@@ -98,7 +98,7 @@ export function DepreciationScheduleModal({
 
   const exportScheduleToPDF = async () => {
     const { jsPDF } = await import('jspdf')
-    await import('jspdf-autotable')
+    const autoTableModule = await import('jspdf-autotable')
 
     const doc = new jsPDF()
 
@@ -120,7 +120,7 @@ export function DepreciationScheduleModal({
       formatCurrency(entry.closingBalance)
     ])
 
-    doc.autoTable({
+    autoTableModule.default(doc, {
       head: [
         [
           'Year',
