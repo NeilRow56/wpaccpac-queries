@@ -41,6 +41,8 @@ import {
 
 import { DepreciationScheduleModal } from './depreciation-schedule-modal'
 import { AssetWithPeriodCalculations } from '@/lib/types/fixed-assets'
+import { formatGBP } from '@/lib/number-formatter'
+import { exportTableToPDF } from '@/lib/pdf/export-table-to-pdf'
 
 export interface FixedAssetsTableProps {
   assets: AssetWithPeriodCalculations[]
@@ -230,63 +232,56 @@ export function FixedAssetsTable({
     }),
     { openingNBV: 0, depreciation: 0, closingNBV: 0 }
   )
-
   const exportToPDF = async () => {
-    const { jsPDF } = await import('jspdf')
-    const autoTableModule = await import('jspdf-autotable')
+    await exportTableToPDF<AssetWithPeriodCalculations>({
+      title: 'Fixed Assets Register',
+      subtitle: `Period ending ${new Date().toLocaleDateString('en-GB')}`,
+      fileName: 'fixed-assets-register.pdf',
 
-    const doc = new jsPDF()
-
-    doc.setFontSize(18)
-    doc.text('Fixed Assets Register', 14, 22)
-
-    doc.setFontSize(11)
-    doc.text(`Generated: ${new Date().toLocaleDateString('en-GB')}`, 14, 30)
-
-    const tableData = table
-      .getFilteredRowModel()
-      .rows.map(row => [
-        row.original.name,
-        row.original.category?.name ?? '—',
-        formatDate(row.original.dateOfPurchase),
-        formatCurrency(row.original.openingNBV),
-        formatCurrency(row.original.depreciationForPeriod),
-        formatCurrency(row.original.closingNBV)
-      ])
-
-    tableData.push([
-      'TOTAL',
-      '',
-      '',
-      formatCurrency(totals.openingNBV),
-      formatCurrency(totals.depreciation),
-      formatCurrency(totals.closingNBV)
-    ])
-
-    // ✅ THIS is the key change
-    autoTableModule.default(doc, {
-      head: [
-        [
-          'Asset',
-          'Category',
-          'Purchased',
-          'Opening NBV',
-          'Depreciation',
-          'Closing NBV'
-        ]
+      columns: [
+        {
+          header: 'Asset',
+          accessor: a => a.name,
+          width: 35
+        },
+        {
+          header: 'Category',
+          accessor: a => a.category?.name ?? '—',
+          width: 22
+        },
+        {
+          header: 'Purchased',
+          accessor: a => formatDate(a.dateOfPurchase),
+          width: 22
+        },
+        {
+          header: 'Opening NBV (£)',
+          accessor: a => formatGBP(a.openingNBV),
+          align: 'right',
+          width: 25
+        },
+        {
+          header: 'Depreciation (£)',
+          accessor: a => formatGBP(a.depreciationForPeriod),
+          align: 'right',
+          width: 25
+        },
+        {
+          header: 'Closing NBV (£)',
+          accessor: a => formatGBP(a.closingNBV),
+          align: 'right',
+          width: 28
+        }
       ],
-      body: tableData,
-      startY: 35,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [71, 85, 105], fontStyle: 'bold' },
-      columnStyles: {
-        3: { halign: 'right' },
-        4: { halign: 'right' },
-        5: { halign: 'right' }
+
+      rows: table.getFilteredRowModel().rows.map(r => r.original),
+
+      totals: {
+        'Opening NBV (£)': totals.openingNBV,
+        'Depreciation (£)': totals.depreciation,
+        'Closing NBV (£)': totals.closingNBV
       }
     })
-
-    doc.save('fixed-assets-register.pdf')
   }
 
   const exportToExcel = async () => {

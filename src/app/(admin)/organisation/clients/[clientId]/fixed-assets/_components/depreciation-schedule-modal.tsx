@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
 import { AssetWithCalculations } from '@/lib/asset-calculations'
+import { exportTableToPDF } from '@/lib/pdf/export-table-to-pdf'
 
 interface DepreciationScheduleModalProps {
   asset: AssetWithCalculations
@@ -42,16 +43,14 @@ export function DepreciationScheduleModal({
   open,
   onClose
 }: DepreciationScheduleModalProps) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP'
-    }).format(value)
-  }
+  const formatGBP = (value: number) =>
+    value.toLocaleString('en-GB', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-GB').format(date)
-  }
+  const formatDate = (date: Date) =>
+    new Intl.DateTimeFormat('en-GB').format(date)
 
   const generateSchedule = (): ScheduleEntry[] => {
     const schedule: ScheduleEntry[] = []
@@ -97,57 +96,54 @@ export function DepreciationScheduleModal({
   const schedule = generateSchedule()
 
   const exportScheduleToPDF = async () => {
-    const { jsPDF } = await import('jspdf')
-    const autoTableModule = await import('jspdf-autotable')
+    await exportTableToPDF<ScheduleEntry>({
+      title: 'Depreciation Schedule',
+      subtitle: `Asset: ${asset.name} • Rate: ${asset.depreciationRate}%`,
+      fileName: `depreciation-schedule-${asset.name
+        .replace(/\s+/g, '-')
+        .toLowerCase()}.pdf`,
 
-    const doc = new jsPDF()
+      orientation: 'landscape', // ✅ THIS is the key change
 
-    doc.setFontSize(18)
-    doc.text('Depreciation Schedule', 14, 22)
-
-    doc.setFontSize(11)
-    doc.text(`Asset: ${asset.name}`, 14, 30)
-    doc.text(`Cost: ${formatCurrency(asset.cost)}`, 14, 36)
-    doc.text(`Depreciation Rate: ${asset.depreciationRate}%`, 14, 42)
-    doc.text(`Generated: ${new Date().toLocaleDateString('en-GB')}`, 14, 48)
-
-    const tableData = schedule.map(entry => [
-      entry.year.toString(),
-      formatDate(entry.startDate),
-      formatDate(entry.endDate),
-      formatCurrency(entry.openingBalance),
-      formatCurrency(entry.depreciation),
-      formatCurrency(entry.closingBalance)
-    ])
-
-    autoTableModule.default(doc, {
-      head: [
-        [
-          'Year',
-          'Start Date',
-          'End Date',
-          'Opening Balance',
-          'Depreciation',
-          'Closing Balance'
-        ]
+      columns: [
+        {
+          header: 'Year',
+          accessor: e => e.year,
+          align: 'center',
+          width: 20
+        },
+        {
+          header: 'Start Date',
+          accessor: e => formatDate(e.startDate),
+          width: 30
+        },
+        {
+          header: 'End Date',
+          accessor: e => formatDate(e.endDate),
+          width: 30
+        },
+        {
+          header: 'Opening Balance (£)',
+          accessor: e => formatGBP(e.openingBalance),
+          align: 'right',
+          width: 35
+        },
+        {
+          header: 'Depreciation (£)',
+          accessor: e => formatGBP(e.depreciation),
+          align: 'right',
+          width: 35
+        },
+        {
+          header: 'Closing Balance (£)',
+          accessor: e => formatGBP(e.closingBalance),
+          align: 'right',
+          width: 35
+        }
       ],
-      body: tableData,
-      startY: 55,
-      styles: { fontSize: 9, cellPadding: 3 },
-      headStyles: { fillColor: [71, 85, 105], fontStyle: 'bold' },
-      columnStyles: {
-        0: { cellWidth: 15, halign: 'center' },
-        1: { cellWidth: 25 },
-        2: { cellWidth: 25 },
-        3: { cellWidth: 35, halign: 'right' },
-        4: { cellWidth: 30, halign: 'right' },
-        5: { cellWidth: 35, halign: 'right' }
-      }
-    })
 
-    doc.save(
-      `depreciation-schedule-${asset.name.replace(/\s+/g, '-').toLowerCase()}.pdf`
-    )
+      rows: schedule
+    })
   }
 
   const exportScheduleToExcel = async () => {
@@ -156,7 +152,7 @@ export function DepreciationScheduleModal({
     const worksheet_data = [
       ['Depreciation Schedule'],
       [`Asset: ${asset.name}`],
-      [`Cost: ${formatCurrency(asset.cost)}`],
+      [`Cost: ${formatGBP(asset.cost)}`],
       [`Depreciation Rate: ${asset.depreciationRate}%`],
       [`Generated: ${new Date().toLocaleDateString('en-GB')}`],
       [],
@@ -221,9 +217,7 @@ export function DepreciationScheduleModal({
           <div className='bg-muted grid grid-cols-2 gap-4 rounded-lg p-4 md:grid-cols-4'>
             <div>
               <p className='text-muted-foreground text-sm'>Original Cost</p>
-              <p className='text-lg font-semibold'>
-                {formatCurrency(asset.cost)}
-              </p>
+              <p className='text-lg font-semibold'>{formatGBP(asset.cost)}</p>
             </div>
             <div>
               <p className='text-muted-foreground text-sm'>Depreciation Rate</p>
@@ -238,7 +232,7 @@ export function DepreciationScheduleModal({
             <div>
               <p className='text-muted-foreground text-sm'>Current NBV</p>
               <p className='text-lg font-semibold'>
-                {formatCurrency(asset.netBookValue)}
+                {formatGBP(asset.netBookValue)}
               </p>
             </div>
           </div>
@@ -277,13 +271,13 @@ export function DepreciationScheduleModal({
                     <TableCell>{formatDate(entry.startDate)}</TableCell>
                     <TableCell>{formatDate(entry.endDate)}</TableCell>
                     <TableCell className='text-right'>
-                      {formatCurrency(entry.openingBalance)}
+                      {formatGBP(entry.openingBalance)}
                     </TableCell>
                     <TableCell className='text-right'>
-                      {formatCurrency(entry.depreciation)}
+                      {formatGBP(entry.depreciation)}
                     </TableCell>
                     <TableCell className='text-right font-medium'>
-                      {formatCurrency(entry.closingBalance)}
+                      {formatGBP(entry.closingBalance)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -294,7 +288,7 @@ export function DepreciationScheduleModal({
                     Total Depreciation
                   </TableCell>
                   <TableCell className='text-right font-bold'>
-                    {formatCurrency(totalDepreciation)}
+                    {formatGBP(totalDepreciation)}
                   </TableCell>
                   <TableCell></TableCell>
                 </TableRow>
@@ -306,7 +300,7 @@ export function DepreciationScheduleModal({
           <div className='text-muted-foreground space-y-1 text-sm'>
             <p>
               • Annual depreciation:{' '}
-              {formatCurrency((asset.cost * asset.depreciationRate) / 100)}
+              {formatGBP((asset.cost * asset.depreciationRate) / 100)}
             </p>
             <p>• Useful life: {schedule.length} years</p>
             <p>• Method: Straight-line depreciation</p>
