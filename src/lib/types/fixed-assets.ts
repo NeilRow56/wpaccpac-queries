@@ -1,15 +1,19 @@
-import { FixedAsset } from '@/db/schema'
-import { DepreciationEntry } from '@/db/schema'
-
-export interface AssetWithPeriodCalculations extends FixedAsset {
+export type AssetWithCategory = {
+  id: string
+  name: string
+  clientId: string
   category?: {
     id: string
     name: string
   } | null
 
-  openingNBV: number
-  depreciationForPeriod: number
-  closingNBV: number
+  dateOfPurchase: Date | string
+  cost: string | number
+  costAdjustment: string | number
+  depreciationAdjustment: string | number
+  depreciationRate: string | number
+  depreciationMethod: 'straight_line' | 'reducing_balance'
 
-  depreciationEntry?: DepreciationEntry | null
+  totalDepreciationToDate?: string | number | null
+  disposalValue?: string | number | null
 }

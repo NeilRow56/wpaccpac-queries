@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // lib/asset-calculations.ts
 
-import { DepreciationEntry, FixedAsset } from '@/db/schema'
+import { DepreciationEntry } from '@/db/schema'
+import { AssetWithCategory } from './types/fixed-assets'
 
 /* ----------------------------------
  * Types
@@ -43,7 +44,7 @@ export function calculateDaysInPeriod(
 }
 
 /* ----------------------------------
- * Depreciation calculations
+ * Depreciation calculations (PURE)
  * ---------------------------------- */
 
 export function calculateStraightLineDepreciation(
@@ -67,7 +68,7 @@ export function calculateReducingBalanceDepreciation(
 }
 
 /* ----------------------------------
- * Period depreciation
+ * Period depreciation (CANONICAL)
  * ---------------------------------- */
 
 export function calculatePeriodDepreciation(
@@ -101,7 +102,7 @@ export function calculatePeriodDepreciation(
 
   if (openingNBV <= 0) return 0
 
-  let depreciation = 0
+  let depreciation: number
 
   if (method === 'straight_line') {
     depreciation = calculateStraightLineDepreciation(
@@ -139,7 +140,7 @@ export function calculateNetBookValue(
 }
 
 /* ----------------------------------
- * Enriched asset types
+ * Enriched asset (NON-PERIOD)
  * ---------------------------------- */
 
 export interface AssetWithCalculations {
@@ -163,57 +164,24 @@ export interface AssetWithCalculations {
 
   daysSinceAcquisition: number
   adjustedCost: number
-  depreciationForPeriod: number
+  depreciationForPeriod: number // ✅ ADD THIS
   netBookValue: number
 }
 
-/* ----------------------------------
- * Asset enrichment (non-period)
- * ---------------------------------- */
-
 export function enrichAssetWithCalculations(asset: any): AssetWithCalculations {
   const cost = Number(asset.cost)
-  const costAdjustment = Number(asset.adjustment || 0)
+  const costAdjustment = Number(asset.costAdjustment || 0)
   const depreciationAdjustment = Number(asset.depreciationAdjustment || 0)
-
-  const adjustedCost = cost + costAdjustment
   const totalDepreciationToDate = Number(asset.totalDepreciationToDate || 0)
 
-  const daysSinceAcquisition = calculateDaysSinceAcquisition(
-    new Date(asset.dateOfPurchase)
-  )
-
-  const openingNBV = Math.max(
-    0,
-    adjustedCost - (totalDepreciationToDate + depreciationAdjustment)
-  )
-
-  let depreciationForPeriod = 0
-
-  if (openingNBV > 0) {
-    if (asset.depreciationMethod === 'straight_line') {
-      depreciationForPeriod = calculateStraightLineDepreciation(
-        adjustedCost,
-        Number(asset.depreciationRate),
-        daysSinceAcquisition
-      )
-    } else {
-      depreciationForPeriod = calculateReducingBalanceDepreciation(
-        openingNBV,
-        Number(asset.depreciationRate),
-        daysSinceAcquisition
-      )
-    }
-  }
-
-  depreciationForPeriod = Math.min(depreciationForPeriod, openingNBV)
+  const adjustedCost = cost + costAdjustment
 
   const netBookValue = calculateNetBookValue(
     cost,
     costAdjustment,
     totalDepreciationToDate,
     depreciationAdjustment,
-    depreciationForPeriod
+    0 // ❗ NO period depreciation here
   )
 
   return {
@@ -235,18 +203,20 @@ export function enrichAssetWithCalculations(asset: any): AssetWithCalculations {
     totalDepreciationToDate,
     disposalValue: asset.disposalValue ? Number(asset.disposalValue) : null,
 
-    daysSinceAcquisition,
+    daysSinceAcquisition: calculateDaysSinceAcquisition(
+      new Date(asset.dateOfPurchase)
+    ),
+    depreciationForPeriod: asset.depreciationForPeriod, // ✅ now valid
     adjustedCost,
-    depreciationForPeriod,
     netBookValue
   }
 }
 
 /* ----------------------------------
- * Period-based enrichment
+ * Period-based enrichment (USED BY TABLES)
  * ---------------------------------- */
 
-export interface AssetWithPeriodCalculations extends FixedAsset {
+export interface AssetWithPeriodCalculations extends AssetWithCategory {
   openingNBV: number
   depreciationForPeriod: number
   closingNBV: number
@@ -254,26 +224,45 @@ export interface AssetWithPeriodCalculations extends FixedAsset {
 }
 
 export function enrichAssetWithPeriodCalculations(
-  asset: FixedAsset & { category?: any },
+  asset: AssetWithCategory,
   context: {
-    startDate: Date
-    endDate: Date
-    depreciationEntry?: DepreciationEntry | null
+    period: {
+      startDate: Date
+      endDate: Date
+    }
+    depreciationByAssetId: Map<string, DepreciationEntry>
   }
 ): AssetWithPeriodCalculations {
-  const entry = context.depreciationEntry ?? null
+  const entry = context.depreciationByAssetId.get(asset.id)
+  const { startDate, endDate } = context.period
 
-  const adjustedCost = Number(asset.cost) + Number(asset.costAdjustment || 0)
+  const cost = Number(asset.cost)
+  const costAdjustment = Number(asset.costAdjustment || 0)
+  const depreciationAdjustment = Number(asset.depreciationAdjustment || 0)
+  const totalDepreciationToDate = Number(asset.totalDepreciationToDate || 0)
 
-  const accumulatedDepreciation =
-    Number(asset.totalDepreciationToDate || 0) +
-    Number(asset.depreciationAdjustment || 0)
+  const adjustedCost = cost + costAdjustment
 
   const openingNBV = entry
     ? Number(entry.openingBalance)
-    : Math.max(0, adjustedCost - accumulatedDepreciation)
+    : Math.max(
+        0,
+        adjustedCost - (totalDepreciationToDate + depreciationAdjustment)
+      )
 
-  const depreciationForPeriod = entry ? Number(entry.depreciationAmount) : 0
+  const depreciationForPeriod = entry
+    ? Number(entry.depreciationAmount)
+    : calculatePeriodDepreciation({
+        cost,
+        costAdjustment,
+        depreciationAdjustment,
+        depreciationRate: Number(asset.depreciationRate),
+        method: asset.depreciationMethod as DepreciationMethod,
+        periodStartDate: startDate,
+        periodEndDate: endDate,
+        purchaseDate: new Date(asset.dateOfPurchase),
+        totalDepreciationToDate
+      })
 
   const closingNBV = Math.max(0, openingNBV - depreciationForPeriod)
 
@@ -282,6 +271,20 @@ export function enrichAssetWithPeriodCalculations(
     openingNBV,
     depreciationForPeriod,
     closingNBV,
-    depreciationEntry: entry
+    depreciationEntry: entry ?? null
   }
+}
+
+export interface AssetWithPeriodUI {
+  id: string
+  name: string
+  clientId: string
+
+  dateOfPurchase: Date
+  cost: number
+  depreciationRate: number
+
+  openingNBV: number
+  depreciationForPeriod: number
+  closingNBV: number
 }

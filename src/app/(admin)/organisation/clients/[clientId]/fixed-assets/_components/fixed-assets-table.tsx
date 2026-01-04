@@ -39,32 +39,30 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 
-import { DepreciationScheduleModal } from './depreciation-schedule-modal'
-import { AssetWithPeriodCalculations } from '@/lib/types/fixed-assets'
 import { formatGBP } from '@/lib/number-formatter'
 import { exportTableToPDF } from '@/lib/pdf/export-table-to-pdf'
+import { AssetWithPeriodCalculations } from '@/lib/asset-calculations'
 
 export interface FixedAssetsTableProps {
   assets: AssetWithPeriodCalculations[]
   onEdit?: (asset: AssetWithPeriodCalculations) => void
   onDelete?: (asset: AssetWithPeriodCalculations) => void
   onRowClick?: (asset: AssetWithPeriodCalculations) => void
+  onViewSchedule: (asset: AssetWithPeriodCalculations) => void // ✅
 }
 
 export function FixedAssetsTable({
   assets,
   onEdit,
   onDelete,
-  onRowClick
+  onRowClick,
+  onViewSchedule
 }: FixedAssetsTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
   const [globalFilter, setGlobalFilter] = React.useState('')
-  const [selectedAsset, setSelectedAsset] =
-    React.useState<AssetWithPeriodCalculations | null>(null)
-  const [showScheduleModal, setShowScheduleModal] = React.useState(false)
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-GB', {
@@ -73,20 +71,8 @@ export function FixedAssetsTable({
     }).format(value)
   }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP'
-    }).format(value)
-  }
-
   const formatDate = (date: Date | string) => {
     return new Intl.DateTimeFormat('en-GB').format(new Date(date))
-  }
-
-  const handleViewSchedule = (asset: AssetWithPeriodCalculations) => {
-    setSelectedAsset(asset)
-    setShowScheduleModal(true)
   }
 
   const columns: ColumnDef<AssetWithPeriodCalculations>[] = [
@@ -171,11 +157,12 @@ export function FixedAssetsTable({
 
             <DropdownMenuContent align='end'>
               <DropdownMenuItem
-                onClick={() => {
-                  // future: open depreciation schedule modal
+                onClick={e => {
+                  e.stopPropagation()
+                  onViewSchedule(row.original)
                 }}
               >
-                View depreciation
+                <span className='text-blue-600'>View depreciation</span>
               </DropdownMenuItem>
 
               {onEdit && (
@@ -496,15 +483,6 @@ export function FixedAssetsTable({
           </Button>
         </div>
       </div>
-
-      {/* Depreciation Schedule Modal */}
-      {/* {selectedAsset && (
-        <DepreciationScheduleModal
-          asset={selectedAsset}
-          open={showScheduleModal}
-          onClose={() => setShowScheduleModal(false)}
-        />
-      )} */}
     </div>
   )
 }

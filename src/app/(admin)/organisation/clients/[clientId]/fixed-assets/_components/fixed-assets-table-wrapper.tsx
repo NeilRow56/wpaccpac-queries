@@ -14,16 +14,17 @@ import { AssetFormValues } from '@/zod-schemas/fixedAssets'
 
 import { AssetForm } from './asset-form'
 import { AccountingPeriod } from '@/db/schema'
-import { AssetWithPeriodCalculations } from '@/lib/types/fixed-assets'
+
 import {
   AssetWithCalculations,
-  DepreciationMethod
+  AssetWithPeriodCalculations,
+  AssetWithPeriodUI
 } from '@/lib/asset-calculations'
+import { DepreciationScheduleModal } from './depreciation-schedule-modal'
 
 interface FixedAssetsTableWrapperProps {
   assets: AssetWithPeriodCalculations[]
   period: AccountingPeriod
-
   clientId: string
   clientName: string
 
@@ -36,9 +37,8 @@ interface FixedAssetsTableWrapperProps {
 
 export function FixedAssetsTableWrapper({
   assets,
-
+  period,
   clientId,
-
   categories
 }: FixedAssetsTableWrapperProps) {
   const router = useRouter()
@@ -48,7 +48,7 @@ export function FixedAssetsTableWrapper({
 
   const [showCreateModal, setShowCreateModal] = React.useState(false)
   const [showEditModal, setShowEditModal] = React.useState(false)
-
+  const [showScheduleModal, setShowScheduleModal] = React.useState(false)
   /* -----------------------------
      CREATE
   ----------------------------- */
@@ -70,6 +70,11 @@ export function FixedAssetsTableWrapper({
     } catch {
       toast.error('An unexpected error occurred')
     }
+  }
+
+  const handleViewSchedule = (asset: AssetWithPeriodCalculations) => {
+    setSelectedAsset(asset)
+    setShowScheduleModal(true)
   }
 
   /* -----------------------------
@@ -144,7 +149,24 @@ export function FixedAssetsTableWrapper({
         }}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onViewSchedule={handleViewSchedule} // ✅ ADD THIS
       />
+
+      {showScheduleModal && selectedAsset && (
+        <DepreciationScheduleModal
+          asset={toPeriodUIAsset(selectedAsset)}
+          period={{
+            startDate: new Date(period.startDate),
+            endDate: new Date(period.endDate),
+            name: period.periodName
+          }}
+          open
+          onClose={() => {
+            setShowScheduleModal(false)
+            setSelectedAsset(null)
+          }}
+        />
+      )}
 
       <AssetForm
         mode='create'
@@ -175,6 +197,24 @@ export function FixedAssetsTableWrapper({
   )
 }
 
+export function toPeriodUIAsset(
+  asset: AssetWithPeriodCalculations
+): AssetWithPeriodUI {
+  return {
+    id: asset.id,
+    name: asset.name,
+    clientId: asset.clientId,
+
+    dateOfPurchase: new Date(asset.dateOfPurchase),
+    cost: Number(asset.cost),
+    depreciationRate: Number(asset.depreciationRate),
+
+    openingNBV: Number(asset.openingNBV),
+    depreciationForPeriod: Number(asset.depreciationForPeriod),
+    closingNBV: Number(asset.closingNBV)
+  }
+}
+
 function toEditableAsset(
   asset: AssetWithPeriodCalculations
 ): AssetWithCalculations {
@@ -190,9 +230,9 @@ function toEditableAsset(
     name: asset.name,
     clientId: asset.clientId,
 
-    categoryId: asset.categoryId,
+    categoryId: asset.category?.id ?? null,
     categoryName: asset.category?.name ?? null,
-    description: asset.description ?? null,
+    description: null,
 
     dateOfPurchase: new Date(asset.dateOfPurchase),
 
@@ -202,18 +242,13 @@ function toEditableAsset(
     adjustedCost,
 
     depreciationRate: Number(asset.depreciationRate),
-    depreciationMethod: asset.depreciationMethod as DepreciationMethod,
+    depreciationMethod: asset.depreciationMethod,
 
     totalDepreciationToDate: totalDep,
+    disposalValue: asset.disposalValue ? Number(asset.disposalValue) : null,
 
-    disposalValue:
-      asset.disposalValue !== null && asset.disposalValue !== undefined
-        ? Number(asset.disposalValue)
-        : null,
-
-    // Required by AssetWithCalculations (not used in edit form)
-    daysSinceAcquisition: 0,
-    depreciationForPeriod: 0,
-    netBookValue: Math.max(0, adjustedCost - totalDep - depreciationAdjustment)
+    daysSinceAcquisition: 0, // not needed for schedule
+    depreciationForPeriod: asset.depreciationForPeriod,
+    netBookValue: asset.closingNBV
   }
 }

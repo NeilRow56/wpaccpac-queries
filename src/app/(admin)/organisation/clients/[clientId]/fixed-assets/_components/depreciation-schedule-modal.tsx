@@ -20,11 +20,16 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
-import { AssetWithCalculations } from '@/lib/asset-calculations'
+import { AssetWithPeriodUI } from '@/lib/asset-calculations'
 import { exportTableToPDF } from '@/lib/pdf/export-table-to-pdf'
 
 interface DepreciationScheduleModalProps {
-  asset: AssetWithCalculations
+  asset: AssetWithPeriodUI
+  period: {
+    startDate: Date
+    endDate: Date
+    name?: string
+  }
   open: boolean
   onClose: () => void
 }
@@ -40,6 +45,7 @@ interface ScheduleEntry {
 
 export function DepreciationScheduleModal({
   asset,
+  period,
   open,
   onClose
 }: DepreciationScheduleModalProps) {
@@ -52,46 +58,16 @@ export function DepreciationScheduleModal({
   const formatDate = (date: Date) =>
     new Intl.DateTimeFormat('en-GB').format(date)
 
-  const generateSchedule = (): ScheduleEntry[] => {
-    const schedule: ScheduleEntry[] = []
-    const purchaseDate = new Date(asset.dateOfPurchase)
-    const adjustedCost = asset.cost + asset.costAdjustment
-    const annualDepreciation = (adjustedCost * asset.depreciationRate) / 100
-
-    let currentBalance = adjustedCost
-    let year = 0
-
-    // Generate schedule for the asset's useful life (until NBV reaches 0 or disposal value)
-    while (currentBalance > 0 && year < 50) {
-      // Max 50 years
-      const startDate = new Date(purchaseDate)
-      startDate.setFullYear(purchaseDate.getFullYear() + year)
-
-      const endDate = new Date(purchaseDate)
-      endDate.setFullYear(purchaseDate.getFullYear() + year + 1)
-      endDate.setDate(endDate.getDate() - 1) // Last day of the period
-
-      const openingBalance = currentBalance
-      const depreciation = Math.min(annualDepreciation, currentBalance)
-      const closingBalance = Math.max(0, currentBalance - depreciation)
-
-      schedule.push({
-        year: year + 1,
-        startDate,
-        endDate,
-        openingBalance,
-        depreciation,
-        closingBalance
-      })
-
-      currentBalance = closingBalance
-      year++
-
-      if (closingBalance === 0) break
+  const generateSchedule = () => [
+    {
+      year: 1,
+      startDate: period.startDate,
+      endDate: period.endDate,
+      openingBalance: asset.openingNBV,
+      depreciation: asset.depreciationForPeriod,
+      closingBalance: asset.closingNBV
     }
-
-    return schedule
-  }
+  ]
 
   const schedule = generateSchedule()
 
@@ -203,7 +179,7 @@ export function DepreciationScheduleModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className='max-h-[90vh] max-w-5xl overflow-y-auto'>
+      <DialogContent className='max-h-[90vh] min-w-3xl overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>Depreciation Schedule - {asset.name}</DialogTitle>
           <DialogDescription>
@@ -232,7 +208,7 @@ export function DepreciationScheduleModal({
             <div>
               <p className='text-muted-foreground text-sm'>Current NBV</p>
               <p className='text-lg font-semibold'>
-                {formatGBP(asset.netBookValue)}
+                {formatGBP(asset.closingNBV)}
               </p>
             </div>
           </div>

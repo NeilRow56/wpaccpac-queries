@@ -81,8 +81,11 @@ export default async function FixedAssetsPage({
 
   const enrichedAssets = assetsWithCategory.map(asset =>
     enrichAssetWithPeriodCalculations(asset, {
-      startDate: new Date(period.startDate),
-      endDate: new Date(period.endDate)
+      period: {
+        startDate: new Date(period.startDate),
+        endDate: new Date(period.endDate)
+      },
+      depreciationByAssetId
     })
   )
 
@@ -118,18 +121,7 @@ export default async function FixedAssetsPage({
         clientName={client.name}
         categories={categories}
       />
-      <div className='text-muted-foreground mt-6 flex-col space-x-4 pl-8'>
-        {/* <span className='text-red-600'>NB: </span>
-        <p className='text-red-500'>
-          These values are estimated Accumulated Depreciation and Net Book
-          Values as at the current date
-        </p>
-
-        <p className='pt-4'>
-          Any problems please contact:
-          <span className='pl-2 text-blue-600'>admin@wpaccpac.org</span>
-        </p> */}
-      </div>
+      <div className='text-muted-foreground mt-6 flex-col space-x-4 pl-8'></div>
     </div>
   )
 }
