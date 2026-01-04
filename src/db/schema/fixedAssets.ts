@@ -8,8 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
-  uniqueIndex,
-  varchar
+  uniqueIndex
 } from 'drizzle-orm/pg-core'
 import { clients } from './clients'
 import { accountingPeriods } from './accountingPeriods'

@@ -35,7 +35,7 @@ export async function exportTableToPDF<T>({
     orientation
   })
 
-  const pageWidth = doc.internal.pageSize.getWidth()
+  // const pageWidth = doc.internal.pageSize.getWidth()
 
   /* -----------------------------
      Header

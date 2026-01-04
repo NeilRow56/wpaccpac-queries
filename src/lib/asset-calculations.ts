@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // lib/asset-calculations.ts
 
 import { DepreciationEntry } from '@/db/schema'
@@ -168,11 +167,13 @@ export interface AssetWithCalculations {
   netBookValue: number
 }
 
-export function enrichAssetWithCalculations(asset: any): AssetWithCalculations {
+export function enrichAssetWithCalculations(
+  asset: AssetWithCategory
+): AssetWithCalculations {
   const cost = Number(asset.cost)
-  const costAdjustment = Number(asset.costAdjustment || 0)
-  const depreciationAdjustment = Number(asset.depreciationAdjustment || 0)
-  const totalDepreciationToDate = Number(asset.totalDepreciationToDate || 0)
+  const costAdjustment = Number(asset.costAdjustment ?? 0)
+  const depreciationAdjustment = Number(asset.depreciationAdjustment ?? 0)
+  const totalDepreciationToDate = Number(asset.totalDepreciationToDate ?? 0)
 
   const adjustedCost = cost + costAdjustment
 
@@ -181,24 +182,26 @@ export function enrichAssetWithCalculations(asset: any): AssetWithCalculations {
     costAdjustment,
     totalDepreciationToDate,
     depreciationAdjustment,
-    0 // ❗ NO period depreciation here
+    0
   )
 
   return {
     id: asset.id,
     name: asset.name,
     clientId: asset.clientId,
-    categoryId: asset.categoryId,
+
+    categoryId: asset.category?.id ?? null,
     categoryName: asset.category?.name ?? null,
-    description: asset.description ?? null,
+    description: null,
 
     dateOfPurchase: new Date(asset.dateOfPurchase),
+
     cost,
     costAdjustment,
     depreciationAdjustment,
 
     depreciationRate: Number(asset.depreciationRate),
-    depreciationMethod: asset.depreciationMethod as DepreciationMethod,
+    depreciationMethod: asset.depreciationMethod,
 
     totalDepreciationToDate,
     disposalValue: asset.disposalValue ? Number(asset.disposalValue) : null,
@@ -206,7 +209,8 @@ export function enrichAssetWithCalculations(asset: any): AssetWithCalculations {
     daysSinceAcquisition: calculateDaysSinceAcquisition(
       new Date(asset.dateOfPurchase)
     ),
-    depreciationForPeriod: asset.depreciationForPeriod, // ✅ now valid
+
+    depreciationForPeriod: 0,
     adjustedCost,
     netBookValue
   }
