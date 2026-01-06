@@ -28,3 +28,32 @@ export const accountingPeriodFormSchema = z
 export type AccountingPeriodFormValues = z.infer<
   typeof accountingPeriodFormSchema
 >
+
+// DB server boundary Schemas
+export const createAccountingPeriodSchema = z.object({
+  clientId: z.uuid(),
+  periodName: z.string().min(1),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  isCurrent: z.boolean().default(false)
+})
+
+export const closeAccountingPeriodSchema = z.object({
+  periodId: z.uuid(),
+  clientId: z.uuid()
+})
+
+export type CloseAccountingPeriodInput = z.infer<
+  typeof closeAccountingPeriodSchema
+>
+
+export const rollAccountingPeriodSchema = z
+  .object({
+    clientId: z.uuid(),
+    periodName: z.string().min(1),
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date()
+  })
+  .refine(d => d.endDate > d.startDate, {
+    message: 'End date must be after start date'
+  })

@@ -1,11 +1,11 @@
 // app/actions/asset-actions.ts
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { db } from '@/db'
+import { fixedAssets as fixedAssetsTable } from '@/db/schema'
 
 import { eq } from 'drizzle-orm'
-import { db } from '@/db'
-import { fixedAssets } from '@/db/schema'
+import { revalidatePath } from 'next/cache'
 
 export async function createAsset(data: {
   name: string
@@ -22,20 +22,22 @@ export async function createAsset(data: {
   disposalValue?: string
 }) {
   try {
-    await db.insert(fixedAssets).values({
-      name: data.name,
-      clientId: data.clientId,
-      categoryId: data.categoryId,
-      description: data.description || null,
-      cost: data.cost,
-      dateOfPurchase: data.dateOfPurchase,
-      costAdjustment: data.costAdjustment || '0',
-      depreciationAdjustment: data.depreciationAdjustment || '0',
-      depreciationMethod: data.depreciationMethod,
-      depreciationRate: data.depreciationRate,
-      totalDepreciationToDate: data.totalDepreciationToDate || '0',
-      disposalValue: data.disposalValue || null
-    })
+    await db.insert(fixedAssetsTable).values([
+      {
+        name: data.name,
+        clientId: data.clientId,
+        categoryId: data.categoryId,
+        description: data.description ?? null,
+        cost: data.cost,
+        dateOfPurchase: data.dateOfPurchase,
+        costAdjustment: data.costAdjustment ?? '0',
+        depreciationAdjustment: data.depreciationAdjustment ?? '0',
+        depreciationMethod: data.depreciationMethod,
+        depreciationRate: data.depreciationRate,
+        totalDepreciationToDate: data.totalDepreciationToDate ?? '0',
+        disposalValue: data.disposalValue ?? null
+      }
+    ])
 
     revalidatePath('/fixed-assets')
     return { success: true }
@@ -62,22 +64,24 @@ export async function updateAsset(data: {
 }) {
   try {
     await db
-      .update(fixedAssets)
+      .update(fixedAssetsTable)
       .set({
         name: data.name,
         clientId: data.clientId,
-        categoryId: data.categoryId,
-        description: data.description || null,
+        ...(data.categoryId !== undefined && {
+          categoryId: data.categoryId
+        }),
+        description: data.description ?? null,
         cost: data.cost,
         dateOfPurchase: data.dateOfPurchase,
-        costAdjustment: data.costAdjustment || '0',
+        costAdjustment: data.costAdjustment ?? '0',
         depreciationMethod: data.depreciationMethod,
-        depreciationAdjustment: data.depreciationAdjustment || '0',
+        depreciationAdjustment: data.depreciationAdjustment ?? '0',
         depreciationRate: data.depreciationRate,
-        totalDepreciationToDate: data.totalDepreciationToDate || '0',
-        disposalValue: data.disposalValue || null
+        totalDepreciationToDate: data.totalDepreciationToDate ?? '0',
+        disposalValue: data.disposalValue ?? null
       })
-      .where(eq(fixedAssets.id, data.id))
+      .where(eq(fixedAssetsTable.id, data.id))
 
     revalidatePath('/fixed-assets')
     return { success: true }
@@ -89,7 +93,7 @@ export async function updateAsset(data: {
 
 export async function deleteAsset(id: string) {
   try {
-    await db.delete(fixedAssets).where(eq(fixedAssets.id, id))
+    await db.delete(fixedAssetsTable).where(eq(fixedAssetsTable.id, id))
 
     revalidatePath('/fixed-assets')
     return { success: true }

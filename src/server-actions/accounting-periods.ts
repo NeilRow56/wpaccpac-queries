@@ -10,37 +10,60 @@ import {
 } from '@/lib/asset-calculations'
 import { db } from '@/db'
 import {
+  AccountingPeriod,
   accountingPeriods as accountingPeriodsTable,
   depreciationEntries,
   fixedAssets
 } from '@/db/schema'
+import {
+  // closeAccountingPeriodSchema,
+  rollAccountingPeriodSchema
+} from '@/zod-schemas/accountingPeriod'
 
 export async function createAccountingPeriod(data: {
   clientId: string
   periodName: string
   startDate: string
   endDate: string
-  isCurrent?: boolean
 }) {
-  try {
-    // If setting as current, unset other current periods
-    if (data.isCurrent) {
-      await db
-        .update(accountingPeriodsTable)
-        .set({ isCurrent: false })
-        .where(eq(accountingPeriodsTable.clientId, data.clientId))
-    }
+  // before insert
+  const overlapping = await db
+    .select()
+    .from(accountingPeriodsTable)
+    .where(
+      and(
+        eq(accountingPeriodsTable.clientId, data.clientId),
+        sql`
+      daterange(
+        ${accountingPeriodsTable.startDate},
+        ${accountingPeriodsTable.endDate},
+        '[]'
+      ) && daterange(${data.startDate}, ${data.endDate}, '[]')
+    `
+      )
+    )
 
+  if (overlapping.length > 0) {
+    throw new Error('Accounting period overlaps an existing period')
+  }
+
+  // unset existing current
+  await db
+    .update(accountingPeriodsTable)
+    .set({ isCurrent: false })
+    .where(eq(accountingPeriodsTable.clientId, data.clientId))
+  try {
     await db.insert(accountingPeriodsTable).values({
       clientId: data.clientId,
       periodName: data.periodName,
       startDate: data.startDate,
       endDate: data.endDate,
-      isCurrent: data.isCurrent ?? false,
+      isCurrent: true,
       isOpen: true
     })
 
-    revalidatePath('/fixed-assets/periods')
+    revalidatePath('/accounting-periods')
+
     return { success: true }
   } catch (error) {
     console.error('Error creating period:', error)
@@ -62,8 +85,19 @@ export async function updateAccountingPeriod(data: {
       .from(accountingPeriodsTable)
       .where(eq(accountingPeriodsTable.id, data.id))
 
+    // 1. Period must exist
     if (!period) {
-      return { success: false, error: 'Period not found' }
+      throw new Error('Period not found')
+    }
+
+    // 2. Closed periods are immutable
+    if (!period.isOpen) {
+      throw new Error('Closed accounting periods cannot be modified')
+    }
+
+    // 3. Current implies open
+    if (data.isCurrent && data.isOpen === false) {
+      throw new Error('A current period must be open')
     }
 
     // If setting as current, unset other current periods
@@ -90,7 +124,8 @@ export async function updateAccountingPeriod(data: {
       })
       .where(eq(accountingPeriodsTable.id, data.id))
 
-    revalidatePath('/fixed-assets/periods')
+    revalidatePath('/accounting-periods')
+
     return { success: true }
   } catch (error) {
     console.error('Error updating period:', error)
@@ -130,6 +165,10 @@ export async function calculatePeriodDepreciationForClient(
 
     if (!period) {
       return { success: false, error: 'Period not found' }
+    }
+
+    if (!period.isOpen) {
+      throw new Error('Cannot calculate depreciation for a closed period')
     }
 
     // Get all assets for this client
@@ -204,7 +243,8 @@ export async function calculatePeriodDepreciationForClient(
         })
     }
 
-    revalidatePath('/fixed-assets/periods')
+    revalidatePath('/accounting-periods')
+
     return { success: true, entriesCreated: entries.length }
   } catch (error) {
     console.error('Error calculating period depreciation:', error)
@@ -212,60 +252,163 @@ export async function calculatePeriodDepreciationForClient(
   }
 }
 
-export async function closePeriod(periodId: string) {
-  try {
-    // Mark period as closed
-    await db
-      .update(accountingPeriodsTable)
-      .set({ isOpen: false })
-      .where(eq(accountingPeriodsTable.id, periodId))
+/* ----------------------------------
+ * Get accounting period by ID
+ * ---------------------------------- */
 
-    // Update totalDepreciationToDate for all assets
-    const entries = await db
-      .select()
-      .from(depreciationEntries)
-      .where(eq(depreciationEntries.periodId, periodId))
+export async function getAccountingPeriodById(
+  periodId: string
+): Promise<AccountingPeriod | null> {
+  const period = await db.query.accountingPeriods.findFirst({
+    where: eq(accountingPeriodsTable.id, periodId)
+  })
 
-    for (const entry of entries) {
-      await db
-        .update(fixedAssets)
-        .set({
-          totalDepreciationToDate: sql`${fixedAssets.totalDepreciationToDate} + ${entry.depreciationAmount}`
-        })
-        .where(eq(fixedAssets.id, entry.assetId))
+  return period ?? null
+}
+
+export async function getCurrentAccountingPeriod(
+  clientId: string
+): Promise<AccountingPeriod | null> {
+  const periods = await db
+    .select()
+    .from(accountingPeriodsTable)
+    .where(
+      and(
+        eq(accountingPeriodsTable.clientId, clientId),
+        eq(accountingPeriodsTable.isCurrent, true)
+      )
+    )
+
+  if (periods.length > 1) {
+    throw new Error(
+      `Invariant violation: multiple current accounting periods for client ${clientId}`
+    )
+  }
+
+  return periods[0] ?? null
+}
+
+// Per ChatGPT
+
+// export async function closeAccountingPeriod(input: unknown) {
+//   const data = closeAccountingPeriodSchema.parse(input)
+
+//   return await db.transaction(async tx => {
+//     // 1. Load the period
+//     const period = await tx.query.accountingPeriods.findFirst({
+//       where: and(
+//         eq(accountingPeriodsTable.id, data.periodId),
+//         eq(accountingPeriodsTable.clientId, data.clientId)
+//       )
+//     })
+
+//     if (!period) {
+//       throw new Error('Accounting period not found')
+//     }
+
+//     if (!period.isOpen) {
+//       throw new Error('Accounting period is already closed')
+//     }
+
+//     // 2. Close it
+//     await tx
+//       .update(accountingPeriodsTable)
+//       .set({
+//         isOpen: false,
+//         isCurrent: false
+//       })
+//       .where(eq(accountingPeriodsTable.id, period.id))
+
+//     revalidatePath('/fixed-assets/periods')
+//     return { success: true }
+//   })
+// }
+
+// app/actions/period-actions.ts
+
+export async function closeAccountingPeriodAction(input: {
+  clientId: string
+  periodId: string
+}) {
+  return await db.transaction(async tx => {
+    const period = await tx.query.accountingPeriods.findFirst({
+      where: and(
+        eq(accountingPeriodsTable.id, input.periodId),
+        eq(accountingPeriodsTable.clientId, input.clientId)
+      )
+    })
+
+    if (!period) {
+      throw new Error('Accounting period not found')
     }
 
-    revalidatePath('/fixed-assets/periods')
-    revalidatePath('/fixed-assets')
+    if (!period.isOpen) {
+      throw new Error('Accounting period is already closed')
+    }
+
+    if (!period.isCurrent) {
+      throw new Error('Only the current period can be closed')
+    }
+
+    await tx
+      .update(accountingPeriodsTable)
+      .set({
+        isOpen: false,
+        isCurrent: false
+      })
+      .where(eq(accountingPeriodsTable.id, period.id))
+
+    revalidatePath('/accounting-periods')
+
     return { success: true }
-  } catch (error) {
-    console.error('Error closing period:', error)
-    return { success: false, error: 'Failed to close period' }
-  }
+  })
 }
 
-export async function getAccountingPeriodById(periodId: string) {
-  try {
-    const accountingPeriodById = await db.query.accountingPeriods.findFirst({
-      where: eq(accountingPeriodsTable.id, periodId)
+export async function rollAccountingPeriod(input: unknown) {
+  const data = rollAccountingPeriodSchema.parse(input)
+
+  return await db.transaction(async tx => {
+    // 1. Close existing current period
+    const current = await tx.query.accountingPeriods.findFirst({
+      where: and(
+        eq(accountingPeriodsTable.clientId, data.clientId),
+        eq(accountingPeriodsTable.isCurrent, true)
+      )
     })
 
-    return accountingPeriodById
-  } catch (error) {
-    console.error(error)
-    return null
-  }
-}
-export async function getCurrentAccountingPeriod(clientId: string) {
-  try {
-    const currentaccountingPeriod = await db.query.accountingPeriods.findFirst({
-      where: (cap, { eq, and }) =>
-        and(eq(cap.clientId, clientId), eq(cap.isCurrent, true))
+    if (current) {
+      if (!current.isOpen) {
+        throw new Error('Current period is already closed')
+      }
+
+      await tx
+        .update(accountingPeriodsTable)
+        .set({
+          isOpen: false,
+          isCurrent: false
+        })
+        .where(eq(accountingPeriodsTable.id, current.id))
+    }
+
+    // 2. Create new period
+    await db.insert(accountingPeriodsTable).values({
+      clientId: data.clientId,
+      periodName: data.periodName,
+      startDate:
+        typeof data.startDate === 'string'
+          ? data.startDate
+          : data.startDate.toISOString().slice(0, 10),
+      endDate:
+        typeof data.endDate === 'string'
+          ? data.endDate
+          : data.endDate.toISOString().slice(0, 10),
+      isOpen: true,
+      // isCurrent: true
+      isCurrent: true
     })
 
-    return currentaccountingPeriod
-  } catch (error) {
-    console.error(error)
-    return null
-  }
+    revalidatePath('/accounting-periods')
+
+    return { success: true }
+  })
 }

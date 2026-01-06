@@ -57,13 +57,15 @@ export function AccountingPeriodsClient({
     React.useState<AccountingPeriod | null>(null)
   const [showCreateModal, setShowCreateModal] = React.useState(false)
   const [showEditModal, setShowEditModal] = React.useState(false)
-  const [selectedClient] = React.useState<string>('all')
+  // const [selectedClient] = React.useState<string>('all')
 
   // Filter periods by selected client
-  const filteredPeriods =
-    selectedClient === 'all'
-      ? periods
-      : periods.filter(p => p.clientId === selectedClient)
+  // const filteredPeriods =
+  //   selectedClient === 'all'
+  //     ? periods
+  //     : periods.filter(p => p.clientId === selectedClient)
+
+  const filteredPeriods = periods
 
   // Get client name helper
   //   const getClientName = (clientId: string) => {
