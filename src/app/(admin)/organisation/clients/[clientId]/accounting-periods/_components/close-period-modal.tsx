@@ -29,7 +29,7 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
       <div className='w-[420px] space-y-4 rounded-lg bg-white p-6'>
         <h2 className='text-lg font-semibold'>Close Accounting Period</h2>
 
-        <p className='text-muted text-sm'>
+        <p className='text-sm'>
           This will permanently close the accounting period
           <strong> {period.periodName}</strong>.
         </p>
@@ -39,11 +39,7 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
         </p>
 
         <div className='flex justify-end gap-2 pt-4'>
-          <button
-            className='rounded border px-4 py-2'
-            onClick={onClose}
-            disabled={isPending}
-          >
+          <button onClick={onClose} disabled={isPending}>
             Cancel
           </button>
 

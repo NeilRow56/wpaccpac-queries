@@ -330,38 +330,38 @@ export async function closeAccountingPeriodAction(input: {
   clientId: string
   periodId: string
 }) {
-  return await db.transaction(async tx => {
-    const period = await tx.query.accountingPeriods.findFirst({
-      where: and(
-        eq(accountingPeriodsTable.id, input.periodId),
-        eq(accountingPeriodsTable.clientId, input.clientId)
-      )
-    })
-
-    if (!period) {
-      throw new Error('Accounting period not found')
-    }
-
-    if (!period.isOpen) {
-      throw new Error('Accounting period is already closed')
-    }
-
-    if (!period.isCurrent) {
-      throw new Error('Only the current period can be closed')
-    }
-
-    await tx
-      .update(accountingPeriodsTable)
-      .set({
-        isOpen: false,
-        isCurrent: false
-      })
-      .where(eq(accountingPeriodsTable.id, period.id))
-
-    revalidatePath('/accounting-periods')
-
-    return { success: true }
+  // 1. Load period
+  const period = await db.query.accountingPeriods.findFirst({
+    where: and(
+      eq(accountingPeriodsTable.id, input.periodId),
+      eq(accountingPeriodsTable.clientId, input.clientId)
+    )
   })
+
+  if (!period) {
+    throw new Error('Accounting period not found')
+  }
+
+  if (!period.isOpen) {
+    throw new Error('Accounting period is already closed')
+  }
+
+  if (!period.isCurrent) {
+    throw new Error('Only the current period can be closed')
+  }
+
+  // 2. Close it (single atomic update)
+  await db
+    .update(accountingPeriodsTable)
+    .set({
+      isOpen: false,
+      isCurrent: false
+    })
+    .where(eq(accountingPeriodsTable.id, period.id))
+
+  revalidatePath('/accounting-periods')
+
+  return { success: true }
 }
 
 export async function rollAccountingPeriod(input: unknown) {

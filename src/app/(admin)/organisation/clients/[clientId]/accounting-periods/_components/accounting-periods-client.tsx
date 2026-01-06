@@ -29,6 +29,7 @@ import {
   deleteAccountingPeriod,
   updateAccountingPeriod
 } from '@/server-actions/accounting-periods'
+import { ClosePeriodModal } from './close-period-modal'
 
 interface AccountingPeriod {
   id: string
@@ -57,6 +58,11 @@ export function AccountingPeriodsClient({
     React.useState<AccountingPeriod | null>(null)
   const [showCreateModal, setShowCreateModal] = React.useState(false)
   const [showEditModal, setShowEditModal] = React.useState(false)
+
+  const [showCloseModal, setShowCloseModal] = React.useState(false)
+  const [periodToClose, setPeriodToClose] =
+    React.useState<AccountingPeriod | null>(null)
+
   // const [selectedClient] = React.useState<string>('all')
 
   // Filter periods by selected client
@@ -66,6 +72,15 @@ export function AccountingPeriodsClient({
   //     : periods.filter(p => p.clientId === selectedClient)
 
   const filteredPeriods = periods
+
+  const currentPeriod = filteredPeriods.find(p => p.isCurrent)
+  // const [selectedClient] = React.useState<string>('all')
+
+  // Filter periods by selected client
+  // const filteredPeriods =
+  //   selectedClient === 'all'
+  //     ? periods
+  //     : periods.filter(p => p.clientId === selectedClient)
 
   // Get client name helper
   //   const getClientName = (clientId: string) => {
@@ -155,13 +170,23 @@ export function AccountingPeriodsClient({
       <div className='space-y-4'>
         {/* Header with filters and actions */}
         <div className='flex items-center justify-between'>
+          {!currentPeriod && (
+            <div className='rounded-md border border-yellow-300 bg-yellow-50 p-4 text-sm'>
+              <strong>No current accounting period.</strong> Please create a new
+              period to continue posting activity.
+            </div>
+          )}
+
           <div className='flex items-center gap-4'>
             <p className='text-muted-foreground text-sm'>
               {filteredPeriods.length}{' '}
               {filteredPeriods.length === 1 ? 'period' : 'periods'}
             </p>
           </div>
-          <Button onClick={() => setShowCreateModal(true)}>
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            disabled={!!currentPeriod}
+          >
             <Plus className='mr-2 h-4 w-4' />
             Create Period
           </Button>
@@ -252,7 +277,7 @@ export function AccountingPeriodsClient({
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem
                             onClick={() => handleEdit(period)}
-                            // disabled={!period.isOpen}
+                            disabled={!period.isOpen}
                           >
                             <Pencil className='mr-2 h-4 w-4' />
                             Edit
@@ -266,6 +291,20 @@ export function AccountingPeriodsClient({
                             <Trash2 className='mr-2 h-4 w-4' />
                             Delete
                           </DropdownMenuItem>
+                          {period.isCurrent && period.isOpen && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className='text-red-600'
+                                onClick={() => {
+                                  setPeriodToClose(period)
+                                  setShowCloseModal(true)
+                                }}
+                              >
+                                Close period
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -296,6 +335,17 @@ export function AccountingPeriodsClient({
         clientId={clientId}
         mode='edit'
       />
+      {showCloseModal && periodToClose && (
+        <ClosePeriodModal
+          period={periodToClose}
+          clientId={clientId}
+          onClose={() => {
+            setShowCloseModal(false)
+            setPeriodToClose(null)
+            router.refresh()
+          }}
+        />
+      )}
     </>
   )
 }
