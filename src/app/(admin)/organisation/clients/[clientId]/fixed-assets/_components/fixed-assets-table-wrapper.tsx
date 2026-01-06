@@ -56,7 +56,14 @@ export function FixedAssetsTableWrapper({
     try {
       const result = await createAsset({
         ...values,
-        clientId
+        clientId,
+
+        // ✅ normalize optional → required
+        categoryId: values.categoryId ?? '',
+        costAdjustment: values.costAdjustment ?? '0',
+        depreciationAdjustment: values.depreciationAdjustment ?? '0',
+        totalDepreciationToDate: values.totalDepreciationToDate ?? '0',
+        disposalValue: values.disposalValue ?? '0'
       })
 
       if (!result.success) {
@@ -87,7 +94,15 @@ export function FixedAssetsTableWrapper({
 
   const handleUpdate = async (values: AssetFormValues & { id: string }) => {
     try {
-      const result = await updateAsset(values)
+      const result = await updateAsset({
+        ...values,
+        clientId,
+
+        categoryId: values.categoryId ?? '',
+        costAdjustment: values.costAdjustment ?? '0',
+        depreciationAdjustment: values.depreciationAdjustment ?? '0',
+        disposalValue: values.disposalValue ?? '0'
+      })
 
       if (!result.success) {
         toast.error('Failed to update asset')
