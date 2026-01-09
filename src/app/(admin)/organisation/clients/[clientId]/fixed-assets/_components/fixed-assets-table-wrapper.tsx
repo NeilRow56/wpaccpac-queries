@@ -16,24 +16,22 @@ import {
 } from '@/server-actions/assets'
 
 import { AssetFormValues } from '@/zod-schemas/fixedAssets'
-
 import { AssetForm } from './asset-form'
-import { AccountingPeriod } from '@/db/schema'
+import { HistoricAssetForm } from './historic-asset-form'
+import { DepreciationScheduleModal } from './depreciation-schedule-modal'
 
+import { AccountingPeriod } from '@/db/schema'
 import {
   AssetWithCalculations,
   AssetWithPeriodCalculations,
-  AssetWithPeriodUI
+  AssetWithPeriodUI,
+  calculateDaysSinceAcquisition
 } from '@/lib/asset-calculations'
-import { DepreciationScheduleModal } from './depreciation-schedule-modal'
-import { HistoricAssetForm } from './historic-asset-form'
 
 interface FixedAssetsTableWrapperProps {
   assets: AssetWithPeriodCalculations[]
   period: AccountingPeriod
   clientId: string
-  clientName: string
-
   categories: Array<{
     id: string
     name: string
@@ -56,18 +54,22 @@ export function FixedAssetsTableWrapper({
   const [showEditModal, setShowEditModal] = React.useState(false)
   const [showScheduleModal, setShowScheduleModal] = React.useState(false)
   const [showHistoricModal, setShowHistoricModal] = React.useState(false)
+
   /* -----------------------------
      CREATE
   ----------------------------- */
   const handleCreate = async (values: AssetFormValues) => {
     try {
       const result = await createAsset({
-        ...values,
         clientId,
-
-        // ✅ normalize optional → required
+        name: values.name,
         categoryId: values.categoryId ?? '',
-        costAdjustment: values.costAdjustment ?? '0'
+        description: values.description,
+        acquisitionDate: values.acquisitionDate,
+        originalCost: values.originalCost,
+        costAdjustment: values.costAdjustment ?? '0',
+        depreciationMethod: values.depreciationMethod,
+        depreciationRate: values.depreciationRate
       })
 
       if (!result.success) {
@@ -83,6 +85,9 @@ export function FixedAssetsTableWrapper({
     }
   }
 
+  /* -----------------------------
+     VIEW SCHEDULE
+  ----------------------------- */
   const handleViewSchedule = (asset: AssetWithPeriodCalculations) => {
     setSelectedAsset(asset)
     setShowScheduleModal(true)
@@ -99,11 +104,16 @@ export function FixedAssetsTableWrapper({
   const handleUpdate = async (values: AssetFormValues & { id: string }) => {
     try {
       const result = await updateAsset({
-        ...values,
+        id: values.id,
         clientId,
-
+        name: values.name,
         categoryId: values.categoryId ?? '',
-        costAdjustment: values.costAdjustment ?? '0'
+        description: values.description,
+        acquisitionDate: values.acquisitionDate,
+        originalCost: values.originalCost,
+        costAdjustment: values.costAdjustment ?? '0',
+        depreciationMethod: values.depreciationMethod,
+        depreciationRate: values.depreciationRate
       })
 
       if (!result.success) {
@@ -155,6 +165,7 @@ export function FixedAssetsTableWrapper({
           <Button variant='outline' onClick={() => setShowHistoricModal(true)}>
             Add Historic Asset
           </Button>
+
           <Button onClick={() => setShowCreateModal(true)}>
             <Plus className='mr-2 h-4 w-4' />
             Create New Asset
@@ -171,7 +182,7 @@ export function FixedAssetsTableWrapper({
         }}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        onViewSchedule={handleViewSchedule} // ✅ ADD THIS
+        onViewSchedule={handleViewSchedule}
       />
 
       {showScheduleModal && selectedAsset && (
@@ -198,14 +209,18 @@ export function FixedAssetsTableWrapper({
         periodStartDate={new Date(period.startDate)}
         categories={categories}
         onSubmit={async values => {
-          const result = await createHistoricAsset(values) // your server action
-          if (!result.success) {
-            toast.error('Failed to create historic asset')
-            return
+          try {
+            const result = await createHistoricAsset(values)
+            if (!result.success) {
+              toast.error('Failed to create historic asset')
+              return
+            }
+            toast.success('Historic asset created')
+            setShowHistoricModal(false)
+            router.refresh()
+          } catch {
+            toast.error('An unexpected error occurred')
           }
-          toast.success('Historic asset created')
-          setShowHistoricModal(false)
-          router.refresh()
         }}
       />
 
@@ -214,7 +229,6 @@ export function FixedAssetsTableWrapper({
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreate}
-        // clients={clients}
         clientId={clientId}
         categories={categories}
       />
@@ -229,7 +243,6 @@ export function FixedAssetsTableWrapper({
             setSelectedAsset(null)
           }}
           onSubmit={handleUpdate}
-          // clients={clients}
           clientId={clientId}
           categories={categories}
         />
@@ -262,6 +275,11 @@ function toEditableAsset(
   const originalCost = Number(asset.originalCost)
   const costAdjustment = Number(asset.costAdjustment ?? 0)
 
+  const acquisitionDate =
+    typeof asset.acquisitionDate === 'string'
+      ? new Date(asset.acquisitionDate)
+      : asset.acquisitionDate
+
   const adjustedCost = originalCost + costAdjustment
 
   return {
@@ -272,18 +290,20 @@ function toEditableAsset(
     categoryId: asset.category?.id ?? null,
     categoryName: asset.category?.name ?? null,
     description: asset.description ?? '',
-    acquisitionDate: new Date(asset.acquisitionDate),
+
+    acquisitionDate,
 
     originalCost,
     costAdjustment,
 
-    adjustedCost,
-
     depreciationRate: Number(asset.depreciationRate),
     depreciationMethod: asset.depreciationMethod,
 
-    daysSinceAcquisition: 0, // not needed for schedule
-    depreciationForPeriod: asset.depreciationForPeriod,
-    netBookValue: asset.closingNBV
+    adjustedCost,
+
+    // This shape is for the edit form (master data), not period reporting:
+    daysSinceAcquisition: calculateDaysSinceAcquisition(acquisitionDate),
+    depreciationForPeriod: 0,
+    netBookValue: adjustedCost
   }
 }

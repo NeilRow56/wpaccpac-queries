@@ -27,7 +27,7 @@ export async function createAsset(data: {
   depreciationMethod: 'straight_line' | 'reducing_balance'
   // depreciationAdjustment: string
   depreciationRate: string
-  totalDepreciationToDate?: string
+  // totalDepreciationToDate?: string
   // disposalValue?: string
 }) {
   try {
@@ -42,8 +42,8 @@ export async function createAsset(data: {
         costAdjustment: data.costAdjustment ?? '0',
         // depreciationAdjustment: data.depreciationAdjustment ?? '0',
         depreciationMethod: data.depreciationMethod,
-        depreciationRate: data.depreciationRate,
-        totalDepreciationToDate: data.totalDepreciationToDate ?? '0'
+        depreciationRate: data.depreciationRate
+        // totalDepreciationToDate: data.totalDepreciationToDate ?? '0'
         // disposalValue: data.disposalValue ?? null
       }
     ])
@@ -68,7 +68,7 @@ export async function updateAsset(data: {
   depreciationMethod: 'straight_line' | 'reducing_balance'
 
   depreciationRate: string
-  totalDepreciationToDate?: string
+  // totalDepreciationToDate?: string
 }) {
   try {
     await db
@@ -85,8 +85,8 @@ export async function updateAsset(data: {
         costAdjustment: data.costAdjustment ?? '0',
         depreciationMethod: data.depreciationMethod,
 
-        depreciationRate: data.depreciationRate,
-        totalDepreciationToDate: data.totalDepreciationToDate ?? '0'
+        depreciationRate: data.depreciationRate
+        // totalDepreciationToDate: data.totalDepreciationToDate ?? '0'
       })
       .where(eq(fixedAssetsTable.id, data.id))
 

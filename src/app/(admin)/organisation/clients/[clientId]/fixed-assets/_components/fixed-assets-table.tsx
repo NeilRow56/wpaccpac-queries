@@ -1,4 +1,3 @@
-// components/fixed-assets-table.tsx
 'use client'
 
 import * as React from 'react'
@@ -6,6 +5,7 @@ import {
   ColumnDef,
   ColumnFiltersState,
   SortingState,
+  Table as TanstackTable,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -48,7 +48,18 @@ export interface FixedAssetsTableProps {
   onEdit?: (asset: AssetWithPeriodCalculations) => void
   onDelete?: (asset: AssetWithPeriodCalculations) => void
   onRowClick?: (asset: AssetWithPeriodCalculations) => void
-  onViewSchedule: (asset: AssetWithPeriodCalculations) => void // ✅
+  onViewSchedule: (asset: AssetWithPeriodCalculations) => void
+}
+
+const EPS = 0.00001
+
+function sumFiltered<TData>(
+  table: TanstackTable<TData>,
+  pick: (row: TData) => number
+) {
+  return table
+    .getFilteredRowModel()
+    .rows.reduce((acc, r) => acc + (pick(r.original) || 0), 0)
 }
 
 export function FixedAssetsTable({
@@ -64,6 +75,11 @@ export function FixedAssetsTable({
   )
   const [globalFilter, setGlobalFilter] = React.useState('')
 
+  // Column visibility (used for conditional disclosure)
+  const [columnVisibility, setColumnVisibility] = React.useState<
+    Record<string, boolean>
+  >({})
+
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-GB', {
       minimumFractionDigits: 0,
@@ -75,221 +91,303 @@ export function FixedAssetsTable({
     return new Intl.DateTimeFormat('en-GB').format(new Date(date))
   }
 
-  const columns: ColumnDef<AssetWithPeriodCalculations>[] = [
-    {
-      accessorKey: 'name',
-      header: () => (
-        <div className='text-primary text-left font-bold'>Asset</div>
-      ),
-      cell: ({ row }) => (
-        <div className='font-medium'>{row.getValue('name')}</div>
-      )
-    },
-    {
-      accessorKey: 'category.name',
-      header: () => (
-        <div className='text-primary text-left font-bold'>Category</div>
-      ),
-      cell: ({ row }) => row.original.category?.name ?? '—'
-    },
-    {
-      accessorKey: 'acquisitionDate',
-      header: () => (
-        <div className='text-primary text-left font-bold'>Purchase date</div>
-      ),
-      cell: ({ row }) => formatDate(row.original.acquisitionDate)
-    },
-    {
-      accessorKey: 'openingCost',
-      header: () => (
-        <div className='text-primary text-right font-bold'>Cost (£)</div>
-      ),
-      cell: ({ row }) => (
-        <div className='text-right'>
-          {formatNumber(Number(row.original.openingCost))}
-        </div>
-      )
-    },
-    {
-      accessorKey: 'costAdjustment',
-      header: () => (
-        <div className='text-primary text-right font-bold'>Adjustment (£)</div>
-      ),
-      cell: ({ row }) => (
-        <div className='text-right'>
-          {formatNumber(Number(row.original.costAdjustment))}
-        </div>
-      )
-    },
-    {
-      accessorKey: 'additionsAtCost',
-      header: () => (
-        <div className='text-primary text-right font-bold'>Additions (£)</div>
-      ),
-      cell: ({ row }) => (
-        <div className='text-right'>
-          {formatNumber(Number(row.original.additionsAtCost))}
-        </div>
-      )
-    },
-    {
-      accessorKey: 'disposalsAtCost',
-      header: () => (
-        <div className='text-primary text-right font-bold'>Disposals (£)</div>
-      ),
-      cell: ({ row }) => (
-        <div className='text-right'>
-          {formatNumber(Number(row.original.disposalsAtCost))}
-        </div>
-      )
-    },
-    {
-      id: 'totalCost',
-      header: () => (
-        <div className='text-primary text-right font-bold'>Total cost (£)</div>
-      ),
-      cell: ({ row }) => {
-        const total =
-          Number(row.original.originalCost) +
-          Number(row.original.costAdjustment)
+  const columns: ColumnDef<AssetWithPeriodCalculations>[] = React.useMemo(
+    () => [
+      {
+        accessorKey: 'name',
+        header: () => (
+          <div className='text-primary text-left font-bold'>Asset</div>
+        ),
+        cell: ({ row }) => (
+          <div className='font-medium'>{row.getValue('name')}</div>
+        ),
+        footer: () => <div className='font-bold'>Totals (£)</div>
+      },
+      {
+        accessorKey: 'category.name',
+        header: () => (
+          <div className='text-primary text-left font-bold'>Category</div>
+        ),
+        cell: ({ row }) => row.original.category?.name ?? '—',
+        footer: () => null
+      },
+      {
+        accessorKey: 'acquisitionDate',
+        header: () => (
+          <div className='text-primary text-left font-bold'>Purchase date</div>
+        ),
+        cell: ({ row }) => formatDate(row.original.acquisitionDate),
+        footer: () => null
+      },
 
-        return <div className='text-right'>{formatNumber(total)}</div>
-      }
-    },
-    {
-      accessorKey: 'openingAccumulatedDepreciation',
-      header: () => (
-        <div className='text-primary text-right font-bold'>
-          Acc. Dep&apos;n b/fwd (£)
-        </div>
-      ),
-      cell: ({ row }) => (
-        <div className='text-right'>
-          {formatNumber(row.original.openingAccumulatedDepreciation)}
-        </div>
-      )
-    },
-    {
-      accessorKey: 'depreciationForPeriod',
-      header: () => (
-        <div className='text-primary text-right font-bold'>Charge (£)</div>
-      ),
-      cell: ({ row }) => (
-        <div className='text-right'>
-          {formatNumber(row.original.depreciationForPeriod)}
-        </div>
-      )
-    },
-    {
-      accessorKey: 'depreciationOnDisposals',
-      header: () => (
-        <div className='text-primary text-right font-bold'>Disposals (£)</div>
-      ),
-      cell: ({ row }) => (
-        <div className='text-right'>
-          {formatNumber(row.original.depreciationOnDisposals)}
-        </div>
-      )
-    },
-    {
-      accessorKey: 'closingAccumulatedDepreciation',
-      header: () => (
-        <div className='text-primary text-right font-bold'>
-          Acc. Dep&apos;n c/fwd (£)
-        </div>
-      ),
-      cell: ({ row }) => (
-        <div className='text-right'>
-          {formatNumber(row.original.closingAccumulatedDepreciation)}
-        </div>
-      )
-    },
+      // ---------------- COST ----------------
+      {
+        accessorKey: 'openingCost',
+        header: () => (
+          <div className='text-primary text-right font-bold'>Cost (£)</div>
+        ),
+        cell: ({ row }) => (
+          <div className='text-right'>
+            {formatNumber(Number(row.original.openingCost))}
+          </div>
+        ),
+        footer: ({ table }) => (
+          <div className='text-right font-bold'>
+            {formatNumber(sumFiltered(table, a => Number(a.openingCost)))}
+          </div>
+        )
+      },
+      {
+        accessorKey: 'costAdjustmentForPeriod',
+        header: () => (
+          <div className='text-primary text-right font-bold'>
+            Adjustment (£)
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className='text-right'>
+            {formatNumber(Number(row.original.costAdjustmentForPeriod))}
+          </div>
+        ),
+        footer: ({ table }) => (
+          <div className='text-right font-bold'>
+            {formatNumber(
+              sumFiltered(table, a => Number(a.costAdjustmentForPeriod))
+            )}
+          </div>
+        )
+      },
 
-    {
-      accessorKey: 'openingNBV',
+      {
+        accessorKey: 'additionsAtCost',
+        header: () => (
+          <div className='text-primary text-right font-bold'>Additions (£)</div>
+        ),
+        cell: ({ row }) => (
+          <div className='text-right'>
+            {formatNumber(Number(row.original.additionsAtCost))}
+          </div>
+        ),
+        footer: ({ table }) => (
+          <div className='text-right font-bold'>
+            {formatNumber(sumFiltered(table, a => Number(a.additionsAtCost)))}
+          </div>
+        )
+      },
+      {
+        accessorKey: 'disposalsAtCost',
+        header: () => (
+          <div className='text-primary text-right font-bold'>Disposals (£)</div>
+        ),
+        cell: ({ row }) => (
+          <div className='text-right'>
+            {formatNumber(Number(row.original.disposalsAtCost))}
+          </div>
+        ),
+        footer: ({ table }) => (
+          <div className='text-right font-bold'>
+            {formatNumber(sumFiltered(table, a => Number(a.disposalsAtCost)))}
+          </div>
+        )
+      },
+      {
+        accessorKey: 'closingCost',
+        header: () => (
+          <div className='text-primary text-right font-bold'>
+            Total cost (£)
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className='text-right'>
+            {formatNumber(Number(row.original.closingCost))}
+          </div>
+        ),
+        footer: ({ table }) => (
+          <div className='text-right font-bold'>
+            {formatNumber(sumFiltered(table, a => Number(a.closingCost)))}
+          </div>
+        )
+      },
 
-      header: () => (
-        <div className='text-primary text-right font-bold'>Opening NBV (£)</div>
-      ),
-      cell: ({ row }) => (
-        <div className='text-right'>
-          {formatNumber(row.original.openingNBV)}
-        </div>
-      )
-    },
+      // ------------- DEPRECIATION -------------
+      {
+        accessorKey: 'openingAccumulatedDepreciation',
+        header: () => (
+          <div className='text-primary text-right font-bold'>
+            Acc. Dep&apos;n b/fwd (£)
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className='text-right'>
+            {formatNumber(Number(row.original.openingAccumulatedDepreciation))}
+          </div>
+        ),
+        footer: ({ table }) => (
+          <div className='text-right font-bold'>
+            {formatNumber(
+              sumFiltered(table, a => Number(a.openingAccumulatedDepreciation))
+            )}
+          </div>
+        )
+      },
+      {
+        accessorKey: 'depreciationForPeriod',
+        header: () => (
+          <div className='text-primary text-right font-bold'>Charge (£)</div>
+        ),
+        cell: ({ row }) => (
+          <div className='text-right'>
+            {formatNumber(Number(row.original.depreciationForPeriod))}
+          </div>
+        ),
+        footer: ({ table }) => (
+          <div className='text-right font-bold'>
+            {formatNumber(
+              sumFiltered(table, a => Number(a.depreciationForPeriod))
+            )}
+          </div>
+        )
+      },
+      {
+        accessorKey: 'depreciationOnDisposals',
+        header: () => (
+          <div className='text-primary text-right font-bold'>Disposals (£)</div>
+        ),
+        cell: ({ row }) => (
+          <div className='text-right'>
+            {formatNumber(Number(row.original.depreciationOnDisposals))}
+          </div>
+        ),
+        footer: ({ table }) => (
+          <div className='text-right font-bold'>
+            {formatNumber(
+              sumFiltered(table, a => Number(a.depreciationOnDisposals))
+            )}
+          </div>
+        )
+      },
+      {
+        accessorKey: 'closingAccumulatedDepreciation',
+        header: () => (
+          <div className='text-primary text-right font-bold'>
+            Acc. Dep&apos;n c/fwd (£)
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className='text-right'>
+            {formatNumber(Number(row.original.closingAccumulatedDepreciation))}
+          </div>
+        ),
+        footer: ({ table }) => (
+          <div className='text-right font-bold'>
+            {formatNumber(
+              sumFiltered(table, a => Number(a.closingAccumulatedDepreciation))
+            )}
+          </div>
+        )
+      },
 
-    {
-      accessorKey: 'closingNBV',
-      header: () => (
-        <div className='text-primary text-right font-bold'>Closing NBV (£)</div>
-      ),
-      cell: ({ row }) => (
-        <div className='text-right font-medium'>
-          {formatNumber(row.original.closingNBV)}
-        </div>
-      )
-    },
+      // ---------------- NBV ----------------
+      {
+        accessorKey: 'openingNBV',
+        header: () => (
+          <div className='text-primary text-right font-bold'>
+            Opening NBV (£)
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className='text-right'>
+            {formatNumber(Number(row.original.openingNBV))}
+          </div>
+        ),
+        footer: ({ table }) => (
+          <div className='text-right font-bold'>
+            {formatNumber(sumFiltered(table, a => Number(a.openingNBV)))}
+          </div>
+        )
+      },
+      {
+        accessorKey: 'closingNBV',
+        header: () => (
+          <div className='text-primary text-right font-bold'>
+            Closing NBV (£)
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className='text-right font-medium'>
+            {formatNumber(Number(row.original.closingNBV))}
+          </div>
+        ),
+        footer: ({ table }) => (
+          <div className='text-right font-bold'>
+            {formatNumber(sumFiltered(table, a => Number(a.closingNBV)))}
+          </div>
+        )
+      },
 
-    {
-      id: 'actions',
-      header: () => (
-        <div className='text-left font-bold text-blue-600'>Actions</div>
-      ),
-      cell: ({ row }) => {
-        // const asset = row.original
+      // ---------------- ACTIONS ----------------
+      {
+        id: 'actions',
+        header: () => (
+          <div className='text-left font-bold text-blue-600'>Actions</div>
+        ),
+        cell: ({ row }) => {
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant='ghost'
+                  className='h-8 w-8 p-0'
+                  onClick={e => e.stopPropagation()}
+                >
+                  <MoreHorizontal className='h-4 w-4' />
+                </Button>
+              </DropdownMenuTrigger>
 
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant='ghost'
-                className='h-8 w-8 p-0'
-                onClick={e => e.stopPropagation()}
-              >
-                <MoreHorizontal className='h-4 w-4' />
-              </Button>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent align='end'>
-              <DropdownMenuItem
-                className='text-blue-600'
-                onClick={e => {
-                  e.stopPropagation()
-                  onViewSchedule(row.original)
-                }}
-              >
-                View depreciation
-              </DropdownMenuItem>
-
-              {onEdit && (
+              <DropdownMenuContent align='end'>
                 <DropdownMenuItem
+                  className='text-blue-600'
                   onClick={e => {
                     e.stopPropagation()
-                    onEdit?.(row.original)
+                    onViewSchedule(row.original)
                   }}
                 >
-                  <Pencil className='mr-2 h-4 w-4' />
-                  Edit
+                  View depreciation
                 </DropdownMenuItem>
-              )}
 
-              {onDelete && (
-                <DropdownMenuItem
-                  className='text-red-600'
-                  onClick={() => onDelete(row.original)}
-                >
-                  <Trash2 className='mr-2 h-4 w-4' />
-                  Delete
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )
+                {onEdit && (
+                  <DropdownMenuItem
+                    onClick={e => {
+                      e.stopPropagation()
+                      onEdit?.(row.original)
+                    }}
+                  >
+                    <Pencil className='mr-2 h-4 w-4' />
+                    Edit
+                  </DropdownMenuItem>
+                )}
+
+                {onDelete && (
+                  <DropdownMenuItem
+                    className='text-red-600'
+                    onClick={() => onDelete(row.original)}
+                  >
+                    <Trash2 className='mr-2 h-4 w-4' />
+                    Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
+        },
+        footer: () => null
       }
-    }
-  ]
+    ],
 
-  const table = useReactTable({
+    [onEdit, onDelete, onViewSchedule]
+  )
+
+  const table = useReactTable<AssetWithPeriodCalculations>({
     data: assets,
     columns,
     onSortingChange: setSorting,
@@ -299,19 +397,78 @@ export function FixedAssetsTable({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onGlobalFilterChange: setGlobalFilter,
+    onColumnVisibilityChange: setColumnVisibility,
     state: {
       sorting,
       columnFilters,
-      globalFilter
+      globalFilter,
+      columnVisibility
     },
     initialState: {
-      pagination: {
-        pageSize: 20
-      }
+      pagination: { pageSize: 20 }
     }
   })
 
-  // Calculate totals from filtered rows
+  // ---- Conditional disclosure: hide numeric columns when total == 0 (filtered view) ----
+  React.useEffect(() => {
+    const rows = table.getFilteredRowModel().rows
+
+    const totalsById: Record<string, number> = {
+      openingCost: rows.reduce((a, r) => a + Number(r.original.openingCost), 0),
+      costAdjustmentForPeriod: rows.reduce(
+        (a, r) => a + Number(r.original.costAdjustmentForPeriod),
+        0
+      ),
+      additionsAtCost: rows.reduce(
+        (a, r) => a + Number(r.original.additionsAtCost),
+        0
+      ),
+      disposalsAtCost: rows.reduce(
+        (a, r) => a + Number(r.original.disposalsAtCost),
+        0
+      ),
+      closingCost: rows.reduce((a, r) => a + Number(r.original.closingCost), 0),
+
+      openingAccumulatedDepreciation: rows.reduce(
+        (a, r) => a + Number(r.original.openingAccumulatedDepreciation),
+        0
+      ),
+      depreciationForPeriod: rows.reduce(
+        (a, r) => a + Number(r.original.depreciationForPeriod),
+        0
+      ),
+      depreciationOnDisposals: rows.reduce(
+        (a, r) => a + Number(r.original.depreciationOnDisposals),
+        0
+      ),
+      closingAccumulatedDepreciation: rows.reduce(
+        (a, r) => a + Number(r.original.closingAccumulatedDepreciation),
+        0
+      ),
+
+      openingNBV: rows.reduce((a, r) => a + Number(r.original.openingNBV), 0),
+      closingNBV: rows.reduce((a, r) => a + Number(r.original.closingNBV), 0)
+    }
+
+    const alwaysShow = new Set<string>([
+      'openingCost',
+      'closingCost',
+      'openingAccumulatedDepreciation',
+      'depreciationForPeriod',
+      'closingAccumulatedDepreciation',
+      'openingNBV',
+      'closingNBV'
+    ])
+
+    const nextVisibility: Record<string, boolean> = {}
+    for (const [id, total] of Object.entries(totalsById)) {
+      nextVisibility[id] = alwaysShow.has(id) ? true : Math.abs(total) > EPS
+    }
+
+    setColumnVisibility(prev => ({ ...prev, ...nextVisibility }))
+  }, [table])
+
+  // Totals for exports (keep your minimal set for now)
   const totals = table.getFilteredRowModel().rows.reduce(
     (acc, row) => ({
       openingNBV: acc.openingNBV + row.original.openingNBV,
@@ -320,18 +477,14 @@ export function FixedAssetsTable({
     }),
     { openingNBV: 0, depreciation: 0, closingNBV: 0 }
   )
+
   const exportToPDF = async () => {
     await exportTableToPDF<AssetWithPeriodCalculations>({
       title: 'Fixed Assets Register',
       subtitle: `Period ending ${new Date().toLocaleDateString('en-GB')}`,
       fileName: 'fixed-assets-register.pdf',
-
       columns: [
-        {
-          header: 'Asset',
-          accessor: a => a.name,
-          width: 35
-        },
+        { header: 'Asset', accessor: a => a.name, width: 35 },
         {
           header: 'Category',
           accessor: a => a.category?.name ?? '—',
@@ -355,21 +508,13 @@ export function FixedAssetsTable({
           width: 25
         },
         {
-          header: 'Depreciation (£)',
-          accessor: a => formatGBP(a.depreciationForPeriod),
-          align: 'right',
-          width: 25
-        },
-        {
           header: 'Closing NBV (£)',
           accessor: a => formatGBP(a.closingNBV),
           align: 'right',
           width: 28
         }
       ],
-
       rows: table.getFilteredRowModel().rows.map(r => r.original),
-
       totals: {
         'Opening NBV (£)': totals.openingNBV,
         'Depreciation (£)': totals.depreciation,
@@ -422,16 +567,13 @@ export function FixedAssetsTable({
       { wch: 15 },
       { wch: 18 },
       { wch: 15 },
-      { wch: 25 },
-      { wch: 25 },
-      { wch: 20 }
+      { wch: 18 }
     ]
 
-    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }]
+    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }]
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Fixed Assets')
-
     XLSX.writeFile(workbook, 'fixed-assets-register.xlsx')
   }
 
@@ -451,9 +593,7 @@ export function FixedAssetsTable({
           </div>
           <Select
             value={`${table.getState().pagination.pageSize}`}
-            onValueChange={value => {
-              table.setPageSize(Number(value))
-            }}
+            onValueChange={value => table.setPageSize(Number(value))}
           >
             <SelectTrigger className='w-[130px]'>
               <SelectValue placeholder='Page size' />
@@ -482,7 +622,7 @@ export function FixedAssetsTable({
       {/* Table */}
       <div className='rounded-md border'>
         <Table>
-          <TableHeader className=''>
+          <TableHeader>
             {table.getHeaderGroups().map(headerGroup => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
@@ -498,6 +638,7 @@ export function FixedAssetsTable({
               </TableRow>
             ))}
           </TableHeader>
+
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map(row => (
@@ -524,7 +665,7 @@ export function FixedAssetsTable({
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={table.getVisibleLeafColumns().length}
                   className='h-24 text-center'
                 >
                   No results.
@@ -532,30 +673,23 @@ export function FixedAssetsTable({
               </TableRow>
             )}
           </TableBody>
+
+          {/* Footers align perfectly to visible columns */}
           <TableFooter className='bg-gray-100'>
-            <TableRow>
-              <TableCell colSpan={3} className='font-bold'>
-                Totals (£)
-              </TableCell>
-              <TableCell colSpan={1} className='font-bold'></TableCell>
-              <TableCell colSpan={1} className='font-bold'></TableCell>
-              <TableCell colSpan={1} className='font-bold'></TableCell>
-              <TableCell colSpan={1} className='font-bold'></TableCell>
-              <TableCell colSpan={1} className='font-bold'></TableCell>
-              <TableCell colSpan={1} className='font-bold'></TableCell>
-              <TableCell className='text-right font-bold'>
-                {formatNumber(totals.depreciation)}
-              </TableCell>
-              <TableCell colSpan={1} className='font-bold'></TableCell>
-              <TableCell colSpan={1} className='font-bold'></TableCell>
-              <TableCell className='text-right font-bold'>
-                {formatNumber(totals.openingNBV)}
-              </TableCell>
-              <TableCell className='text-right font-bold'>
-                {formatNumber(totals.closingNBV)}
-              </TableCell>
-              <TableCell />
-            </TableRow>
+            {table.getFooterGroups().map(footerGroup => (
+              <TableRow key={footerGroup.id}>
+                {footerGroup.headers.map(header => (
+                  <TableCell key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.footer,
+                          header.getContext()
+                        )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
           </TableFooter>
         </Table>
       </div>

@@ -5,6 +5,9 @@ import { eq, sql } from 'drizzle-orm'
 import { accountingPeriods, clients } from '@/db/schema'
 import { db } from '@/db'
 import { AccountingPeriodsClient } from './_components/accounting-periods-client'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { ArrowLeft } from 'lucide-react'
 
 export default async function AccountingPeriodsPage({
   params
@@ -40,13 +43,14 @@ export default async function AccountingPeriodsPage({
   return (
     <div className='container mx-auto py-10'>
       <div className='mb-8'>
-        <h1 className='text-3xl font-bold'>Accounting Periods</h1>
-        <p className='text-muted-foreground/60 mt-2 flex flex-col'>
-          <span className='text-primary text-xl'>
-            {' '}
-            {client?.name || clientId}
-          </span>
-        </p>
+        <h1 className='text-xl font-bold'>Accounting Periods</h1>
+
+        <Link href={`/organisation/clients/${clientId}/fixed-assets`}>
+          <Button variant='ghost' className='mb-4'>
+            <ArrowLeft className='mr-2 h-4 w-4' />
+            <span className='text-primary'>Back to Assets</span>
+          </Button>
+        </Link>
       </div>
       <AccountingPeriodsClient
         periods={allPeriods}
@@ -55,11 +59,22 @@ export default async function AccountingPeriodsPage({
       />
       <div className='text-muted-foreground mt-6 flex-col space-x-4 pl-8'>
         <span className='text-red-600'>NB: </span>
-        <p>
-          Once a period is closed it cannot be deleted. In case a period was
-          closed in error the edit function is still available. Any data
-          relating to a deleted period will be removed from the database.
-        </p>
+        <div className='flex flex-col space-y-2'>
+          <span>
+            The control of accounting periods is fundamental to protecting the
+            accuracy of your client data.
+          </span>
+          <span>Only one period can be current.</span>
+          <span>
+            We suggest leaving a period open until you are ready to commence the
+            following financial period, or you are absolutely sure there will be
+            no further adjustments.
+          </span>
+          <span>
+            The closing of a period is when depreciation values are locked.
+          </span>
+          <span>Once a period is closed it cannot be reopened or deleted.</span>
+        </div>
 
         <p className='pt-4'>
           Any problems please contact:

@@ -3,12 +3,11 @@
 import { enrichAssetWithPeriodCalculations } from '@/lib/asset-calculations'
 
 import { eq } from 'drizzle-orm'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { FolderTree, Calendar } from 'lucide-react'
+
 import { db } from '@/db'
 import {
   assetCategories,
+  assetPeriodBalances,
   clients,
   depreciationEntries,
   fixedAssets
@@ -28,43 +27,53 @@ export default async function FixedAssetsPage({
   if (!period) {
     return <div>No open accounting period</div>
   }
-  const [rawAssets, client, categories, periodEntries] = await Promise.all([
-    // Assets + category
-    db
-      .select({
-        asset: fixedAssets,
-        category: assetCategories
-      })
-      .from(fixedAssets)
-      .leftJoin(assetCategories, eq(fixedAssets.categoryId, assetCategories.id))
-      .where(eq(fixedAssets.clientId, clientId)),
+  const [rawAssets, client, categories, periodEntries, periodBalances] =
+    await Promise.all([
+      // Assets + category
+      db
+        .select({
+          asset: fixedAssets,
+          category: assetCategories
+        })
+        .from(fixedAssets)
+        .leftJoin(
+          assetCategories,
+          eq(fixedAssets.categoryId, assetCategories.id)
+        )
+        .where(eq(fixedAssets.clientId, clientId)),
 
-    // Client
-    db
-      .select({
-        id: clients.id,
-        name: clients.name
-      })
-      .from(clients)
-      .where(eq(clients.id, clientId))
-      .then(rows => rows[0]),
+      // Client
+      db
+        .select({
+          id: clients.id,
+          name: clients.name
+        })
+        .from(clients)
+        .where(eq(clients.id, clientId))
+        .then(rows => rows[0]),
 
-    // Categories for client
-    db
-      .select({
-        id: assetCategories.id,
-        name: assetCategories.name,
-        clientId: assetCategories.clientId
-      })
-      .from(assetCategories)
-      .where(eq(assetCategories.clientId, clientId)),
+      // Categories for client
+      db
+        .select({
+          id: assetCategories.id,
+          name: assetCategories.name,
+          clientId: assetCategories.clientId
+        })
+        .from(assetCategories)
+        .where(eq(assetCategories.clientId, clientId)),
 
-    // depreciation entries for this period
-    db
-      .select()
-      .from(depreciationEntries)
-      .where(eq(depreciationEntries.periodId, period.id))
-  ])
+      // depreciation entries for this period
+      db
+        .select()
+        .from(depreciationEntries)
+        .where(eq(depreciationEntries.periodId, period.id)),
+
+      // ✅ balances for this period
+      db
+        .select()
+        .from(assetPeriodBalances)
+        .where(eq(assetPeriodBalances.periodId, period.id))
+    ])
 
   if (!client) {
     return <div>Client not found</div>
@@ -79,13 +88,16 @@ export default async function FixedAssetsPage({
     category: row.category
   }))
 
+  const balancesByAssetId = new Map(periodBalances.map(b => [b.assetId, b]))
+
   const enrichedAssets = assetsWithCategory.map(asset =>
     enrichAssetWithPeriodCalculations(asset, {
       period: {
         startDate: new Date(period.startDate),
         endDate: new Date(period.endDate)
       },
-      depreciationByAssetId
+      depreciationByAssetId,
+      balancesByAssetId // ✅ add
     })
   )
 
@@ -93,32 +105,19 @@ export default async function FixedAssetsPage({
     <div className='container mx-auto py-10'>
       <div className='mb-8 flex items-center justify-between'>
         <div>
-          <h1 className='text-3xl font-bold'>Fixed Assets Register</h1>
+          <h2 className='text-primary text-lg font-bold'>
+            Fixed Assets Register
+          </h2>
           <p className='text-muted-foreground mt-2'>
-            View and manage your organisation&apos;s fixed assets with real-time
+            View and manage your client&apos;s fixed assets with real-time
             depreciation calculations
           </p>
-        </div>
-        <div className='flex gap-2'>
-          <Link href={`/organisation/clients/${clientId}/asset-categories`}>
-            <Button variant='outline'>
-              <FolderTree className='mr-2 h-4 w-4' />
-              Manage Categories
-            </Button>
-          </Link>
-          <Link href={`/organisation/clients/${clientId}/accounting-periods`}>
-            <Button variant='outline'>
-              <Calendar className='mr-2 h-4 w-4' />
-              Manage Periods
-            </Button>
-          </Link>
         </div>
       </div>
       <FixedAssetsTableWrapper
         assets={enrichedAssets}
         period={period}
         clientId={client.id}
-        clientName={client.name}
         categories={categories}
       />
       <div className='text-muted-foreground mt-6 flex-col space-x-4 pl-8'></div>

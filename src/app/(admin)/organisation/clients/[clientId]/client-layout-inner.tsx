@@ -24,5 +24,5 @@ export default function ClientLayoutInner({
     return () => setSlots({})
   }, [clientId, setSlots])
 
-  return <div className='space-y-4'>{children}</div>
+  return <div>{children}</div>
 }

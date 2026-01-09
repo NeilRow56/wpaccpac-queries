@@ -54,28 +54,22 @@ export const createHistoricAssetSchema = assetBaseSchema
     periodId: z.string().min(1),
     openingAccumulatedDepreciation: requiredMoneyString
   })
-  .superRefine((val, ctx) => {
-    const cost = Number(val.originalCost || '0')
-    const adj = Number(val.costAdjustment || '0')
-    const openingDep = Number(val.openingAccumulatedDepreciation || '0')
-    const adjustedCost = cost + adj
-
-    if (openingDep < 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['openingAccumulatedDepreciation'],
-        message: 'Opening accumulated depreciation cannot be negative.'
-      })
-    }
-
-    if (openingDep > adjustedCost) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['openingAccumulatedDepreciation'],
-        message:
-          'Opening accumulated depreciation cannot exceed cost (including cost adjustment).'
-      })
-    }
+  .refine(val => Number(val.openingAccumulatedDepreciation || '0') >= 0, {
+    path: ['openingAccumulatedDepreciation'],
+    message: 'Opening accumulated depreciation cannot be negative.'
   })
+  .refine(
+    val => {
+      const cost = Number(val.originalCost || '0')
+      const adj = Number(val.costAdjustment || '0')
+      const openingDep = Number(val.openingAccumulatedDepreciation || '0')
+      return openingDep <= cost + adj
+    },
+    {
+      path: ['openingAccumulatedDepreciation'],
+      message:
+        'Opening accumulated depreciation cannot exceed cost (including cost adjustment).'
+    }
+  )
 
 export type CreateHistoricAssetInput = z.infer<typeof createHistoricAssetSchema>

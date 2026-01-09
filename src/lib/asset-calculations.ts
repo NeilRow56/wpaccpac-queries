@@ -1,6 +1,6 @@
 // lib/asset-calculations.ts
 
-import { DepreciationEntry } from '@/db/schema'
+import { AssetPeriodBalances, DepreciationEntry } from '@/db/schema'
 import { AssetWithCategory } from './types/fixed-assets'
 
 /* ----------------------------------
@@ -8,18 +8,6 @@ import { AssetWithCategory } from './types/fixed-assets'
  * ---------------------------------- */
 
 export type DepreciationMethod = 'straight_line' | 'reducing_balance'
-
-export interface PeriodDepreciationParams {
-  cost: number
-  costAdjustment: number
-  depreciationAdjustment: number
-  depreciationRate: number
-  method: DepreciationMethod
-  periodStartDate: Date
-  periodEndDate: Date
-  purchaseDate: Date
-  totalDepreciationToDate: number
-}
 
 export interface AssetWithCalculations {
   id: string
@@ -31,7 +19,7 @@ export interface AssetWithCalculations {
   categoryName?: string | null
 
   originalCost: number
-  costAdjustment: number
+  costAdjustment: number // master-level (legacy-ish): treat as historic adjustments only
 
   acquisitionDate: Date
 
@@ -40,6 +28,8 @@ export interface AssetWithCalculations {
 
   adjustedCost: number
   daysSinceAcquisition: number
+
+  // Placeholders for non-period contexts (edit forms etc)
   depreciationForPeriod: number
   netBookValue: number
 }
@@ -91,29 +81,33 @@ export function calculateReducingBalanceDepreciation(
 
 /* ----------------------------------
  * Period depreciation (CANONICAL)
+ *
+ * Rules:
+ * - Straight-line uses ORIGINAL COST (not adjusted cost)
+ * - Reducing balance uses OPENING NBV
+ * - Cost adjustments in the current period do NOT affect the depreciation base
+ *   (they appear as period movements only).
  * ---------------------------------- */
 
 export function calculatePeriodDepreciation(params: {
   originalCost: number
-  costAdjustment: number
-  depreciationAdjustment: number
+  openingCost: number
+  openingAccumulatedDepreciation: number
   depreciationRate: number
   method: DepreciationMethod
   periodStartDate: Date
   periodEndDate: Date
   acquisitionDate: Date
-  totalDepreciationToDate: number
 }): number {
   const {
     originalCost,
-    costAdjustment,
-    depreciationAdjustment,
+    openingCost,
+    openingAccumulatedDepreciation,
     depreciationRate,
     method,
     periodStartDate,
     periodEndDate,
-    acquisitionDate,
-    totalDepreciationToDate
+    acquisitionDate
   } = params
 
   const daysInPeriod = calculateDaysInPeriod(
@@ -124,16 +118,13 @@ export function calculatePeriodDepreciation(params: {
 
   if (daysInPeriod <= 0) return 0
 
-  const adjustedCost = originalCost + costAdjustment
-  const openingNBV =
-    adjustedCost - (totalDepreciationToDate + depreciationAdjustment)
-
+  const openingNBV = Math.max(0, openingCost - openingAccumulatedDepreciation)
   if (openingNBV <= 0) return 0
 
   const depreciation =
     method === 'straight_line'
       ? calculateStraightLineDepreciation(
-          adjustedCost,
+          originalCost,
           depreciationRate,
           daysInPeriod
         )
@@ -143,33 +134,20 @@ export function calculatePeriodDepreciation(params: {
           daysInPeriod
         )
 
+  // Never depreciate below zero NBV
   return Math.min(depreciation, openingNBV)
 }
 
 /* ----------------------------------
- * Net Book Value
+ * UI enrichment (master-data only)
+ * Used for edit forms etc (NOT period reporting)
  * ---------------------------------- */
-
-export function calculateNetBookValue(
-  cost: number,
-  costAdjustment: number,
-  totalDepreciationToDate: number,
-  depreciationAdjustment: number,
-  depreciationForPeriod: number
-): number {
-  const adjustedCost = cost + costAdjustment
-  const accumulatedDepreciation =
-    totalDepreciationToDate + depreciationAdjustment + depreciationForPeriod
-  return Math.max(0, adjustedCost - accumulatedDepreciation)
-}
 
 export function enrichAssetWithCalculations(
   asset: AssetWithCategory
 ): AssetWithCalculations {
   const originalCost = Number(asset.originalCost ?? 0)
-  const costAdjustment = Number(asset.costAdjustment ?? 0)
-  const depreciationAdjustment = 0
-  const totalDepreciationToDate = Number(asset.totalDepreciationToDate ?? 0)
+  const costAdjustment = Number(asset.costAdjustment ?? 0) // treat as historic adjustments at master level
 
   const acquisitionDate =
     typeof asset.acquisitionDate === 'string'
@@ -178,13 +156,7 @@ export function enrichAssetWithCalculations(
 
   const adjustedCost = originalCost + costAdjustment
 
-  const netBookValue = Math.max(
-    0,
-    adjustedCost - (totalDepreciationToDate + depreciationAdjustment)
-  )
-
   return {
-    // 🔒 Preserve DB fields
     id: asset.id,
     name: asset.name,
     description: asset.description ?? '',
@@ -201,11 +173,12 @@ export function enrichAssetWithCalculations(
 
     acquisitionDate,
 
-    // ✅ Derived fields
     adjustedCost,
     daysSinceAcquisition: calculateDaysSinceAcquisition(acquisitionDate),
+
+    // Neutral placeholders — true values are period-based
     depreciationForPeriod: 0,
-    netBookValue
+    netBookValue: adjustedCost
   }
 }
 
@@ -217,6 +190,8 @@ export interface AssetWithPeriodCalculations extends AssetWithCategory {
   openingCost: number
   additionsAtCost: number
   disposalsAtCost: number
+
+  costAdjustmentForPeriod: number // ✅ add
   closingCost: number
 
   openingAccumulatedDepreciation: number
@@ -229,22 +204,33 @@ export interface AssetWithPeriodCalculations extends AssetWithCategory {
   closingNBV: number
 }
 
+/**
+ * Notes on cost adjustments:
+ * - Opening cost BFWD should include historic purchase cost + historic adjustments.
+ * - Current-period adjustments should be recorded in asset_period_balances.costAdjustment
+ *   and shown only in that period.
+ *
+ * Transitional fallback:
+ * - If no balance row exists, we interpret fixed_assets.costAdjustment as "historic adjustments"
+ *   and treat it as BFWD when acquisitionDate < periodStart, otherwise as a current-period adjustment
+ *   if the asset is acquired in-period (rare in practice, but keeps behaviour sane).
+ */
 export function enrichAssetWithPeriodCalculations(
   asset: AssetWithCategory,
   context: {
     period: { startDate: Date; endDate: Date }
     depreciationByAssetId: Map<string, DepreciationEntry>
+    balancesByAssetId: Map<string, AssetPeriodBalances>
   }
 ): AssetWithPeriodCalculations {
   const { startDate, endDate } = context.period
-  const entry = context.depreciationByAssetId.get(asset.id)
 
-  // 🔒 Normalise ONCE
-  const originalCost = Number(asset.originalCost)
-  const costAdjustment = Number(asset.costAdjustment ?? 0)
-  const depreciationAdjustment = 0
-  const totalDepreciationToDate = Number(asset.totalDepreciationToDate ?? 0)
-  const depreciationRate = Number(asset.depreciationRate)
+  const entry = context.depreciationByAssetId.get(asset.id)
+  const balance = context.balancesByAssetId.get(asset.id)
+
+  const originalCost = Number(asset.originalCost ?? 0)
+  const masterCostAdjustment = Number(asset.costAdjustment ?? 0) // transitional only
+  const depreciationRate = Number(asset.depreciationRate ?? 0)
 
   const acquisitionDate =
     typeof asset.acquisitionDate === 'string'
@@ -253,38 +239,51 @@ export function enrichAssetWithPeriodCalculations(
 
   /* ---------------- COST ---------------- */
 
-  const adjustedCost = originalCost + costAdjustment
+  // If we have a balance row, it is the source of truth for BFWD and in-period movements.
+  // If not, we derive from acquisition date + master fields.
 
-  const openingCost = acquisitionDate < startDate ? adjustedCost : 0
-
-  const additionsAtCost =
-    acquisitionDate >= startDate && acquisitionDate <= endDate
-      ? adjustedCost
+  const openingCost = balance
+    ? Number(balance.costBfwd) // should already include historic adjustments
+    : acquisitionDate < startDate
+      ? originalCost + masterCostAdjustment // treat master adjustment as historic BFWD
       : 0
 
-  const disposalsAtCost = 0 // (no disposalDate yet)
+  const additionsAtCost = balance
+    ? Number(balance.additions)
+    : acquisitionDate >= startDate && acquisitionDate <= endDate
+      ? originalCost // additions at cost = purchase cost
+      : 0
 
-  const closingCost = openingCost + additionsAtCost - disposalsAtCost
+  const disposalsAtCost = balance ? Number(balance.disposalsCost) : 0
+  const costAdjustmentForPeriod = balance ? Number(balance.costAdjustment) : 0
+  const closingCost =
+    openingCost + additionsAtCost + costAdjustmentForPeriod - disposalsAtCost
 
   /* ------------ DEPRECIATION ------------ */
 
-  const openingAccumulatedDepreciation =
-    acquisitionDate < startDate
-      ? totalDepreciationToDate + depreciationAdjustment
+  // BFWD depreciation:
+  // - If a balance row exists, use it.
+  // - Else (transitional), fall back to fixed_assets.totalDepreciationToDate for pre-period assets only.
+  const openingAccumulatedDepreciation = balance
+    ? Number(balance.depreciationBfwd)
+    : acquisitionDate < startDate
+      ? Number(asset.totalDepreciationToDate ?? 0)
       : 0
 
+  // Depreciation for period:
+  // - Use posted entry if exists.
+  // - Else calculate based on canonical base (original cost for SL; opening NBV for RB).
   const depreciationForPeriod = entry
     ? Number(entry.depreciationAmount)
     : calculatePeriodDepreciation({
         originalCost,
-        costAdjustment,
-        depreciationAdjustment,
+        openingCost,
+        openingAccumulatedDepreciation,
         depreciationRate,
         method: asset.depreciationMethod,
         periodStartDate: startDate,
         periodEndDate: endDate,
-        acquisitionDate,
-        totalDepreciationToDate
+        acquisitionDate
       })
 
   const depreciationOnDisposals = 0
@@ -297,7 +296,6 @@ export function enrichAssetWithPeriodCalculations(
   /* ---------------- NBV ---------------- */
 
   const openingNBV = Math.max(0, openingCost - openingAccumulatedDepreciation)
-
   const closingNBV = Math.max(0, closingCost - closingAccumulatedDepreciation)
 
   return {
@@ -305,6 +303,7 @@ export function enrichAssetWithPeriodCalculations(
 
     openingCost,
     additionsAtCost,
+    costAdjustmentForPeriod,
     disposalsAtCost,
     closingCost,
 
