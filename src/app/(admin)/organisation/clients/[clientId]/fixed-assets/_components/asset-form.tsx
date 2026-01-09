@@ -1,11 +1,16 @@
 'use client'
 
 import * as React from 'react'
-import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import { AssetWithCalculations } from '@/lib/asset-calculations'
-import { assetFormSchema, AssetFormValues } from '@/zod-schemas/fixedAssets'
+import {
+  FormInput,
+  FormSelect,
+  FormTextarea,
+  FormInputDate,
+  FormInputNumberString
+} from '@/components/form/form-base'
 
 import {
   Dialog,
@@ -15,22 +20,17 @@ import {
   DialogDescription
 } from '@/components/ui/dialog'
 
+import { Button } from '@/components/ui/button'
+import { assetFormSchema, AssetFormValues } from '@/zod-schemas/fixedAssets'
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
-} from '@/components/ui/form'
-
-import {
-  FormInput,
-  FormTextarea,
-  FormInputDate,
-  FormInputNumberString
-} from '@/components/form/form-base'
-
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card'
+import { Field, FieldGroup } from '@/components/ui/field'
 import {
   Select,
   SelectContent,
@@ -38,18 +38,25 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-
-import { Button } from '@/components/ui/button'
 import { LoadingSwap } from '@/components/shared/loading-swap'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form'
+import { useForm } from 'react-hook-form'
+// import { depreciation_methods } from '@/lib/constants'
 import Link from 'next/link'
-
-/* ----------------------------------
- * Props
- * ---------------------------------- */
+import { assetToFormValues } from '@/lib/asset-form-values'
 
 type BaseProps = {
   open: boolean
   onClose: () => void
+  // clients: Array<{ id: string; name: string }>
   clientId: string
   categories: Array<{ id: string; name: string; clientId: string }>
 }
@@ -67,149 +74,266 @@ type EditProps = BaseProps & {
 
 export type AssetFormProps = CreateProps | EditProps
 
-/* ----------------------------------
- * Helper
- * ---------------------------------- */
-
-function assetToFormValues(asset: AssetWithCalculations): AssetFormValues {
-  return {
-    name: asset.name,
-    clientId: asset.clientId,
-    categoryId: asset.categoryId ?? '',
-    description: asset.description ?? '',
-    cost: asset.cost.toString(),
-    costAdjustment: asset.costAdjustment?.toString() ?? '0',
-    depreciationAdjustment: asset.depreciationAdjustment?.toString() ?? '0',
-    dateOfPurchase: new Date(asset.dateOfPurchase).toISOString().slice(0, 10),
-    depreciationMethod: asset.depreciationMethod,
-    depreciationRate: asset.depreciationRate.toString(),
-    totalDepreciationToDate: asset.totalDepreciationToDate?.toString() ?? '0',
-    disposalValue: asset.disposalValue?.toString() ?? ''
-  }
-}
-
-/* ----------------------------------
- * Component
- * ---------------------------------- */
-
 export function AssetForm(props: AssetFormProps) {
+  const { open, onClose, clientId, categories, mode } = props
+  const asset = mode === 'edit' ? props.asset : null
   const form = useForm<AssetFormValues>({
     resolver: zodResolver(assetFormSchema),
     defaultValues: {
       name: '',
-      clientId: props.clientId,
+      clientId,
       categoryId: '',
       description: '',
-      cost: '',
+      originalCost: '',
       costAdjustment: '0',
-      depreciationAdjustment: '0',
-      dateOfPurchase: '',
+      // depreciationAdjustment: '0',
+      acquisitionDate: '',
       depreciationMethod: 'reducing_balance',
-      depreciationRate: '',
-      totalDepreciationToDate: '0',
-      disposalValue: ''
+      depreciationRate: ''
+      // disposalValue: ''
     }
   })
 
-  React.useEffect(() => {
-    if (props.mode === 'edit') {
-      form.reset(assetToFormValues(props.asset))
-    }
-  }, [props, form])
-
-  const filteredCategories = props.categories.filter(
-    c => c.clientId === props.clientId
+  const selectedClientId = form.watch('clientId')
+  const filteredCategories = categories.filter(
+    cat => cat.clientId === selectedClientId
   )
+
+  React.useEffect(() => {
+    if (!asset) return
+
+    console.log('EDIT ASSET', asset)
+
+    form.reset(assetToFormValues(asset))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asset])
 
   const handleSubmit = (values: AssetFormValues) => {
     if (props.mode === 'edit') {
-      props.onSubmit({ ...values, id: props.asset.id })
+      // TypeScript KNOWS this is EditProps here
+      if (!props.asset) return
+
+      props.onSubmit({
+        ...values,
+        id: props.asset.id
+      })
     } else {
+      // TypeScript KNOWS this is CreateProps here
       props.onSubmit(values)
     }
 
     form.reset()
-    props.onClose()
+    onClose()
   }
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onClose}>
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className='max-h-[90vh] min-w-4xl overflow-y-auto'>
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className='text-primary'>
             {props.mode === 'edit' ? 'Edit Fixed Asset' : 'Create Fixed Asset'}
           </DialogTitle>
           <DialogDescription>
             {props.mode === 'edit'
-              ? 'Update the asset details.'
-              : 'Add a new asset to the register.'}
+              ? 'Update the details of this asset.'
+              : 'Add a new fixed asset to the register.'}
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(handleSubmit)}
-            className='space-y-6'
-          >
-            <FormField
-              control={form.control}
-              name='categoryId'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder='Select category' />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {filteredCategories.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <Card className='mx-auto w-full'>
+          <CardHeader className='text-center'>
+            <CardTitle></CardTitle>
+            <CardDescription></CardDescription>
+          </CardHeader>
 
-            <Button asChild size='sm'>
-              <Link
-                href={`/organisation/clients/${props.clientId}/asset-categories`}
+          <CardContent>
+            <Form {...form}>
+              <form id='asset-form' onSubmit={form.handleSubmit(handleSubmit)}>
+                <FieldGroup>
+                  <div className='grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-8'>
+                    <div className='text-primary min-w-0 space-y-4 font-bold'>
+                      {/* Client dropdown: display DB value as-is for correct selection */}
+                      {/* <FormSelect
+                        control={form.control}
+                        name='clientId'
+                        label='Client'
+                      >
+                        {clients.map(cc => (
+                          <SelectItem key={cc.id} value={cc.id}>
+                            {cc.name}
+                          </SelectItem>
+                        ))}
+                      </FormSelect> */}
+                      <FormSelect
+                        control={form.control}
+                        name='categoryId'
+                        label='Category'
+                        className='font-normal text-gray-900'
+                      >
+                        {filteredCategories.map(category => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </FormSelect>
+                      <Button asChild size='sm'>
+                        <Link
+                          href={`/organisation/clients/${clientId}/asset-categories`}
+                        >
+                          <span className='text-sm text-white'>
+                            Add asset category
+                          </span>
+                        </Link>
+                      </Button>
+                      <FormInput<AssetFormValues>
+                        control={form.control}
+                        name='name'
+                        className='font-normal text-gray-900'
+                        label='Asset Name'
+                      />
+                      <FormDescription className='text-muted-foreground font-light'>
+                        Name (add serial or registration number if availabe)
+                      </FormDescription>
+                      <FormTextarea
+                        className='min-h-24 font-normal text-gray-900'
+                        control={form.control}
+                        name='description'
+                        label='Description'
+                      />
+                      <FormDescription className='text-muted-foreground font-light'>
+                        Add a detailed description
+                      </FormDescription>
+                      <FormInputNumberString<AssetFormValues>
+                        control={form.control}
+                        name='originalCost'
+                        label='Cost'
+                        className='font-normal text-gray-900'
+                      />
+                      <FormInputNumberString<AssetFormValues>
+                        control={form.control}
+                        name='costAdjustment'
+                        label='Cost adjustment'
+                        className='font-normal text-gray-900'
+                      />
+                      <FormDescription className='text-muted-foreground font-light'>
+                        Capitalised improvements or revaluation (added to cost)
+                      </FormDescription>
+
+                      {/* <FormInputNumberString<AssetFormValues>
+                        control={form.control}
+                        name='depreciationAdjustment'
+                        label='Depreciation adjustment'
+                        className='font-normal text-gray-900'
+                      /> */}
+                      {/* <FormDescription className='text-muted-foreground font-light'>
+                        Impairment or write-down (does not affect future
+                        depreciation)
+                      </FormDescription> */}
+                    </div>
+                    <div className='text-primary min-w-0 space-y-4 font-bold'>
+                      <FormInputDate<AssetFormValues>
+                        control={form.control}
+                        className='font-normal text-gray-900'
+                        name='acquisitionDate'
+                        label='Date of acquiition'
+                      />
+                      <FormField
+                        control={form.control}
+                        name='depreciationMethod'
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Depreciation Method *</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder='Select method' />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value='straight_line'>
+                                  Straight Line
+                                </SelectItem>
+                                <SelectItem value='reducing_balance'>
+                                  Reducing Balance
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Straight line: Equal depreciation each year
+                              <br />
+                              Reducing balance: Higher depreciation in early
+                              years
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* <FormSelect
+                        control={form.control}
+                        name='depreciationMethod'
+                        label='Depreciation Method'
+                        className='font-normal text-gray-900'
+                      >
+                        {depreciation_methods.map(dm => (
+                          <SelectItem key={dm.id} value={dm.id}>
+                            {dm.description}
+                          </SelectItem>
+                        ))}
+                      </FormSelect> */}
+
+                      <FormInputNumberString<AssetFormValues>
+                        control={form.control}
+                        name='depreciationRate'
+                        label='Depreciation Rate (%)'
+                        className='font-normal text-gray-900'
+                      />
+                      <FormDescription className='text-muted-foreground font-light'>
+                        Annual rate (0-100)
+                      </FormDescription>
+
+                      {/* <FormDescription className='text-muted-foreground font-light'>
+                        Previously recorded
+                      </FormDescription> */}
+                      {/* <FormInputNumberString<AssetFormValues>
+                        control={form.control}
+                        name='disposalValue'
+                        label='Expected residual value'
+                        className='font-normal text-gray-900'
+                      /> */}
+                    </div>
+                  </div>
+                </FieldGroup>
+              </form>
+            </Form>
+          </CardContent>
+
+          <CardFooter>
+            <Field orientation='horizontal' className='justify-between'>
+              <Button
+                type='submit'
+                form='asset-form'
+                className='w-full max-w-[150px] dark:bg-blue-600 dark:text-white'
+                disabled={form.formState.isSubmitting}
               >
-                Add asset category
-              </Link>
-            </Button>
-
-            <FormInput name='name' label='Asset name' control={form.control} />
-            <FormTextarea
-              name='description'
-              label='Description'
-              control={form.control}
-            />
-
-            <FormInputNumberString
-              name='cost'
-              label='Cost'
-              control={form.control}
-            />
-
-            <FormInputDate
-              name='dateOfPurchase'
-              label='Date of acquisition'
-              control={form.control}
-            />
-
-            <Button type='submit' disabled={form.formState.isSubmitting}>
-              <LoadingSwap isLoading={form.formState.isSubmitting}>
-                Save
-              </LoadingSwap>
-            </Button>
-          </form>
-        </Form>
+                <LoadingSwap isLoading={form.formState.isSubmitting}>
+                  Save
+                </LoadingSwap>
+              </Button>
+              <Button
+                type='button'
+                form='asset-form'
+                variant='outline'
+                onClick={() => form.reset()}
+              >
+                Reset
+              </Button>
+            </Field>
+          </CardFooter>
+        </Card>
       </DialogContent>
     </Dialog>
   )

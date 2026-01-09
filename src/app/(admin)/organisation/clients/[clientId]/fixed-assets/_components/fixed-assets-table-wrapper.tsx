@@ -61,9 +61,8 @@ export function FixedAssetsTableWrapper({
         // ✅ normalize optional → required
         categoryId: values.categoryId ?? '',
         costAdjustment: values.costAdjustment ?? '0',
-        depreciationAdjustment: values.depreciationAdjustment ?? '0',
-        totalDepreciationToDate: values.totalDepreciationToDate ?? '0',
-        disposalValue: values.disposalValue ?? '0'
+
+        totalDepreciationToDate: values.totalDepreciationToDate ?? '0'
       })
 
       if (!result.success) {
@@ -99,9 +98,7 @@ export function FixedAssetsTableWrapper({
         clientId,
 
         categoryId: values.categoryId ?? '',
-        costAdjustment: values.costAdjustment ?? '0',
-        depreciationAdjustment: values.depreciationAdjustment ?? '0',
-        disposalValue: values.disposalValue ?? '0'
+        costAdjustment: values.costAdjustment ?? '0'
       })
 
       if (!result.success) {
@@ -220,8 +217,8 @@ export function toPeriodUIAsset(
     name: asset.name,
     clientId: asset.clientId,
 
-    dateOfPurchase: new Date(asset.dateOfPurchase),
-    cost: Number(asset.cost),
+    acquisitionDate: new Date(asset.acquisitionDate),
+    originalCost: Number(asset.originalCost),
     depreciationRate: Number(asset.depreciationRate),
 
     openingNBV: Number(asset.openingNBV),
@@ -233,11 +230,11 @@ export function toPeriodUIAsset(
 function toEditableAsset(
   asset: AssetWithPeriodCalculations
 ): AssetWithCalculations {
-  const cost = Number(asset.cost)
+  const originalCost = Number(asset.originalCost)
   const costAdjustment = Number(asset.costAdjustment ?? 0)
   const depreciationAdjustment = Number(asset.depreciationAdjustment ?? 0)
 
-  const adjustedCost = cost + costAdjustment
+  const adjustedCost = originalCost + costAdjustment
   const totalDep = Number(asset.totalDepreciationToDate ?? 0)
 
   return {
@@ -247,11 +244,10 @@ function toEditableAsset(
 
     categoryId: asset.category?.id ?? null,
     categoryName: asset.category?.name ?? null,
-    description: null,
+    description: asset.description,
+    acquisitionDate: new Date(asset.acquisitionDate),
 
-    dateOfPurchase: new Date(asset.dateOfPurchase),
-
-    cost,
+    originalCost,
     costAdjustment,
     depreciationAdjustment,
     adjustedCost,

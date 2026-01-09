@@ -128,7 +128,7 @@ export function DepreciationScheduleModal({
     const worksheet_data = [
       ['Depreciation Schedule'],
       [`Asset: ${asset.name}`],
-      [`Cost: ${formatGBP(asset.cost)}`],
+      [`Cost: ${formatGBP(asset.originalCost)}`],
       [`Depreciation Rate: ${asset.depreciationRate}%`],
       [`Generated: ${new Date().toLocaleDateString('en-GB')}`],
       [],
@@ -193,7 +193,9 @@ export function DepreciationScheduleModal({
           <div className='bg-muted grid grid-cols-2 gap-4 rounded-lg p-4 md:grid-cols-4'>
             <div>
               <p className='text-muted-foreground text-sm'>Original Cost</p>
-              <p className='text-lg font-semibold'>{formatGBP(asset.cost)}</p>
+              <p className='text-lg font-semibold'>
+                {formatGBP(asset.originalCost)}
+              </p>
             </div>
             <div>
               <p className='text-muted-foreground text-sm'>Depreciation Rate</p>
@@ -202,7 +204,7 @@ export function DepreciationScheduleModal({
             <div>
               <p className='text-muted-foreground text-sm'>Purchase Date</p>
               <p className='text-lg font-semibold'>
-                {formatDate(asset.dateOfPurchase)}
+                {formatDate(asset.acquisitionDate)}
               </p>
             </div>
             <div>
@@ -276,7 +278,7 @@ export function DepreciationScheduleModal({
           <div className='text-muted-foreground space-y-1 text-sm'>
             <p>
               • Annual depreciation:{' '}
-              {formatGBP((asset.cost * asset.depreciationRate) / 100)}
+              {formatGBP((asset.originalCost * asset.depreciationRate) / 100)}
             </p>
             <p>• Useful life: {schedule.length} years</p>
             <p>• Method: Straight-line depreciation</p>

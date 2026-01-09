@@ -37,12 +37,9 @@ export const assetCategories = pgTable(
     }),
     createdAt: timestamp('created_at').defaultNow()
   },
-  table => ({
-    categoryClientNameIdx: uniqueIndex('category_client_name_idx').on(
-      table.clientId,
-      table.name
-    )
-  })
+  table => [
+    uniqueIndex('category_client_name_idx').on(table.clientId, table.name)
+  ]
 )
 
 export type AssetCategory = typeof assetCategories.$inferSelect
@@ -52,25 +49,22 @@ export const fixedAssets = pgTable('fixed_assets', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  name: text('name').notNull(),
+
   clientId: text('client_id')
     .notNull()
     .references(() => clients.id),
+
   categoryId: text('category_id')
     .notNull()
     .references(() => assetCategories.id),
+
+  assetCode: text('asset_code'), // optional but useful
+  name: text('name').notNull(),
   description: text('description'),
-  cost: decimal('cost', { precision: 10, scale: 2 }).notNull(),
-  dateOfPurchase: date('date_of_purchase').notNull(),
-  costAdjustment: decimal('cost_adjustment', { precision: 10, scale: 2 })
-    .notNull()
-    .default('0'),
-  depreciationAdjustment: decimal('depreciation_adjustment', {
-    precision: 10,
-    scale: 2
-  })
-    .notNull()
-    .default('0'),
+
+  acquisitionDate: date('acquisition_date').notNull(),
+  originalCost: decimal('original_cost', { precision: 12, scale: 2 }).notNull(),
+  costAdjustment: decimal('cost_adjustment', { precision: 12, scale: 2 }),
   depreciationMethod: depreciationMethodEnum('depreciation_method').notNull(),
   depreciationRate: decimal('depreciation_rate', {
     precision: 5,
@@ -80,12 +74,71 @@ export const fixedAssets = pgTable('fixed_assets', {
     precision: 10,
     scale: 2
   }).default('0'),
-  disposalValue: decimal('disposal_value', { precision: 10, scale: 2 }),
-  disposalDate: date('disposal_date'),
+  usefulLifeYears: integer('useful_life_years'),
+
   createdAt: timestamp('created_at').defaultNow()
 })
 
 export type FixedAsset = typeof fixedAssets.$inferSelect
+
+export const assetPeriodBalances = pgTable(
+  'asset_period_balances',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+
+    assetId: text('asset_id')
+      .notNull()
+      .references(() => fixedAssets.id, { onDelete: 'cascade' }),
+
+    periodId: text('period_id')
+      .notNull()
+      .references(() => accountingPeriods.id, { onDelete: 'cascade' }),
+
+    costBfwd: decimal('cost_bfwd', { precision: 12, scale: 2 })
+      .notNull()
+      .default('0'),
+    additions: decimal('additions', { precision: 12, scale: 2 })
+      .notNull()
+      .default('0'),
+    disposalsCost: decimal('disposals_cost', { precision: 12, scale: 2 })
+      .notNull()
+      .default('0'),
+    costAdjustment: decimal('cost_adjustment', { precision: 12, scale: 2 })
+      .notNull()
+      .default('0'),
+
+    depreciationBfwd: decimal('depreciation_bfwd', { precision: 12, scale: 2 })
+      .notNull()
+      .default('0'),
+    depreciationCharge: decimal('depreciation_charge', {
+      precision: 12,
+      scale: 2
+    })
+      .notNull()
+      .default('0'),
+    depreciationOnDisposals: decimal('depreciation_on_disposals', {
+      precision: 12,
+      scale: 2
+    })
+      .notNull()
+      .default('0'),
+    depreciationAdjustment: decimal('depreciation_adjustment', {
+      precision: 12,
+      scale: 2
+    })
+      .notNull()
+      .default('0'),
+
+    createdAt: timestamp('created_at').defaultNow()
+  },
+  table => [
+    uniqueIndex('asset_period_unique_idx').on(table.assetId, table.periodId)
+  ]
+)
+
+export type AssetPeriodBalances = typeof assetPeriodBalances.$inferSelect
 
 // Depreciation Entries (audit trail)
 export const depreciationEntries = pgTable(
@@ -94,35 +147,31 @@ export const depreciationEntries = pgTable(
     id: text('id')
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
+
     assetId: text('asset_id')
       .notNull()
       .references(() => fixedAssets.id, { onDelete: 'cascade' }),
+
     periodId: text('period_id')
       .notNull()
       .references(() => accountingPeriods.id),
-    openingBalance: decimal('opening_balance', {
-      precision: 10,
-      scale: 2
-    }).notNull(),
+
     depreciationAmount: decimal('depreciation_amount', {
-      precision: 10,
+      precision: 12,
       scale: 2
     }).notNull(),
-    closingBalance: decimal('closing_balance', {
-      precision: 10,
-      scale: 2
-    }).notNull(),
+
     daysInPeriod: integer('days_in_period').notNull(),
-    depreciationMethod: depreciationMethodEnum('depreciation_method').notNull(),
     rateUsed: decimal('rate_used', { precision: 5, scale: 2 }).notNull(),
+
     createdAt: timestamp('created_at').defaultNow()
   },
-  table => ({
-    depreciationAssetPeriodIdx: uniqueIndex('depreciation_asset_period_idx').on(
+  table => [
+    uniqueIndex('depreciation_asset_period_idx').on(
       table.assetId,
       table.periodId
     )
-  })
+  ]
 )
 
 export type DepreciationEntry = typeof depreciationEntries.$inferSelect
@@ -148,6 +197,7 @@ export const fixedAssetRelations = relations(fixedAssets, ({ one, many }) => ({
     fields: [fixedAssets.categoryId],
     references: [assetCategories.id]
   }),
+  periodBalances: many(assetPeriodBalances),
   depreciationEntries: many(depreciationEntries)
 }))
 
@@ -160,6 +210,20 @@ export const depreciationEntryRelations = relations(
     }),
     period: one(accountingPeriods, {
       fields: [depreciationEntries.periodId],
+      references: [accountingPeriods.id]
+    })
+  })
+)
+
+export const assetPeriodBalanceRelations = relations(
+  assetPeriodBalances,
+  ({ one }) => ({
+    asset: one(fixedAssets, {
+      fields: [assetPeriodBalances.assetId],
+      references: [fixedAssets.id]
+    }),
+    period: one(accountingPeriods, {
+      fields: [assetPeriodBalances.periodId],
       references: [accountingPeriods.id]
     })
   })

@@ -2,7 +2,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-
+import { unstable_noStore as noStore } from 'next/cache'
 import { eq, and, sql } from 'drizzle-orm'
 import {
   calculatePeriodDepreciation,
@@ -13,7 +13,7 @@ import {
   AccountingPeriod,
   accountingPeriods as accountingPeriodsTable,
   depreciationEntries,
-  fixedAssets
+  fixedAssets as fixedAssetsTable
 } from '@/db/schema'
 import {
   // closeAccountingPeriodSchema,
@@ -164,91 +164,70 @@ export async function calculatePeriodDepreciationForClient(
       )
 
     if (!period) {
-      return { success: false, error: 'Period not found' }
+      return { success: false as const, error: 'Period not found' }
     }
 
     if (!period.isOpen) {
-      throw new Error('Cannot calculate depreciation for a closed period')
+      return {
+        success: false as const,
+        error: 'Cannot preview depreciation for a closed period'
+      }
     }
 
     // Get all assets for this client
     const assets = await db
       .select()
-      .from(fixedAssets)
-      .where(eq(fixedAssets.clientId, clientId))
+      .from(fixedAssetsTable)
+      .where(eq(fixedAssetsTable.clientId, clientId))
 
-    // Calculate depreciation for each asset
-    const entries = []
+    const periodStartDate = new Date(period.startDate)
+    const periodEndDate = new Date(period.endDate)
 
-    for (const asset of assets) {
-      const cost = Number(asset.cost)
-      const costAdjustment = Number(asset.costAdjustment || 0)
-      const depreciationAdjustment = Number(asset.depreciationAdjustment || 0)
-      const totalDepToDate = Number(asset.totalDepreciationToDate || 0)
-
-      const adjustedCost = cost + costAdjustment
-      const accumulatedDepreciation = totalDepToDate + depreciationAdjustment
-
-      const openingBalance = Math.max(0, adjustedCost - accumulatedDepreciation)
+    // Calculate depreciation preview for each asset
+    const entries = assets.map(asset => {
+      const originalCost = Number(asset.originalCost)
+      const costAdjustment = Number(asset.costAdjustment ?? 0)
+      const depreciationAdjustment = 0
+      const totalDepToDate = Number(asset.totalDepreciationToDate ?? 0)
 
       const depreciationMethod = asset.depreciationMethod as
         | 'straight_line'
         | 'reducing_balance'
 
-      const periodDepreciation = calculatePeriodDepreciation({
-        cost,
+      const acquisitionDate = new Date(asset.acquisitionDate)
+
+      const depreciationAmount = calculatePeriodDepreciation({
+        originalCost,
         costAdjustment,
         depreciationAdjustment,
         depreciationRate: Number(asset.depreciationRate),
         method: depreciationMethod,
-        periodStartDate: new Date(period.startDate),
-        periodEndDate: new Date(period.endDate),
-        purchaseDate: new Date(asset.dateOfPurchase),
+        periodStartDate,
+        periodEndDate,
+        acquisitionDate,
         totalDepreciationToDate: totalDepToDate
       })
 
-      const closingBalance = Math.max(0, openingBalance - periodDepreciation)
-
       const daysInPeriod = calculateDaysInPeriod(
-        new Date(period.startDate),
-        new Date(period.endDate),
-        new Date(asset.dateOfPurchase)
+        periodStartDate,
+        periodEndDate,
+        acquisitionDate
       )
 
-      entries.push({
+      return {
         assetId: asset.id,
         periodId: period.id,
-        openingBalance: openingBalance.toFixed(2),
-        depreciationAmount: periodDepreciation.toFixed(2),
-        closingBalance: closingBalance.toFixed(2),
+        depreciationAmount: depreciationAmount.toFixed(2),
         daysInPeriod,
-        depreciationMethod,
         rateUsed: asset.depreciationRate
-      })
-    }
+      }
+    })
 
-    // Insert all entries (or update if they exist)
-    for (const entry of entries) {
-      await db
-        .insert(depreciationEntries)
-        .values(entry)
-        .onConflictDoUpdate({
-          target: [depreciationEntries.assetId, depreciationEntries.periodId],
-          set: {
-            depreciationAmount: entry.depreciationAmount,
-            closingBalance: entry.closingBalance,
-            openingBalance: entry.openingBalance,
-            daysInPeriod: entry.daysInPeriod
-          }
-        })
-    }
-
-    revalidatePath('/accounting-periods')
-
-    return { success: true, entriesCreated: entries.length }
+    // ✅ PREVIEW ONLY — no DB writes
+    return { success: true as const, entries }
   } catch (error) {
-    console.error('Error calculating period depreciation:', error)
-    return { success: false, error: 'Failed to calculate depreciation' }
+    console.error('Error previewing period depreciation:', error)
+    return { success: false as const, error: 'Failed to preview depreciation' }
   }
 }
 
@@ -269,13 +248,16 @@ export async function getAccountingPeriodById(
 export async function getCurrentAccountingPeriod(
   clientId: string
 ): Promise<AccountingPeriod | null> {
+  noStore()
+
   const periods = await db
     .select()
     .from(accountingPeriodsTable)
     .where(
       and(
         eq(accountingPeriodsTable.clientId, clientId),
-        eq(accountingPeriodsTable.isCurrent, true)
+        eq(accountingPeriodsTable.isCurrent, true),
+        eq(accountingPeriodsTable.isOpen, true) // add this too (see below)
       )
     )
 
@@ -288,80 +270,11 @@ export async function getCurrentAccountingPeriod(
   return periods[0] ?? null
 }
 
-// Per ChatGPT
-
-// export async function closeAccountingPeriod(input: unknown) {
-//   const data = closeAccountingPeriodSchema.parse(input)
-
-//   return await db.transaction(async tx => {
-//     // 1. Load the period
-//     const period = await tx.query.accountingPeriods.findFirst({
-//       where: and(
-//         eq(accountingPeriodsTable.id, data.periodId),
-//         eq(accountingPeriodsTable.clientId, data.clientId)
-//       )
-//     })
-
-//     if (!period) {
-//       throw new Error('Accounting period not found')
-//     }
-
-//     if (!period.isOpen) {
-//       throw new Error('Accounting period is already closed')
-//     }
-
-//     // 2. Close it
-//     await tx
-//       .update(accountingPeriodsTable)
-//       .set({
-//         isOpen: false,
-//         isCurrent: false
-//       })
-//       .where(eq(accountingPeriodsTable.id, period.id))
-
-//     revalidatePath('/fixed-assets/periods')
-//     return { success: true }
-//   })
-// }
-
-// app/actions/period-actions.ts
-
 export async function closeAccountingPeriodAction(input: {
   clientId: string
   periodId: string
 }) {
-  // 1. Load period
-  const period = await db.query.accountingPeriods.findFirst({
-    where: and(
-      eq(accountingPeriodsTable.id, input.periodId),
-      eq(accountingPeriodsTable.clientId, input.clientId)
-    )
-  })
-
-  if (!period) {
-    throw new Error('Accounting period not found')
-  }
-
-  if (!period.isOpen) {
-    throw new Error('Accounting period is already closed')
-  }
-
-  if (!period.isCurrent) {
-    throw new Error('Only the current period can be closed')
-  }
-
-  // 2. Close it (single atomic update)
-  await db
-    .update(accountingPeriodsTable)
-    .set({
-      isOpen: false,
-      isCurrent: false
-    })
-    .where(eq(accountingPeriodsTable.id, period.id))
-
-  revalidatePath('/accounting-periods')
-
-  return { success: true }
+  return postDepreciationAndClosePeriod(input)
 }
 
 export async function rollAccountingPeriod(input: unknown) {
@@ -391,7 +304,7 @@ export async function rollAccountingPeriod(input: unknown) {
     }
 
     // 2. Create new period
-    await db.insert(accountingPeriodsTable).values({
+    await tx.insert(accountingPeriodsTable).values({
       clientId: data.clientId,
       periodName: data.periodName,
       startDate:
@@ -410,5 +323,104 @@ export async function rollAccountingPeriod(input: unknown) {
     revalidatePath('/accounting-periods')
 
     return { success: true }
+  })
+}
+
+export async function postDepreciationAndClosePeriod(input: {
+  clientId: string
+  periodId: string
+}) {
+  return await db.transaction(async tx => {
+    const period = await tx.query.accountingPeriods.findFirst({
+      where: and(
+        eq(accountingPeriodsTable.id, input.periodId),
+        eq(accountingPeriodsTable.clientId, input.clientId)
+      )
+    })
+
+    if (!period) throw new Error('Accounting period not found')
+    if (!period.isOpen) throw new Error('Accounting period is already closed')
+    if (!period.isCurrent)
+      throw new Error('Only the current period can be closed')
+
+    const assets = await tx
+      .select()
+      .from(fixedAssetsTable)
+      .where(eq(fixedAssetsTable.clientId, input.clientId))
+
+    const periodStartDate = new Date(period.startDate)
+    const periodEndDate = new Date(period.endDate)
+
+    for (const asset of assets) {
+      const originalCost = Number(asset.originalCost)
+      const costAdjustment = Number(asset.costAdjustment ?? 0)
+      const depreciationAdjustment = 0
+      const totalDepToDate = Number(asset.totalDepreciationToDate ?? 0)
+
+      const depreciationMethod = asset.depreciationMethod as
+        | 'straight_line'
+        | 'reducing_balance'
+
+      const acquisitionDate = new Date(asset.acquisitionDate)
+
+      const daysInPeriod = calculateDaysInPeriod(
+        periodStartDate,
+        periodEndDate,
+        acquisitionDate
+      )
+
+      const depreciationAmount = calculatePeriodDepreciation({
+        originalCost,
+        costAdjustment,
+        depreciationAdjustment,
+        depreciationRate: Number(asset.depreciationRate),
+        method: depreciationMethod,
+        periodStartDate,
+        periodEndDate,
+        acquisitionDate,
+        totalDepreciationToDate: totalDepToDate
+      })
+
+      // 1) Upsert audit trail entry
+      await tx
+        .insert(depreciationEntries)
+        .values({
+          assetId: asset.id,
+          periodId: period.id,
+          depreciationAmount: depreciationAmount.toFixed(2),
+          daysInPeriod,
+          rateUsed: asset.depreciationRate
+        })
+        .onConflictDoUpdate({
+          target: [depreciationEntries.assetId, depreciationEntries.periodId],
+          set: {
+            depreciationAmount: depreciationAmount.toFixed(2),
+            daysInPeriod,
+            rateUsed: asset.depreciationRate
+          }
+        })
+
+      // 2) Roll forward "to date" (MVP approach that matches your current UI)
+      // totalDepreciationToDate is a decimal column -> use SQL arithmetic
+      await tx
+        .update(fixedAssetsTable)
+        .set({
+          totalDepreciationToDate: sql`
+            (${fixedAssetsTable.totalDepreciationToDate}::numeric + ${depreciationAmount}::numeric)
+          `
+        })
+        .where(eq(fixedAssetsTable.id, asset.id))
+    }
+
+    // 3) Close the period
+    await tx
+      .update(accountingPeriodsTable)
+      .set({ isOpen: false, isCurrent: false })
+      .where(eq(accountingPeriodsTable.id, period.id))
+
+    revalidatePath('/accounting-periods')
+    revalidatePath(`/organisation/clients/${input.clientId}/fixed-assets`)
+
+    return { success: true, assetsPosted: assets.length }
   })
 }

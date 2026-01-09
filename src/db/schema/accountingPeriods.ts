@@ -27,13 +27,13 @@ export const accountingPeriods = pgTable(
     isCurrent: boolean('is_current').notNull().default(false),
     createdAt: timestamp('created_at').defaultNow()
   },
-  table => ({
-    clientDateIdx: index('accounting_period_client_dates_idx').on(
+  table => [
+    index('accounting_period_client_dates_idx').on(
       table.clientId,
       table.startDate,
       table.endDate
     )
-  })
+  ]
 )
 
 export type AccountingPeriod = typeof accountingPeriods.$inferSelect

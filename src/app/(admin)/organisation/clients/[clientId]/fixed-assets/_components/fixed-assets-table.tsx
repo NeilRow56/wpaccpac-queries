@@ -93,12 +93,118 @@ export function FixedAssetsTable({
       cell: ({ row }) => row.original.category?.name ?? '—'
     },
     {
-      accessorKey: 'dateOfPurchase',
+      accessorKey: 'acquisitionDate',
       header: () => (
         <div className='text-primary text-left font-bold'>Purchase date</div>
       ),
-      cell: ({ row }) => formatDate(row.original.dateOfPurchase)
+      cell: ({ row }) => formatDate(row.original.acquisitionDate)
     },
+    {
+      accessorKey: 'openingCost',
+      header: () => (
+        <div className='text-primary text-right font-bold'>Cost (£)</div>
+      ),
+      cell: ({ row }) => (
+        <div className='text-right'>
+          {formatNumber(Number(row.original.openingCost))}
+        </div>
+      )
+    },
+    {
+      accessorKey: 'costAdjustment',
+      header: () => (
+        <div className='text-primary text-right font-bold'>Adjustment (£)</div>
+      ),
+      cell: ({ row }) => (
+        <div className='text-right'>
+          {formatNumber(Number(row.original.costAdjustment))}
+        </div>
+      )
+    },
+    {
+      accessorKey: 'additionsAtCost',
+      header: () => (
+        <div className='text-primary text-right font-bold'>Additions (£)</div>
+      ),
+      cell: ({ row }) => (
+        <div className='text-right'>
+          {formatNumber(Number(row.original.additionsAtCost))}
+        </div>
+      )
+    },
+    {
+      accessorKey: 'disposalsAtCost',
+      header: () => (
+        <div className='text-primary text-right font-bold'>Disposals (£)</div>
+      ),
+      cell: ({ row }) => (
+        <div className='text-right'>
+          {formatNumber(Number(row.original.disposalsAtCost))}
+        </div>
+      )
+    },
+    {
+      id: 'totalCost',
+      header: () => (
+        <div className='text-primary text-right font-bold'>Total cost (£)</div>
+      ),
+      cell: ({ row }) => {
+        const total =
+          Number(row.original.originalCost) +
+          Number(row.original.costAdjustment)
+
+        return <div className='text-right'>{formatNumber(total)}</div>
+      }
+    },
+    {
+      accessorKey: 'openingAccumulatedDepreciation',
+      header: () => (
+        <div className='text-primary text-right font-bold'>
+          Acc. Dep&apos;n b/fwd (£)
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className='text-right'>
+          {formatNumber(row.original.openingAccumulatedDepreciation)}
+        </div>
+      )
+    },
+    {
+      accessorKey: 'depreciationForPeriod',
+      header: () => (
+        <div className='text-primary text-right font-bold'>Charge (£)</div>
+      ),
+      cell: ({ row }) => (
+        <div className='text-right'>
+          {formatNumber(row.original.depreciationForPeriod)}
+        </div>
+      )
+    },
+    {
+      accessorKey: 'depreciationOnDisposals',
+      header: () => (
+        <div className='text-primary text-right font-bold'>Disposals (£)</div>
+      ),
+      cell: ({ row }) => (
+        <div className='text-right'>
+          {formatNumber(row.original.depreciationOnDisposals)}
+        </div>
+      )
+    },
+    {
+      accessorKey: 'closingAccumulatedDepreciation',
+      header: () => (
+        <div className='text-primary text-right font-bold'>
+          Acc. Dep&apos;n c/fwd (£)
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className='text-right'>
+          {formatNumber(row.original.closingAccumulatedDepreciation)}
+        </div>
+      )
+    },
+
     {
       accessorKey: 'openingNBV',
 
@@ -111,19 +217,7 @@ export function FixedAssetsTable({
         </div>
       )
     },
-    {
-      accessorKey: 'depreciationForPeriod',
-      header: () => (
-        <div className='text-primary text-right font-bold'>
-          Depreciation (£)
-        </div>
-      ),
-      cell: ({ row }) => (
-        <div className='text-right'>
-          {formatNumber(row.original.depreciationForPeriod)}
-        </div>
-      )
-    },
+
     {
       accessorKey: 'closingNBV',
       header: () => (
@@ -135,6 +229,7 @@ export function FixedAssetsTable({
         </div>
       )
     },
+
     {
       id: 'actions',
       header: () => (
@@ -157,16 +252,22 @@ export function FixedAssetsTable({
 
             <DropdownMenuContent align='end'>
               <DropdownMenuItem
+                className='text-blue-600'
                 onClick={e => {
                   e.stopPropagation()
                   onViewSchedule(row.original)
                 }}
               >
-                <span className='text-blue-600'>View depreciation</span>
+                View depreciation
               </DropdownMenuItem>
 
               {onEdit && (
-                <DropdownMenuItem onClick={() => onEdit(row.original)}>
+                <DropdownMenuItem
+                  onClick={e => {
+                    e.stopPropagation()
+                    onEdit?.(row.original)
+                  }}
+                >
                   <Pencil className='mr-2 h-4 w-4' />
                   Edit
                 </DropdownMenuItem>
@@ -238,12 +339,18 @@ export function FixedAssetsTable({
         },
         {
           header: 'Purchased',
-          accessor: a => formatDate(a.dateOfPurchase),
+          accessor: a => formatDate(a.acquisitionDate),
           width: 22
         },
         {
           header: 'Opening NBV (£)',
           accessor: a => formatGBP(a.openingNBV),
+          align: 'right',
+          width: 25
+        },
+        {
+          header: 'Depreciation (£)',
+          accessor: a => formatGBP(a.depreciationForPeriod),
           align: 'right',
           width: 25
         },
@@ -291,7 +398,7 @@ export function FixedAssetsTable({
         .rows.map(row => [
           row.original.name,
           row.original.category?.name ?? '—',
-          formatDate(row.original.dateOfPurchase),
+          formatDate(row.original.acquisitionDate),
           row.original.openingNBV,
           row.original.depreciationForPeriod,
           row.original.closingNBV
@@ -430,11 +537,19 @@ export function FixedAssetsTable({
               <TableCell colSpan={3} className='font-bold'>
                 Totals (£)
               </TableCell>
-              <TableCell className='text-right font-bold'>
-                {formatNumber(totals.openingNBV)}
-              </TableCell>
+              <TableCell colSpan={1} className='font-bold'></TableCell>
+              <TableCell colSpan={1} className='font-bold'></TableCell>
+              <TableCell colSpan={1} className='font-bold'></TableCell>
+              <TableCell colSpan={1} className='font-bold'></TableCell>
+              <TableCell colSpan={1} className='font-bold'></TableCell>
+              <TableCell colSpan={1} className='font-bold'></TableCell>
               <TableCell className='text-right font-bold'>
                 {formatNumber(totals.depreciation)}
+              </TableCell>
+              <TableCell colSpan={1} className='font-bold'></TableCell>
+              <TableCell colSpan={1} className='font-bold'></TableCell>
+              <TableCell className='text-right font-bold'>
+                {formatNumber(totals.openingNBV)}
               </TableCell>
               <TableCell className='text-right font-bold'>
                 {formatNumber(totals.closingNBV)}
