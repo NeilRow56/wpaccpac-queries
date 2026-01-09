@@ -1,90 +1,81 @@
-// // zod-schemas/asset-form-schema.ts
+// zod-schemas/fixedAssets.ts (or wherever you keep it)
 import { z } from 'zod'
 
-export const assetFormSchema = z.object({
-  name: z.string().min(1),
-  clientId: z.uuid(),
-  categoryId: z.string().optional(),
+const moneyStringDefault0 = z
+  .string()
+  .transform(v => (v === '' ? '0' : v))
+  .refine(v => !isNaN(Number(v)), 'Invalid amount')
+
+const requiredMoneyString = z
+  .string()
+  .min(1, 'Required')
+  .refine(v => !isNaN(Number(v)), 'Invalid amount')
+
+const requiredPercentString = z
+  .string()
+  .min(1, 'Required')
+  .refine(v => !isNaN(Number(v)), 'Must be a number')
+  .refine(v => Number(v) >= 0 && Number(v) <= 100, 'Must be 0–100')
+
+/**
+ * Canonical asset master fields only (no opening balances, no disposals)
+ * Forms keep strings; conversion happens in server/calculation layer.
+ */
+export const assetBaseSchema = z.object({
+  name: z.string().min(1, 'Asset name is required'),
+  categoryId: z.string().min(1, 'Category is required'),
   description: z.string().optional(),
 
-  // Cost-side
-  originalCost: z.string().refine(v => !isNaN(Number(v)), 'Invalid amount'),
-  costAdjustment: z
-    .string()
-    .optional()
-    .refine(v => !isNaN(Number(v)), 'Invalid amount'),
-  acquisitionDate: z.string().min(1), // yyyy-mm-dd
+  acquisitionDate: z.string().min(1, 'Acquisition date is required'), // yyyy-mm-dd
+  originalCost: requiredMoneyString,
+  costAdjustment: moneyStringDefault0,
 
-  // Depreciation-side
-
-  depreciationAdjustment: z
-    .string()
-    .optional()
-    .refine(v => !isNaN(Number(v)), 'Invalid amount'),
   depreciationMethod: z.enum(['straight_line', 'reducing_balance']),
-  depreciationRate: z
-    .string()
-    .min(1)
-    .refine(v => !isNaN(Number(v)), 'Must be a number')
-    .refine(v => Number(v) >= 0 && Number(v) <= 100, 'Must be 0–100'),
+  depreciationRate: requiredPercentString
+})
 
-  totalDepreciationToDate: z
-    .string()
-    .optional()
-    .refine(v => !isNaN(Number(v)), 'Must be a number')
-    .refine(v => Number(v) >= 0 && Number(v) <= 100, 'Must be 0–100'),
-
-  // Disposal (optional)
-  disposalValue: z
-    .string()
-    .optional()
-    .refine(v => !isNaN(Number(v)), 'Invalid amount'),
-  disposalDate: z.string().optional()
+/**
+ * Create/Edit Asset form schema
+ * (clientId is included because your form currently includes it)
+ */
+export const assetFormSchema = assetBaseSchema.extend({
+  clientId: z.string().min(1) // keep as string; you can enforce uuid if you want
 })
 
 export type AssetFormValues = z.infer<typeof assetFormSchema>
 
-// zod-schemas/historicAsset.ts
+/**
+ * Historic asset schema (Option B)
+ * Adds opening accumulated depreciation and period context for period balances.
+ */
+export const createHistoricAssetSchema = assetBaseSchema
+  .extend({
+    clientId: z.string().min(1),
+    periodId: z.string().min(1),
+    openingAccumulatedDepreciation: requiredMoneyString
+  })
+  .superRefine((val, ctx) => {
+    const cost = Number(val.originalCost || '0')
+    const adj = Number(val.costAdjustment || '0')
+    const openingDep = Number(val.openingAccumulatedDepreciation || '0')
+    const adjustedCost = cost + adj
 
-export const historicAssetFormSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  categoryId: z.string().min(1),
+    if (openingDep < 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['openingAccumulatedDepreciation'],
+        message: 'Opening accumulated depreciation cannot be negative.'
+      })
+    }
 
-  acquisitionDate: z.string().min(1), // ISO date string from input
-  originalCost: z.string().regex(/^\d+(\.\d{1,2})?$/),
-  costAdjustment: z
-    .string()
-    .regex(/^\d+(\.\d{1,2})?$/)
-    .optional(),
-
-  depreciationMethod: z.enum(['straight_line', 'reducing_balance']),
-  depreciationRate: z.string().regex(/^\d+(\.\d{1,2})?$/),
-
-  // The extra field:
-  openingAccumulatedDepreciation: z.string().regex(/^\d+(\.\d{1,2})?$/)
-})
-export type HistoricAssetFormValues = z.infer<typeof historicAssetFormSchema>
-
-const money = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Enter a valid amount')
-const isoDate = z.string().min(1, 'Date is required')
-
-export const createHistoricAssetSchema = z.object({
-  clientId: z.string().min(1),
-  periodId: z.string().min(1),
-
-  name: z.string().min(1),
-  description: z.string().optional(),
-  categoryId: z.string().min(1),
-
-  acquisitionDate: isoDate,
-  originalCost: money,
-  costAdjustment: money.optional(),
-
-  depreciationMethod: z.enum(['straight_line', 'reducing_balance']),
-  depreciationRate: money,
-
-  openingAccumulatedDepreciation: money
-})
+    if (openingDep > adjustedCost) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['openingAccumulatedDepreciation'],
+        message:
+          'Opening accumulated depreciation cannot exceed cost (including cost adjustment).'
+      })
+    }
+  })
 
 export type CreateHistoricAssetInput = z.infer<typeof createHistoricAssetSchema>

@@ -8,7 +8,12 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { FixedAssetsTable } from './fixed-assets-table'
 
-import { createAsset, deleteAsset, updateAsset } from '@/server-actions/assets'
+import {
+  createAsset,
+  createHistoricAsset,
+  deleteAsset,
+  updateAsset
+} from '@/server-actions/assets'
 
 import { AssetFormValues } from '@/zod-schemas/fixedAssets'
 
@@ -21,6 +26,7 @@ import {
   AssetWithPeriodUI
 } from '@/lib/asset-calculations'
 import { DepreciationScheduleModal } from './depreciation-schedule-modal'
+import { HistoricAssetForm } from './historic-asset-form'
 
 interface FixedAssetsTableWrapperProps {
   assets: AssetWithPeriodCalculations[]
@@ -49,6 +55,7 @@ export function FixedAssetsTableWrapper({
   const [showCreateModal, setShowCreateModal] = React.useState(false)
   const [showEditModal, setShowEditModal] = React.useState(false)
   const [showScheduleModal, setShowScheduleModal] = React.useState(false)
+  const [showHistoricModal, setShowHistoricModal] = React.useState(false)
   /* -----------------------------
      CREATE
   ----------------------------- */
@@ -60,9 +67,7 @@ export function FixedAssetsTableWrapper({
 
         // ✅ normalize optional → required
         categoryId: values.categoryId ?? '',
-        costAdjustment: values.costAdjustment ?? '0',
-
-        totalDepreciationToDate: values.totalDepreciationToDate ?? '0'
+        costAdjustment: values.costAdjustment ?? '0'
       })
 
       if (!result.success) {
@@ -146,10 +151,15 @@ export function FixedAssetsTableWrapper({
           {assets.length} {assets.length === 1 ? 'asset' : 'assets'} registered
         </p>
 
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className='mr-2 h-4 w-4' />
-          Create New Asset
-        </Button>
+        <div className='flex items-center gap-2'>
+          <Button variant='outline' onClick={() => setShowHistoricModal(true)}>
+            Add Historic Asset
+          </Button>
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus className='mr-2 h-4 w-4' />
+            Create New Asset
+          </Button>
+        </div>
       </div>
 
       <FixedAssetsTable
@@ -179,6 +189,25 @@ export function FixedAssetsTableWrapper({
           }}
         />
       )}
+
+      <HistoricAssetForm
+        open={showHistoricModal}
+        onClose={() => setShowHistoricModal(false)}
+        clientId={clientId}
+        periodId={period.id}
+        periodStartDate={new Date(period.startDate)}
+        categories={categories}
+        onSubmit={async values => {
+          const result = await createHistoricAsset(values) // your server action
+          if (!result.success) {
+            toast.error('Failed to create historic asset')
+            return
+          }
+          toast.success('Historic asset created')
+          setShowHistoricModal(false)
+          router.refresh()
+        }}
+      />
 
       <AssetForm
         mode='create'
@@ -232,10 +261,8 @@ function toEditableAsset(
 ): AssetWithCalculations {
   const originalCost = Number(asset.originalCost)
   const costAdjustment = Number(asset.costAdjustment ?? 0)
-  const depreciationAdjustment = Number(asset.depreciationAdjustment ?? 0)
 
   const adjustedCost = originalCost + costAdjustment
-  const totalDep = Number(asset.totalDepreciationToDate ?? 0)
 
   return {
     id: asset.id,
@@ -244,19 +271,16 @@ function toEditableAsset(
 
     categoryId: asset.category?.id ?? null,
     categoryName: asset.category?.name ?? null,
-    description: asset.description,
+    description: asset.description ?? '',
     acquisitionDate: new Date(asset.acquisitionDate),
 
     originalCost,
     costAdjustment,
-    depreciationAdjustment,
+
     adjustedCost,
 
     depreciationRate: Number(asset.depreciationRate),
     depreciationMethod: asset.depreciationMethod,
-
-    totalDepreciationToDate: totalDep,
-    disposalValue: asset.disposalValue ? Number(asset.disposalValue) : null,
 
     daysSinceAcquisition: 0, // not needed for schedule
     depreciationForPeriod: asset.depreciationForPeriod,

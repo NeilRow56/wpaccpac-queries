@@ -32,14 +32,11 @@ export interface AssetWithCalculations {
 
   originalCost: number
   costAdjustment: number
-  depreciationAdjustment: number
 
   acquisitionDate: Date
 
   depreciationRate: number
   depreciationMethod: DepreciationMethod
-  totalDepreciationToDate: number
-  disposalValue?: number | null
 
   adjustedCost: number
   daysSinceAcquisition: number
@@ -198,10 +195,9 @@ export function enrichAssetWithCalculations(
 
     originalCost,
     costAdjustment,
-    depreciationAdjustment,
+
     depreciationRate: Number(asset.depreciationRate),
     depreciationMethod: asset.depreciationMethod,
-    totalDepreciationToDate,
 
     acquisitionDate,
 
