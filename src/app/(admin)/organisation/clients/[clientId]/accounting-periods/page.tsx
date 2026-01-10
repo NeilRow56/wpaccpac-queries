@@ -74,6 +74,10 @@ export default async function AccountingPeriodsPage({
             The closing of a period is when depreciation values are locked.
           </span>
           <span>Once a period is closed it cannot be reopened or deleted.</span>
+          <span>
+            When you close a period the next financial period will be created
+            automatically. You can edit dates before creation.
+          </span>
         </div>
 
         <p className='pt-4'>
