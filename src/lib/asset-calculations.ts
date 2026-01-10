@@ -89,6 +89,64 @@ export function calculateReducingBalanceDepreciation(
  *   (they appear as period movements only).
  * ---------------------------------- */
 
+export function calculatePeriodDepreciationFromBalances(params: {
+  openingCost: number
+  additionsAtCost: number
+  costAdjustmentForPeriod: number
+  disposalsAtCost: number
+
+  openingAccumulatedDepreciation: number
+
+  depreciationRate: number
+  method: DepreciationMethod
+
+  periodStartDate: Date
+  periodEndDate: Date
+  acquisitionDate: Date
+}): number {
+  const {
+    openingCost,
+    additionsAtCost,
+    costAdjustmentForPeriod,
+    disposalsAtCost,
+    openingAccumulatedDepreciation,
+    depreciationRate,
+    method,
+    periodStartDate,
+    periodEndDate,
+    acquisitionDate
+  } = params
+
+  const daysInPeriod = calculateDaysInPeriod(
+    periodStartDate,
+    periodEndDate,
+    acquisitionDate
+  )
+  if (daysInPeriod <= 0) return 0
+
+  // Period cost rollforward base
+  const closingCost =
+    openingCost + additionsAtCost + costAdjustmentForPeriod - disposalsAtCost
+
+  const openingNBV = closingCost - openingAccumulatedDepreciation
+  if (openingNBV <= 0) return 0
+
+  const dep =
+    method === 'straight_line'
+      ? calculateStraightLineDepreciation(
+          closingCost,
+          depreciationRate,
+          daysInPeriod
+        )
+      : calculateReducingBalanceDepreciation(
+          openingNBV,
+          depreciationRate,
+          daysInPeriod
+        )
+
+  return Math.min(dep, openingNBV)
+}
+
 export function calculatePeriodDepreciation(params: {
   originalCost: number
   openingCost: number
@@ -270,14 +328,13 @@ export function enrichAssetWithPeriodCalculations(
       ? Number(asset.totalDepreciationToDate ?? 0)
       : 0
 
-  // Depreciation for period:
-  // - Use posted entry if exists.
-  // - Else calculate based on canonical base (original cost for SL; opening NBV for RB).
   const depreciationForPeriod = entry
     ? Number(entry.depreciationAmount)
-    : calculatePeriodDepreciation({
-        originalCost,
+    : calculatePeriodDepreciationFromBalances({
         openingCost,
+        additionsAtCost,
+        costAdjustmentForPeriod,
+        disposalsAtCost,
         openingAccumulatedDepreciation,
         depreciationRate,
         method: asset.depreciationMethod,

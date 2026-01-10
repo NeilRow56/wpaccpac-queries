@@ -124,7 +124,9 @@ export function FixedAssetsTable({
       {
         accessorKey: 'openingCost',
         header: () => (
-          <div className='text-primary text-right font-bold'>Cost (£)</div>
+          <div className='text-primary text-right font-bold'>
+            Cost b/fwd (£)
+          </div>
         ),
         cell: ({ row }) => (
           <div className='text-right'>
@@ -194,7 +196,7 @@ export function FixedAssetsTable({
         accessorKey: 'closingCost',
         header: () => (
           <div className='text-primary text-right font-bold'>
-            Total cost (£)
+            Cost c/fwd (£)
           </div>
         ),
         cell: ({ row }) => (
@@ -214,7 +216,7 @@ export function FixedAssetsTable({
         accessorKey: 'openingAccumulatedDepreciation',
         header: () => (
           <div className='text-primary text-right font-bold'>
-            Acc. Dep&apos;n b/fwd (£)
+            Dep&apos;n b/fwd (£)
           </div>
         ),
         cell: ({ row }) => (
@@ -270,7 +272,7 @@ export function FixedAssetsTable({
         accessorKey: 'closingAccumulatedDepreciation',
         header: () => (
           <div className='text-primary text-right font-bold'>
-            Acc. Dep&apos;n c/fwd (£)
+            Dep&apos;n c/fwd (£)
           </div>
         ),
         cell: ({ row }) => (
