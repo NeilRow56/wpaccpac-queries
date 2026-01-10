@@ -45,13 +45,13 @@ interface AccountingPeriod {
 interface AccountingPeriodsClientProps {
   periods: AccountingPeriod[]
   clientId: string
-  clientName: string // Add this
+  clientName: string
 }
 
 export function AccountingPeriodsClient({
   periods,
   clientId,
-  clientName // Add this
+  clientName
 }: AccountingPeriodsClientProps) {
   const router = useRouter()
   const [selectedPeriod, setSelectedPeriod] =
@@ -63,29 +63,34 @@ export function AccountingPeriodsClient({
   const [periodToClose, setPeriodToClose] =
     React.useState<AccountingPeriod | null>(null)
 
-  // const [selectedClient] = React.useState<string>('all')
-
-  // Filter periods by selected client
-  // const filteredPeriods =
-  //   selectedClient === 'all'
-  //     ? periods
-  //     : periods.filter(p => p.clientId === selectedClient)
-
   const filteredPeriods = periods
-
   const currentPeriod = filteredPeriods.find(p => p.isCurrent)
-  // const [selectedClient] = React.useState<string>('all')
 
-  // Filter periods by selected client
-  // const filteredPeriods =
-  //   selectedClient === 'all'
-  //     ? periods
-  //     : periods.filter(p => p.clientId === selectedClient)
+  // ---------------------------
+  // Pagination (simple client-side)
+  // ---------------------------
+  const [page, setPage] = React.useState(1)
+  const [pageSize, setPageSize] = React.useState(5)
 
-  // Get client name helper
-  //   const getClientName = (clientId: string) => {
-  //     return client?.name || clientId
-  //   }
+  const totalItems = filteredPeriods.length
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
+
+  // Reset to page 1 when the dataset changes (e.g. switching client / refresh)
+  React.useEffect(() => {
+    setPage(1)
+  }, [clientId, totalItems])
+
+  // Clamp current page if rows shrink (e.g. after delete)
+  React.useEffect(() => {
+    setPage(prev => Math.min(prev, totalPages))
+  }, [totalPages])
+
+  const startIndex = (page - 1) * pageSize
+  const endIndex = Math.min(startIndex + pageSize, totalItems)
+
+  const paginatedPeriods = React.useMemo(() => {
+    return filteredPeriods.slice(startIndex, startIndex + pageSize)
+  }, [filteredPeriods, startIndex, pageSize])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleCreate = async (values: any) => {
@@ -99,8 +104,8 @@ export function AccountingPeriodsClient({
       } else {
         toast.error(result.error || 'Failed to create period')
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
+      console.log(error)
       toast.error('An unexpected error occurred')
     }
   }
@@ -123,8 +128,8 @@ export function AccountingPeriodsClient({
       } else {
         toast.error(result.error || 'Failed to update period')
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
+      console.log(error)
       toast.error('An unexpected error occurred')
     }
   }
@@ -148,8 +153,8 @@ export function AccountingPeriodsClient({
       } else {
         toast.error(result.error || 'Failed to delete period')
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
+      console.log(error)
       toast.error('An unexpected error occurred')
     }
   }
@@ -183,6 +188,7 @@ export function AccountingPeriodsClient({
               {filteredPeriods.length === 1 ? 'period' : 'periods'}
             </p>
           </div>
+
           <Button
             onClick={() => setShowCreateModal(true)}
             disabled={!!currentPeriod}
@@ -207,6 +213,7 @@ export function AccountingPeriodsClient({
                 <TableHead className='w-[70px]'></TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {filteredPeriods.length === 0 ? (
                 <TableRow>
@@ -224,7 +231,7 @@ export function AccountingPeriodsClient({
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredPeriods.map(period => (
+                paginatedPeriods.map(period => (
                   <TableRow key={period.id}>
                     <TableCell>
                       <div className='flex items-center gap-2'>
@@ -239,9 +246,9 @@ export function AccountingPeriodsClient({
                         )}
                       </div>
                     </TableCell>
+
                     <TableCell>{clientName}</TableCell>
-                    {/* Use clientName instead of period.clientId */}
-                    {/* ... rest of cells */}
+
                     <TableCell className='text-sm'>
                       {formatDate(period.startDate)}
                     </TableCell>
@@ -265,6 +272,7 @@ export function AccountingPeriodsClient({
                         ? formatDate(period.createdAt.toString())
                         : '—'}
                     </TableCell>
+
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -314,7 +322,68 @@ export function AccountingPeriodsClient({
             </TableBody>
           </Table>
         </div>
+
+        {/* Pagination controls */}
+        {filteredPeriods.length > 0 && (
+          <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+            <p className='text-muted-foreground text-sm'>
+              Showing{' '}
+              <span className='text-foreground font-medium'>
+                {startIndex + 1}
+              </span>{' '}
+              to <span className='text-foreground font-medium'>{endIndex}</span>{' '}
+              of{' '}
+              <span className='text-foreground font-medium'>{totalItems}</span>
+            </p>
+
+            <div className='flex items-center gap-2'>
+              <label className='text-muted-foreground text-sm'>Rows:</label>
+              <select
+                className='border-input bg-background h-9 rounded-md border px-2 text-sm'
+                value={pageSize}
+                onChange={e => {
+                  const next = Number(e.target.value)
+                  setPageSize(next)
+                  setPage(1)
+                }}
+              >
+                {[5, 10, 20, 50].map(size => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+
+              <Button
+                variant='outline'
+                className='h-9'
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+              >
+                Prev
+              </Button>
+
+              <span className='text-muted-foreground text-sm'>
+                Page <span className='text-foreground font-medium'>{page}</span>{' '}
+                of{' '}
+                <span className='text-foreground font-medium'>
+                  {totalPages}
+                </span>
+              </span>
+
+              <Button
+                variant='outline'
+                className='h-9'
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
+
       {/* Create Modal */}
       <AccountingPeriodForm
         open={showCreateModal}
@@ -323,6 +392,7 @@ export function AccountingPeriodsClient({
         clientId={clientId}
         mode='create'
       />
+
       {/* Edit Modal */}
       <AccountingPeriodForm
         accountingPeriods={selectedPeriod}
@@ -335,6 +405,7 @@ export function AccountingPeriodsClient({
         clientId={clientId}
         mode='edit'
       />
+
       {showCloseModal && periodToClose && (
         <ClosePeriodModal
           period={periodToClose}
