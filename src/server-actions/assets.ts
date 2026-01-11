@@ -22,17 +22,16 @@ export async function createAsset(data: {
   categoryId: string
   description?: string
   originalCost: string
-  acquisitionDate: string
+  acquisitionDate: string // YYYY-MM-DD
   costAdjustment: string
   depreciationMethod: 'straight_line' | 'reducing_balance'
-  // depreciationAdjustment: string
   depreciationRate: string
-  // totalDepreciationToDate?: string
-  // disposalValue?: string
 }) {
   try {
-    await db.insert(fixedAssetsTable).values([
-      {
+    // 1) Create asset (master record) and get id
+    const inserted = await db
+      .insert(fixedAssetsTable)
+      .values({
         name: data.name,
         clientId: data.clientId,
         categoryId: data.categoryId,
@@ -40,19 +39,60 @@ export async function createAsset(data: {
         originalCost: data.originalCost,
         acquisitionDate: data.acquisitionDate,
         costAdjustment: data.costAdjustment ?? '0',
-        // depreciationAdjustment: data.depreciationAdjustment ?? '0',
         depreciationMethod: data.depreciationMethod,
         depreciationRate: data.depreciationRate
-        // totalDepreciationToDate: data.totalDepreciationToDate ?? '0'
-        // disposalValue: data.disposalValue ?? null
-      }
-    ])
+      })
+      .returning({ id: fixedAssetsTable.id })
 
-    revalidatePath('/fixed-assets')
-    return { success: true }
+    const assetId = inserted[0]?.id
+    if (!assetId) {
+      return { success: false as const, error: 'Failed to create asset' }
+    }
+
+    // 2) Seed balances for the current open period (Solution A)
+    const period = await db.query.accountingPeriods.findFirst({
+      where: and(
+        eq(accountingPeriods.clientId, data.clientId),
+        eq(accountingPeriods.isCurrent, true),
+        eq(accountingPeriods.isOpen, true)
+      )
+    })
+
+    if (period) {
+      const originalCostNum = Number(data.originalCost ?? 0)
+      const costAdjNum = Number(data.costAdjustment ?? '0')
+      const adjustedCost = (originalCostNum + costAdjNum).toFixed(2)
+
+      // Dates are YYYY-MM-DD so string compare is safe
+      const acquiredBeforePeriod = data.acquisitionDate < period.startDate
+
+      await db
+        .insert(assetPeriodBalances)
+        .values({
+          assetId,
+          periodId: period.id,
+
+          // If asset existed before the period, treat cost as BFWD
+          costBfwd: acquiredBeforePeriod ? adjustedCost : '0',
+
+          // If acquired in-period, treat as additions at cost
+          additions: acquiredBeforePeriod ? '0' : originalCostNum.toFixed(2),
+
+          // Start depreciation BFWD at 0 for newly created assets
+          depreciationBfwd: '0'
+        })
+        .onConflictDoNothing({
+          target: [assetPeriodBalances.assetId, assetPeriodBalances.periodId]
+        })
+    }
+
+    // 3) Revalidate client fixed assets page
+    revalidatePath(`/organisation/clients/${data.clientId}/fixed-assets`)
+
+    return { success: true as const, assetId }
   } catch (error) {
     console.error('Error creating asset:', error)
-    return { success: false, error: 'Failed to create asset' }
+    return { success: false as const, error: 'Failed to create asset' }
   }
 }
 
@@ -90,7 +130,7 @@ export async function updateAsset(data: {
       })
       .where(eq(fixedAssetsTable.id, data.id))
 
-    revalidatePath('/fixed-assets')
+    revalidatePath(`/organisation/clients/${data.clientId}/fixed-assets`)
     return { success: true }
   } catch (error) {
     console.error('Error updating asset:', error)
@@ -98,11 +138,11 @@ export async function updateAsset(data: {
   }
 }
 
-export async function deleteAsset(id: string) {
+export async function deleteAsset(params: { id: string; clientId: string }) {
   try {
-    await db.delete(fixedAssetsTable).where(eq(fixedAssetsTable.id, id))
+    await db.delete(fixedAssetsTable).where(eq(fixedAssetsTable.id, params.id))
 
-    revalidatePath('/fixed-assets')
+    revalidatePath(`/organisation/clients/${params.clientId}/fixed-assets`)
     return { success: true }
   } catch (error) {
     console.error('Error deleting asset:', error)

@@ -49,6 +49,7 @@ export interface FixedAssetsTableProps {
   onDelete?: (asset: AssetWithPeriodCalculations) => void
   onRowClick?: (asset: AssetWithPeriodCalculations) => void
   onViewSchedule: (asset: AssetWithPeriodCalculations) => void
+  onPostMovement?: (asset: AssetWithPeriodCalculations) => void
 }
 
 const EPS = 0.00001
@@ -62,12 +63,25 @@ function sumFiltered<TData>(
     .rows.reduce((acc, r) => acc + (pick(r.original) || 0), 0)
 }
 
+const formatNumber = (value: number) =>
+  new Intl.NumberFormat('en-GB', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(Number(value) || 0)
+
+const formatDisposal = (value: number) => {
+  const n = Number(value) || 0
+  if (n === 0) return '0.00'
+  return `(${formatNumber(n)})`
+}
+
 export function FixedAssetsTable({
   assets,
   onEdit,
   onDelete,
   onRowClick,
-  onViewSchedule
+  onViewSchedule,
+  onPostMovement // ✅
 }: FixedAssetsTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -79,13 +93,6 @@ export function FixedAssetsTable({
   const [columnVisibility, setColumnVisibility] = React.useState<
     Record<string, boolean>
   >({})
-
-  const formatNumber = (value: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(value)
-  }
 
   const formatDate = (date: Date | string) => {
     return new Intl.DateTimeFormat('en-GB').format(new Date(date))
@@ -182,13 +189,13 @@ export function FixedAssetsTable({
           <div className='text-primary text-right font-bold'>Disposals (£)</div>
         ),
         cell: ({ row }) => (
-          <div className='text-right'>
-            {formatNumber(Number(row.original.disposalsAtCost))}
+          <div className='text-right text-red-600'>
+            {formatDisposal(Number(row.original.disposalsAtCost))}
           </div>
         ),
         footer: ({ table }) => (
-          <div className='text-right font-bold'>
-            {formatNumber(sumFiltered(table, a => Number(a.disposalsAtCost)))}
+          <div className='text-right font-bold text-red-600'>
+            {formatDisposal(sumFiltered(table, a => Number(a.disposalsAtCost)))}
           </div>
         )
       },
@@ -256,13 +263,13 @@ export function FixedAssetsTable({
           <div className='text-primary text-right font-bold'>Disposals (£)</div>
         ),
         cell: ({ row }) => (
-          <div className='text-right'>
-            {formatNumber(Number(row.original.depreciationOnDisposals))}
+          <div className='text-right text-red-600'>
+            {formatDisposal(Number(row.original.depreciationOnDisposals))}
           </div>
         ),
         footer: ({ table }) => (
-          <div className='text-right font-bold'>
-            {formatNumber(
+          <div className='text-right font-bold text-red-600'>
+            {formatDisposal(
               sumFiltered(table, a => Number(a.depreciationOnDisposals))
             )}
           </div>
@@ -357,6 +364,17 @@ export function FixedAssetsTable({
                   View depreciation
                 </DropdownMenuItem>
 
+                {onPostMovement && (
+                  <DropdownMenuItem
+                    onClick={e => {
+                      e.stopPropagation()
+                      onPostMovement(row.original)
+                    }}
+                  >
+                    Adjust / Revalue / Dispose…
+                  </DropdownMenuItem>
+                )}
+
                 {onEdit && (
                   <DropdownMenuItem
                     onClick={e => {
@@ -372,7 +390,10 @@ export function FixedAssetsTable({
                 {onDelete && (
                   <DropdownMenuItem
                     className='text-red-600'
-                    onClick={() => onDelete(row.original)}
+                    onClick={e => {
+                      e.stopPropagation()
+                      onDelete(row.original)
+                    }}
                   >
                     <Trash2 className='mr-2 h-4 w-4' />
                     Delete
@@ -382,11 +403,12 @@ export function FixedAssetsTable({
             </DropdownMenu>
           )
         },
+
         footer: () => null
       }
     ],
 
-    [onEdit, onDelete, onViewSchedule]
+    [onEdit, onDelete, onViewSchedule, onPostMovement]
   )
 
   const table = useReactTable<AssetWithPeriodCalculations>({

@@ -343,11 +343,49 @@ export function enrichAssetWithPeriodCalculations(
         acquisitionDate
       })
 
-  const depreciationOnDisposals = 0
+  const depreciationAdjustmentForPeriod = balance
+    ? Number(balance.depreciationAdjustment)
+    : 0
+
+  const actualDepreciationOnDisposals = balance
+    ? Number(balance.depreciationOnDisposals)
+    : 0
+
+  // If DB hasn't recorded depreciation eliminated yet, estimate it for display:
+  // estimate = available accumulated dep * (disposalsAtCost / preDisposalCost)
+  //
+  // preDisposalCost is the cost base before subtracting disposals.
+  const preDisposalCost = Math.max(
+    0,
+    openingCost + additionsAtCost + costAdjustmentForPeriod
+  )
+
+  const availableAccumDep = Math.max(
+    0,
+    openingAccumulatedDepreciation +
+      depreciationForPeriod +
+      depreciationAdjustmentForPeriod
+  )
+
+  const disposalFraction =
+    preDisposalCost > 0
+      ? Math.max(0, Math.min(1, disposalsAtCost / preDisposalCost))
+      : 0
+
+  const estimatedDepreciationOnDisposals =
+    disposalsAtCost > 0
+      ? Math.round(availableAccumDep * disposalFraction * 100) / 100
+      : 0
+
+  const depreciationOnDisposals =
+    actualDepreciationOnDisposals > 0
+      ? actualDepreciationOnDisposals
+      : estimatedDepreciationOnDisposals
 
   const closingAccumulatedDepreciation =
     openingAccumulatedDepreciation +
-    depreciationForPeriod -
+    depreciationForPeriod +
+    depreciationAdjustmentForPeriod -
     depreciationOnDisposals
 
   /* ---------------- NBV ---------------- */

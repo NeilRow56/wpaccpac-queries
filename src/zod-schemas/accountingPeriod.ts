@@ -39,8 +39,18 @@ export const createAccountingPeriodSchema = z.object({
 })
 
 export const closeAccountingPeriodSchema = z.object({
+  clientId: z.uuid(),
   periodId: z.uuid(),
-  clientId: z.uuid()
+
+  nextPeriod: z
+    .object({
+      periodName: z.string().min(1),
+      startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid start date'),
+      endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid end date')
+    })
+    .refine(d => d.endDate > d.startDate, {
+      message: 'Next period end date must be after start date'
+    })
 })
 
 export type CloseAccountingPeriodInput = z.infer<
@@ -51,8 +61,8 @@ export const rollAccountingPeriodSchema = z
   .object({
     clientId: z.uuid(),
     periodName: z.string().min(1),
-    startDate: z.coerce.date(),
-    endDate: z.coerce.date()
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid start date'),
+    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid end date')
   })
   .refine(d => d.endDate > d.startDate, {
     message: 'End date must be after start date'

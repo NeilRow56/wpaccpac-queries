@@ -9,6 +9,7 @@ import {
   calculateDaysInPeriod
 } from '@/lib/asset-calculations'
 import { db } from '@/db'
+
 import {
   AccountingPeriod,
   accountingPeriods as accountingPeriodsTable,
@@ -16,8 +17,15 @@ import {
   fixedAssets as fixedAssetsTable,
   assetPeriodBalances
 } from '@/db/schema'
-import { rollAccountingPeriodSchema } from '@/zod-schemas/accountingPeriod'
+import {
+  rollAccountingPeriodSchema,
+  closeAccountingPeriodSchema
+} from '@/zod-schemas/accountingPeriod'
 
+function revalidateClientAccountingPages(clientId: string) {
+  revalidatePath(`/organisation/clients/${clientId}/accounting-periods`)
+  revalidatePath(`/organisation/clients/${clientId}/fixed-assets`)
+}
 /* ----------------------------------
  * Create period
  * ---------------------------------- */
@@ -49,22 +57,24 @@ export async function createAccountingPeriod(data: {
   }
 
   // unset existing current
-  await db
-    .update(accountingPeriodsTable)
-    .set({ isCurrent: false })
-    .where(eq(accountingPeriodsTable.clientId, data.clientId))
-
   try {
-    await db.insert(accountingPeriodsTable).values({
-      clientId: data.clientId,
-      periodName: data.periodName,
-      startDate: data.startDate,
-      endDate: data.endDate,
-      isCurrent: true,
-      isOpen: true
+    await db.transaction(async tx => {
+      await tx
+        .update(accountingPeriodsTable)
+        .set({ isCurrent: false })
+        .where(eq(accountingPeriodsTable.clientId, data.clientId))
+
+      await tx.insert(accountingPeriodsTable).values({
+        clientId: data.clientId,
+        periodName: data.periodName,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        isCurrent: true,
+        isOpen: true
+      })
     })
 
-    revalidatePath('/accounting-periods')
+    revalidateClientAccountingPages(data.clientId)
     return { success: true as const }
   } catch (error) {
     console.error('Error creating period:', error)
@@ -94,34 +104,40 @@ export async function updateAccountingPeriod(data: {
     if (!period.isOpen)
       throw new Error('Closed accounting periods cannot be modified')
 
-    if (data.isCurrent && data.isOpen === false) {
+    // Invariant: a current period must be open
+    if (data.isCurrent === true && data.isOpen === false) {
       throw new Error('A current period must be open')
     }
 
-    if (data.isCurrent) {
-      await db
-        .update(accountingPeriodsTable)
-        .set({ isCurrent: false })
-        .where(
-          and(
-            eq(accountingPeriodsTable.clientId, period.clientId),
-            sql`${accountingPeriodsTable.id} != ${data.id}`
+    await db.transaction(async tx => {
+      // If making this period current, unset any other current period for the same client
+      if (data.isCurrent === true) {
+        await tx
+          .update(accountingPeriodsTable)
+          .set({ isCurrent: false })
+          .where(
+            and(
+              eq(accountingPeriodsTable.clientId, period.clientId),
+              sql`${accountingPeriodsTable.id} != ${data.id}`
+            )
           )
-        )
-    }
+      }
 
-    await db
-      .update(accountingPeriodsTable)
-      .set({
-        periodName: data.periodName,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        isCurrent: data.isCurrent ?? false,
-        isOpen: data.isOpen ?? period.isOpen
-      })
-      .where(eq(accountingPeriodsTable.id, data.id))
+      // Update the period itself.
+      // IMPORTANT: preserve existing isCurrent unless explicitly provided
+      await tx
+        .update(accountingPeriodsTable)
+        .set({
+          periodName: data.periodName,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          isCurrent: data.isCurrent ?? period.isCurrent,
+          isOpen: data.isOpen ?? period.isOpen
+        })
+        .where(eq(accountingPeriodsTable.id, data.id))
+    })
 
-    revalidatePath('/accounting-periods')
+    revalidateClientAccountingPages(period.clientId)
     return { success: true as const }
   } catch (error) {
     console.error('Error updating period:', error)
@@ -135,15 +151,64 @@ export async function updateAccountingPeriod(data: {
 
 export async function deleteAccountingPeriod(id: string) {
   try {
+    const [period] = await db
+      .select({ clientId: accountingPeriodsTable.clientId })
+      .from(accountingPeriodsTable)
+      .where(eq(accountingPeriodsTable.id, id))
+
+    if (!period) return { success: false as const, error: 'Period not found' }
+
     await db
       .delete(accountingPeriodsTable)
       .where(eq(accountingPeriodsTable.id, id))
-    revalidatePath('/fixed-assets/periods')
+
+    // ✅ Revalidate client-scoped pages that depend on periods
+    revalidateClientAccountingPages(period.clientId)
+
     return { success: true as const }
   } catch (error) {
     console.error('Error deleting period:', error)
     return { success: false as const, error: 'Failed to delete period' }
   }
+}
+
+// ---- date-only helpers (YYYY-MM-DD) ----
+// ----------------------------------
+// Date-only helpers (YYYY-MM-DD, UTC)
+// ----------------------------------
+
+function assertYMD(label: string, ymd: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd)
+  if (!m) throw new Error(`${label} is invalid (expected YYYY-MM-DD)`)
+
+  const y = Number(m[1])
+  const mo = Number(m[2])
+  const d = Number(m[3])
+
+  const dt = new Date(Date.UTC(y, mo - 1, d))
+  const roundTrip = dt.toISOString().slice(0, 10)
+  if (roundTrip !== ymd) {
+    throw new Error(`${label} is invalid`)
+  }
+}
+
+function ymdToUtcDate(label: string, ymd: string): Date {
+  assertYMD(label, ymd)
+  const [y, m, d] = ymd.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d))
+}
+
+function addDaysYMD(ymd: string, days: number): string {
+  assertYMD('Date', ymd)
+  const [y, m, d] = ymd.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  dt.setUTCDate(dt.getUTCDate() + days)
+  return dt.toISOString().slice(0, 10)
+}
+
+function toUtcDateFromDateOrYMD(label: string, value: string | Date): Date {
+  if (value instanceof Date) return value
+  return ymdToUtcDate(label, value)
 }
 
 /* ----------------------------------
@@ -187,11 +252,15 @@ export async function calculatePeriodDepreciationForClient(
 
     const balancesByAssetId = new Map(balances.map(b => [b.assetId, b]))
 
-    const periodStartDate = new Date(period.startDate)
-    const periodEndDate = new Date(period.endDate)
+    const periodStartDate = ymdToUtcDate('Period start date', period.startDate)
+
+    const periodEndDate = ymdToUtcDate('Period end date', period.endDate)
 
     const entries = assets.map(asset => {
-      const acquisitionDate = new Date(asset.acquisitionDate)
+      const acquisitionDate = toUtcDateFromDateOrYMD(
+        'Acquisition date',
+        asset.acquisitionDate as unknown as string | Date
+      )
       const originalCost = Number(asset.originalCost)
       const masterCostAdj = Number(asset.costAdjustment ?? 0)
 
@@ -288,16 +357,9 @@ export async function getCurrentAccountingPeriod(
  * Close period (posts depreciation + rolls BFWD)
  * ---------------------------------- */
 
-export async function closeAccountingPeriodAction(input: {
-  clientId: string
-  periodId: string
-  nextPeriod: {
-    periodName: string
-    startDate: string // YYYY-MM-DD
-    endDate: string // YYYY-MM-DD
-  }
-}) {
-  return postDepreciationAndClosePeriod(input)
+export async function closeAccountingPeriodAction(input: unknown) {
+  const data = closeAccountingPeriodSchema.parse(input)
+  return postDepreciationAndClosePeriod(data)
 }
 
 /* ----------------------------------
@@ -305,45 +367,46 @@ export async function closeAccountingPeriodAction(input: {
  * ---------------------------------- */
 
 export async function rollAccountingPeriod(input: unknown) {
-  const data = rollAccountingPeriodSchema.parse(input)
+  try {
+    const data = rollAccountingPeriodSchema.parse(input)
 
-  return await db.transaction(async tx => {
-    const current = await tx.query.accountingPeriods.findFirst({
-      where: and(
-        eq(accountingPeriodsTable.clientId, data.clientId),
-        eq(accountingPeriodsTable.isCurrent, true)
-      )
-    })
+    await db.transaction(async tx => {
+      const current = await tx.query.accountingPeriods.findFirst({
+        where: and(
+          eq(accountingPeriodsTable.clientId, data.clientId),
+          eq(accountingPeriodsTable.isCurrent, true)
+        )
+      })
 
-    if (current) {
-      if (!current.isOpen) {
-        throw new Error('Current period is already closed')
+      if (current) {
+        if (!current.isOpen) {
+          throw new Error('Current period is already closed')
+        }
+
+        await tx
+          .update(accountingPeriodsTable)
+          .set({ isOpen: false, isCurrent: false })
+          .where(eq(accountingPeriodsTable.id, current.id))
       }
 
-      await tx
-        .update(accountingPeriodsTable)
-        .set({ isOpen: false, isCurrent: false })
-        .where(eq(accountingPeriodsTable.id, current.id))
-    }
+      await tx.insert(accountingPeriodsTable).values({
+        clientId: data.clientId,
+        periodName: data.periodName,
+        startDate: data.startDate,
+        endDate: data.endDate,
 
-    await tx.insert(accountingPeriodsTable).values({
-      clientId: data.clientId,
-      periodName: data.periodName,
-      startDate:
-        typeof data.startDate === 'string'
-          ? data.startDate
-          : data.startDate.toISOString().slice(0, 10),
-      endDate:
-        typeof data.endDate === 'string'
-          ? data.endDate
-          : data.endDate.toISOString().slice(0, 10),
-      isOpen: true,
-      isCurrent: true
+        isOpen: true,
+        isCurrent: true
+      })
     })
 
-    revalidatePath('/accounting-periods')
+    revalidateClientAccountingPages(data.clientId)
+
     return { success: true as const }
-  })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Something went wrong'
+    return { success: false as const, error: message }
+  }
 }
 
 /* ----------------------------------
@@ -361,14 +424,13 @@ async function findOrCreateNextPeriod(
   clientId: string,
   next: { periodName: string; startDate: string; endDate: string }
 ) {
-  // basic sanity checks
-  const start = new Date(next.startDate)
-  const end = new Date(next.endDate)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    throw new Error('Next period dates are invalid')
-  }
-  if (start > end)
+  // basic sanity checks (date-only, UTC safe)
+  assertYMD('Next period start date', next.startDate)
+  assertYMD('Next period end date', next.endDate)
+
+  if (next.startDate > next.endDate) {
     throw new Error('Next period start date must be before end date')
+  }
 
   // If exact match exists, reuse it
   const existing = await tx
@@ -442,46 +504,6 @@ export async function postDepreciationAndClosePeriod(input: {
     if (!period.isCurrent)
       throw new Error('Only the current period can be closed')
 
-    // const currentEnd = new Date(period.endDate)
-    // const proposedNextStart = new Date(input.nextPeriod.startDate)
-    // if (Number.isNaN(proposedNextStart.getTime())) {
-    //   throw new Error('Next period start date is invalid')
-    // }
-
-    // // UX rule: next period must start AFTER current ends
-    // // (you can allow >= if you want same-day handover, but usually it’s next day)
-    // if (!(proposedNextStart > currentEnd)) {
-    //   throw new Error(
-    //     'Next period must start after the current period end date'
-    //   )
-    // }
-    // ---- date-only helpers (YYYY-MM-DD) ----
-    function assertYMD(label: string, ymd: string) {
-      // Basic YYYY-MM-DD validation (and catches nonsense like 2025-13-40)
-      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd)
-      if (!m) throw new Error(`${label} is invalid (expected YYYY-MM-DD)`)
-
-      const y = Number(m[1])
-      const mo = Number(m[2])
-      const d = Number(m[3])
-
-      // Validate by round-tripping through a UTC date
-      const dt = new Date(Date.UTC(y, mo - 1, d))
-      const roundTrip = dt.toISOString().slice(0, 10)
-      if (roundTrip !== ymd) {
-        throw new Error(`${label} is invalid`)
-      }
-    }
-
-    function addDaysYMD(ymd: string, days: number): string {
-      // safe because we validate first
-      assertYMD('Date', ymd)
-      const [y, m, d] = ymd.split('-').map(Number)
-      const dt = new Date(Date.UTC(y, m - 1, d))
-      dt.setUTCDate(dt.getUTCDate() + days)
-      return dt.toISOString().slice(0, 10)
-    }
-
     // ---- replace your existing block with this ----
     const currentEndYMD = period.endDate // already YYYY-MM-DD in your schema
     const proposedNextStartYMD = input.nextPeriod.startDate
@@ -519,11 +541,15 @@ export async function postDepreciationAndClosePeriod(input: {
 
     const balancesByAssetId = new Map(balances.map(b => [b.assetId, b]))
 
-    const periodStartDate = new Date(period.startDate)
-    const periodEndDate = new Date(period.endDate)
+    const periodStartDate = ymdToUtcDate('Period start date', period.startDate)
+
+    const periodEndDate = ymdToUtcDate('Period end date', period.endDate)
 
     for (const asset of assets) {
-      const acquisitionDate = new Date(asset.acquisitionDate)
+      const acquisitionDate = toUtcDateFromDateOrYMD(
+        'Acquisition date',
+        asset.acquisitionDate as unknown as string | Date
+      )
       const originalCost = Number(asset.originalCost)
       const masterCostAdj = Number(asset.costAdjustment ?? 0)
 
@@ -676,8 +702,7 @@ export async function postDepreciationAndClosePeriod(input: {
       .set({ isOpen: true, isCurrent: true })
       .where(eq(accountingPeriodsTable.id, nextPeriod.id))
 
-    revalidatePath('/accounting-periods')
-    revalidatePath(`/organisation/clients/${input.clientId}/fixed-assets`)
+    revalidateClientAccountingPages(input.clientId)
 
     return {
       success: true as const,

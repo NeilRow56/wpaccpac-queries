@@ -18,6 +18,14 @@ export const depreciationMethodEnum = pgEnum('depreciation_method', [
   'straight_line',
   'reducing_balance'
 ])
+// Asset movement enum
+export const assetMovementsEnum = pgEnum('asset_movements_type', [
+  'cost_adj',
+  'depreciation_adj',
+  'revaluation',
+  'disposal_full',
+  'disposal_partial'
+])
 
 // Asset Categories
 export const assetCategories = pgTable(
@@ -130,6 +138,12 @@ export const assetPeriodBalances = pgTable(
     })
       .notNull()
       .default('0'),
+    disposalProceeds: decimal('disposal_proceeds', {
+      precision: 12,
+      scale: 2
+    })
+      .notNull()
+      .default('0'),
 
     createdAt: timestamp('created_at').defaultNow()
   },
@@ -175,6 +189,44 @@ export const depreciationEntries = pgTable(
 )
 
 export type DepreciationEntry = typeof depreciationEntries.$inferSelect
+
+export const assetMovements = pgTable(
+  'asset_movements',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    clientId: text('client_id')
+      .notNull()
+      .references(() => clients.id),
+
+    assetId: text('asset_id')
+      .notNull()
+      .references(() => fixedAssets.id, { onDelete: 'cascade' }),
+
+    periodId: text('period_id')
+      .notNull()
+      .references(() => accountingPeriods.id),
+    movementType: assetMovementsEnum('asset_movement_type').notNull(),
+    postingDate: date('posting_date').notNull(),
+    amountCost: decimal('amount_cost', { precision: 12, scale: 2 }).notNull(),
+    amountDepreciation: decimal('amount_depreciation', {
+      precision: 12,
+      scale: 2
+    }),
+    amountProceeds: decimal('amount_proceeds', { precision: 12, scale: 2 }),
+    disposalPercentage: decimal('disposal_percentage', {
+      precision: 12,
+      scale: 2
+    }),
+    note: text('note'),
+
+    createdAt: timestamp('created_at').defaultNow()
+  },
+  table => [uniqueIndex('asset_movement_idx').on(table.assetId, table.periodId)]
+)
+
+export type AssetMovements = typeof assetMovements.$inferSelect
 
 // Relations
 export const categoryRelations = relations(

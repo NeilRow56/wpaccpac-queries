@@ -21,12 +21,14 @@ import { HistoricAssetForm } from './historic-asset-form'
 import { DepreciationScheduleModal } from './depreciation-schedule-modal'
 
 import { AccountingPeriod } from '@/db/schema'
+
 import {
   AssetWithCalculations,
   AssetWithPeriodCalculations,
   AssetWithPeriodUI,
   calculateDaysSinceAcquisition
 } from '@/lib/asset-calculations'
+import { AssetMovementModal } from './asset-movement-modal'
 
 interface FixedAssetsTableWrapperProps {
   assets: AssetWithPeriodCalculations[]
@@ -54,6 +56,25 @@ export function FixedAssetsTableWrapper({
   const [showEditModal, setShowEditModal] = React.useState(false)
   const [showScheduleModal, setShowScheduleModal] = React.useState(false)
   const [showHistoricModal, setShowHistoricModal] = React.useState(false)
+
+  const [showMovementModal, setShowMovementModal] = React.useState(false)
+  const [movementAsset, setMovementAsset] =
+    React.useState<AssetWithPeriodCalculations | null>(null)
+
+  const openMovementModal = (asset: AssetWithPeriodCalculations) => {
+    // Optional guard (recommended)
+    if (!period?.id) {
+      toast.error('No current accounting period available.')
+      return
+    }
+    if (!period.isOpen) {
+      toast.error('Cannot post movements to a closed period.')
+      return
+    }
+
+    setMovementAsset(asset)
+    setShowMovementModal(true)
+  }
 
   /* -----------------------------
      CREATE
@@ -133,6 +154,7 @@ export function FixedAssetsTableWrapper({
   /* -----------------------------
      DELETE
   ----------------------------- */
+
   const handleDelete = async (asset: AssetWithPeriodCalculations) => {
     const confirmed = window.confirm(
       'Are you sure? Assets with posted depreciation cannot be deleted.'
@@ -140,7 +162,10 @@ export function FixedAssetsTableWrapper({
     if (!confirmed) return
 
     try {
-      const result = await deleteAsset(asset.id)
+      const result = await deleteAsset({
+        id: asset.id,
+        clientId
+      })
 
       if (!result.success) {
         toast.error('Failed to delete asset')
@@ -182,6 +207,7 @@ export function FixedAssetsTableWrapper({
         }}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onPostMovement={openMovementModal} // ✅ add this to table props
         onViewSchedule={handleViewSchedule}
       />
 
@@ -245,6 +271,31 @@ export function FixedAssetsTableWrapper({
           onSubmit={handleUpdate}
           clientId={clientId}
           categories={categories}
+        />
+      )}
+
+      {/* ✅ Movement modal */}
+      {showMovementModal && movementAsset && (
+        <AssetMovementModal
+          open={showMovementModal}
+          asset={movementAsset}
+          clientId={clientId}
+          period={{
+            id: period.id,
+            name: period.periodName,
+            startDate: period.startDate, // YYYY-MM-DD
+            endDate: period.endDate // YYYY-MM-DD
+          }}
+          onClose={() => {
+            setShowMovementModal(false)
+            setMovementAsset(null)
+          }}
+          onPosted={() => {
+            toast.success('Asset movement posted')
+            setShowMovementModal(false)
+            setMovementAsset(null)
+            router.refresh()
+          }}
         />
       )}
     </>

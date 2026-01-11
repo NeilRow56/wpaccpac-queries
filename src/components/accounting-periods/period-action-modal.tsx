@@ -12,10 +12,8 @@ import { toast } from 'sonner'
 import { useTransition } from 'react'
 
 import { PeriodAction } from './use-period-action-modal'
-import {
-  closeAccountingPeriodAction,
-  rollAccountingPeriod
-} from '@/server-actions/accounting-periods'
+import { rollAccountingPeriod } from '@/server-actions/accounting-periods'
+import { ClosePeriodModal } from '@/app/(admin)/organisation/clients/[clientId]/accounting-periods/_components/close-period-modal'
 
 export function PeriodActionModal({
   action,
@@ -28,20 +26,19 @@ export function PeriodActionModal({
 }) {
   const [pending, startTransition] = useTransition()
 
-  const isClose = action.type === 'close'
   const period = action.period
+  const isClose = action.type === 'close'
 
-  const title = isClose
-    ? 'Close accounting period'
-    : 'Roll accounting period forward'
+  // ✅ Best solution: route "close" through ClosePeriodModal (single source of truth)
+  if (isClose) {
+    return (
+      <ClosePeriodModal period={period} clientId={clientId} onClose={onClose} />
+    )
+  }
 
-  const description = isClose ? (
-    <>
-      This will <strong>lock</strong> the period <em>{period.periodName}</em>.
-      <br />
-      The period cannot be reopened.
-    </>
-  ) : (
+  // Keep "roll" (if you still use it)
+  const title = 'Roll accounting period forward'
+  const description = (
     <>
       This will <strong>close</strong> <em>{period.periodName}</em> and create a
       new accounting period.
@@ -53,29 +50,24 @@ export function PeriodActionModal({
   function onConfirm() {
     startTransition(async () => {
       try {
-        if (isClose) {
-          await closeAccountingPeriodAction({
-            clientId,
-            periodId: period.id
-          })
+        const result = await rollAccountingPeriod({
+          clientId,
+          periodName: 'Next Period', // TODO: remove/derive or delete roll-forward flow
+          startDate: period.endDate,
+          endDate: undefined
+        })
 
-          toast.success('Accounting period closed successfully')
-        } else {
-          await rollAccountingPeriod({
-            clientId,
-            periodName: 'Next Period', // can be derived later
-            startDate: period.endDate,
-            endDate: undefined // your roll-forward logic
-          })
-
+        if (result?.success) {
           toast.success('Accounting period rolled forward successfully')
+          onClose()
+        } else {
+          toast.error(
+            result?.error ?? 'Failed to roll accounting period forward'
+          )
         }
-
-        onClose()
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'Something went wrong'
-
         toast.error(message)
       }
     })
@@ -94,18 +86,8 @@ export function PeriodActionModal({
             Cancel
           </Button>
 
-          <Button
-            variant={isClose ? 'destructive' : 'default'}
-            onClick={onConfirm}
-            disabled={pending}
-          >
-            {pending
-              ? isClose
-                ? 'Closing…'
-                : 'Rolling…'
-              : isClose
-                ? 'Close period'
-                : 'Roll forward'}
+          <Button variant='default' onClick={onConfirm} disabled={pending}>
+            {pending ? 'Rolling…' : 'Roll forward'}
           </Button>
         </div>
       </DialogContent>
