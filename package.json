@@ -1,6 +1,7 @@
 {
   "name": "wpaccpac-queries",
   "version": "0.1.0",
+  "packageManager": "bun@1.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
