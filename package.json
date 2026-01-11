@@ -4,9 +4,9 @@
   "packageManager": "bun@1.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "bunx next dev",
+    "build": "bunx next build",
+    "start": "bunx next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx ./src/db/migrate.ts",
