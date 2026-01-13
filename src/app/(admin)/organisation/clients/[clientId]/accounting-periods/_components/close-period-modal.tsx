@@ -4,6 +4,9 @@ import { useMemo, useState, useTransition } from 'react'
 import { AccountingPeriod } from '@/db/schema'
 import { closeAccountingPeriodAction } from '@/server-actions/accounting-periods'
 
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
+
 type Props = {
   period: AccountingPeriod
   clientId: string
@@ -138,9 +141,27 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
     return { ok: true, message: '' }
   }, [nextStartDate, nextEndDate, nextPeriodName, currentEnd])
 
+  // function handleConfirm() {
+  //   startTransition(async () => {
+  //     await closeAccountingPeriodAction({
+  //       clientId,
+  //       periodId: period.id,
+  //       nextPeriod: {
+  //         periodName: nextPeriodName.trim(),
+  //         startDate: nextStartDate,
+  //         endDate: nextEndDate
+  //       }
+  //     })
+  //     onClose()
+  //   })
+  // }
+
+  // inside component:
+  const router = useRouter()
+
   function handleConfirm() {
     startTransition(async () => {
-      await closeAccountingPeriodAction({
+      const res = await closeAccountingPeriodAction({
         clientId,
         periodId: period.id,
         nextPeriod: {
@@ -149,7 +170,15 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
           endDate: nextEndDate
         }
       })
+
+      if (!res.success) {
+        toast.error(res.error)
+        return
+      }
+
+      toast.success(`Closed period. Posted ${res.assetsPosted} assets.`)
       onClose()
+      router.refresh()
     })
   }
 

@@ -29,7 +29,8 @@ export const postAssetMovementSchema = z
         ctx.addIssue({
           code: 'custom',
           path: ['disposalPercentage'],
-          message: 'For partial disposals, enter a percentage between 0 and 100'
+          message:
+            'For partial disposals, enter a percentage greater than 0 and less than 100'
         })
       }
     }

@@ -13,7 +13,14 @@ import {
   getSortedRowModel,
   useReactTable
 } from '@tanstack/react-table'
-import { Download, Search, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import {
+  Download,
+  Search,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Package
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -39,12 +46,17 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 
-import { formatGBP } from '@/lib/number-formatter'
 import { exportTableToPDF } from '@/lib/pdf/export-table-to-pdf'
 import { AssetWithPeriodCalculations } from '@/lib/asset-calculations'
 
 export interface FixedAssetsTableProps {
   assets: AssetWithPeriodCalculations[]
+
+  // ✅ report context (optional but recommended)
+  periodLabel?: string // e.g. "Apr 2025" or "Year ended 31 Mar 2025"
+  clientName?: string // e.g. "ABC Ltd"
+  reportSubtitle?: string // optional extra line, e.g. "Fixed assets register (summary)"
+
   onEdit?: (asset: AssetWithPeriodCalculations) => void
   onDelete?: (asset: AssetWithPeriodCalculations) => void
   onRowClick?: (asset: AssetWithPeriodCalculations) => void
@@ -63,20 +75,22 @@ function sumFiltered<TData>(
     .rows.reduce((acc, r) => acc + (pick(r.original) || 0), 0)
 }
 
-const formatNumber = (value: number) =>
+const formatWholeGBP = (value: number) =>
   new Intl.NumberFormat('en-GB', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(Number(value) || 0)
+    maximumFractionDigits: 0
+  }).format(Math.round(Number(value) || 0))
 
 const formatDisposal = (value: number) => {
   const n = Number(value) || 0
-  if (n === 0) return '0.00'
-  return `(${formatNumber(n)})`
+  if (n === 0) return '0'
+  return `(${formatWholeGBP(n)})`
 }
 
 export function FixedAssetsTable({
   assets,
+  periodLabel,
+  clientName,
+  reportSubtitle,
   onEdit,
   onDelete,
   onRowClick,
@@ -137,12 +151,12 @@ export function FixedAssetsTable({
         ),
         cell: ({ row }) => (
           <div className='text-right'>
-            {formatNumber(Number(row.original.openingCost))}
+            {formatWholeGBP(Number(row.original.openingCost))}
           </div>
         ),
         footer: ({ table }) => (
           <div className='text-right font-bold'>
-            {formatNumber(sumFiltered(table, a => Number(a.openingCost)))}
+            {formatWholeGBP(sumFiltered(table, a => Number(a.openingCost)))}
           </div>
         )
       },
@@ -155,12 +169,12 @@ export function FixedAssetsTable({
         ),
         cell: ({ row }) => (
           <div className='text-right'>
-            {formatNumber(Number(row.original.costAdjustmentForPeriod))}
+            {formatWholeGBP(Number(row.original.costAdjustmentForPeriod))}
           </div>
         ),
         footer: ({ table }) => (
           <div className='text-right font-bold'>
-            {formatNumber(
+            {formatWholeGBP(
               sumFiltered(table, a => Number(a.costAdjustmentForPeriod))
             )}
           </div>
@@ -174,12 +188,12 @@ export function FixedAssetsTable({
         ),
         cell: ({ row }) => (
           <div className='text-right'>
-            {formatNumber(Number(row.original.additionsAtCost))}
+            {formatWholeGBP(Number(row.original.additionsAtCost))}
           </div>
         ),
         footer: ({ table }) => (
           <div className='text-right font-bold'>
-            {formatNumber(sumFiltered(table, a => Number(a.additionsAtCost)))}
+            {formatWholeGBP(sumFiltered(table, a => Number(a.additionsAtCost)))}
           </div>
         )
       },
@@ -208,12 +222,12 @@ export function FixedAssetsTable({
         ),
         cell: ({ row }) => (
           <div className='text-right'>
-            {formatNumber(Number(row.original.closingCost))}
+            {formatWholeGBP(Number(row.original.closingCost))}
           </div>
         ),
         footer: ({ table }) => (
           <div className='text-right font-bold'>
-            {formatNumber(sumFiltered(table, a => Number(a.closingCost)))}
+            {formatWholeGBP(sumFiltered(table, a => Number(a.closingCost)))}
           </div>
         )
       },
@@ -228,12 +242,14 @@ export function FixedAssetsTable({
         ),
         cell: ({ row }) => (
           <div className='text-right'>
-            {formatNumber(Number(row.original.openingAccumulatedDepreciation))}
+            {formatWholeGBP(
+              Number(row.original.openingAccumulatedDepreciation)
+            )}
           </div>
         ),
         footer: ({ table }) => (
           <div className='text-right font-bold'>
-            {formatNumber(
+            {formatWholeGBP(
               sumFiltered(table, a => Number(a.openingAccumulatedDepreciation))
             )}
           </div>
@@ -246,12 +262,12 @@ export function FixedAssetsTable({
         ),
         cell: ({ row }) => (
           <div className='text-right'>
-            {formatNumber(Number(row.original.depreciationForPeriod))}
+            {formatWholeGBP(Number(row.original.depreciationForPeriod))}
           </div>
         ),
         footer: ({ table }) => (
           <div className='text-right font-bold'>
-            {formatNumber(
+            {formatWholeGBP(
               sumFiltered(table, a => Number(a.depreciationForPeriod))
             )}
           </div>
@@ -284,12 +300,14 @@ export function FixedAssetsTable({
         ),
         cell: ({ row }) => (
           <div className='text-right'>
-            {formatNumber(Number(row.original.closingAccumulatedDepreciation))}
+            {formatWholeGBP(
+              Number(row.original.closingAccumulatedDepreciation)
+            )}
           </div>
         ),
         footer: ({ table }) => (
           <div className='text-right font-bold'>
-            {formatNumber(
+            {formatWholeGBP(
               sumFiltered(table, a => Number(a.closingAccumulatedDepreciation))
             )}
           </div>
@@ -306,12 +324,12 @@ export function FixedAssetsTable({
         ),
         cell: ({ row }) => (
           <div className='text-right'>
-            {formatNumber(Number(row.original.openingNBV))}
+            {formatWholeGBP(Number(row.original.openingNBV))}
           </div>
         ),
         footer: ({ table }) => (
           <div className='text-right font-bold'>
-            {formatNumber(sumFiltered(table, a => Number(a.openingNBV)))}
+            {formatWholeGBP(sumFiltered(table, a => Number(a.openingNBV)))}
           </div>
         )
       },
@@ -324,12 +342,12 @@ export function FixedAssetsTable({
         ),
         cell: ({ row }) => (
           <div className='text-right font-medium'>
-            {formatNumber(Number(row.original.closingNBV))}
+            {formatWholeGBP(Number(row.original.closingNBV))}
           </div>
         ),
         footer: ({ table }) => (
           <div className='text-right font-bold'>
-            {formatNumber(sumFiltered(table, a => Number(a.closingNBV)))}
+            {formatWholeGBP(sumFiltered(table, a => Number(a.closingNBV)))}
           </div>
         )
       },
@@ -364,16 +382,35 @@ export function FixedAssetsTable({
                   View depreciation
                 </DropdownMenuItem>
 
-                {onPostMovement && (
-                  <DropdownMenuItem
-                    onClick={e => {
-                      e.stopPropagation()
-                      onPostMovement(row.original)
-                    }}
-                  >
-                    Adjust / Revalue / Dispose…
-                  </DropdownMenuItem>
-                )}
+                {onPostMovement &&
+                  (() => {
+                    const isFullyDisposed =
+                      Number(row.original.closingCost) <= 0.01
+
+                    return (
+                      <DropdownMenuItem
+                        disabled={isFullyDisposed}
+                        onClick={e => {
+                          e.stopPropagation()
+                          if (!isFullyDisposed) {
+                            onPostMovement(row.original)
+                          }
+                        }}
+                        title={
+                          isFullyDisposed
+                            ? 'This asset has been fully disposed in the current period'
+                            : undefined
+                        }
+                        className={
+                          isFullyDisposed
+                            ? 'cursor-not-allowed opacity-50'
+                            : undefined
+                        }
+                      >
+                        Dispose / Revalue / Adj.
+                      </DropdownMenuItem>
+                    )
+                  })()}
 
                 {onEdit && (
                   <DropdownMenuItem
@@ -492,21 +529,66 @@ export function FixedAssetsTable({
     setColumnVisibility(prev => ({ ...prev, ...nextVisibility }))
   }, [table])
 
-  // Totals for exports (keep your minimal set for now)
-  const totals = table.getFilteredRowModel().rows.reduce(
-    (acc, row) => ({
-      openingNBV: acc.openingNBV + row.original.openingNBV,
-      depreciation: acc.depreciation + row.original.depreciationForPeriod,
-      closingNBV: acc.closingNBV + row.original.closingNBV
-    }),
-    { openingNBV: 0, depreciation: 0, closingNBV: 0 }
-  )
+  // ✅ PLACE IT HERE (right after `table`)
+  const exportContextLine = React.useMemo(() => {
+    const bits: string[] = []
+
+    if (clientName) bits.push(clientName)
+    if (periodLabel) bits.push(periodLabel)
+
+    const isFiltered =
+      !!table.getState().globalFilter ||
+      (table.getState().columnFilters?.length ?? 0) > 0
+
+    if (isFiltered) bits.push('Filtered view')
+    bits.push(`Generated: ${new Date().toLocaleDateString('en-GB')}`)
+
+    return bits.join(' • ')
+  }, [clientName, periodLabel, table])
 
   const exportToPDF = async () => {
+    const exportRows = table.getFilteredRowModel().rows.map(r => r.original)
+
+    // Totals that match register columns
+    const totals = exportRows.reduce(
+      (acc, a) => ({
+        openingCost: acc.openingCost + Number(a.openingCost),
+        costAdj: acc.costAdj + Number(a.costAdjustmentForPeriod),
+        additions: acc.additions + Number(a.additionsAtCost),
+        disposalsCost: acc.disposalsCost + Number(a.disposalsAtCost),
+        closingCost: acc.closingCost + Number(a.closingCost),
+
+        openingDep: acc.openingDep + Number(a.openingAccumulatedDepreciation),
+        depCharge: acc.depCharge + Number(a.depreciationForPeriod),
+        depOnDisp: acc.depOnDisp + Number(a.depreciationOnDisposals),
+        closingDep: acc.closingDep + Number(a.closingAccumulatedDepreciation),
+
+        openingNBV: acc.openingNBV + Number(a.openingNBV),
+        closingNBV: acc.closingNBV + Number(a.closingNBV)
+      }),
+      {
+        openingCost: 0,
+        costAdj: 0,
+        additions: 0,
+        disposalsCost: 0,
+        closingCost: 0,
+
+        openingDep: 0,
+        depCharge: 0,
+        depOnDisp: 0,
+        closingDep: 0,
+
+        openingNBV: 0,
+        closingNBV: 0
+      }
+    )
+
     await exportTableToPDF<AssetWithPeriodCalculations>({
       title: 'Fixed Assets Register',
-      subtitle: `Period ending ${new Date().toLocaleDateString('en-GB')}`,
+      subtitle: exportContextLine, // ✅
       fileName: 'fixed-assets-register.pdf',
+      orientation: 'landscape',
+
       columns: [
         { header: 'Asset', accessor: a => a.name, width: 35 },
         {
@@ -519,85 +601,205 @@ export function FixedAssetsTable({
           accessor: a => formatDate(a.acquisitionDate),
           width: 22
         },
+
         {
-          header: 'Opening NBV (£)',
-          accessor: a => formatGBP(a.openingNBV),
+          header: 'Cost b/fwd',
+          accessor: a => formatWholeGBP(a.openingCost),
           align: 'right',
-          width: 25
+          width: 18
         },
         {
-          header: 'Depreciation (£)',
-          accessor: a => formatGBP(a.depreciationForPeriod),
+          header: 'Adj',
+          accessor: a => formatWholeGBP(a.costAdjustmentForPeriod),
           align: 'right',
-          width: 25
+          width: 14
         },
         {
-          header: 'Closing NBV (£)',
-          accessor: a => formatGBP(a.closingNBV),
+          header: 'Additions',
+          accessor: a => formatWholeGBP(a.additionsAtCost),
           align: 'right',
-          width: 28
+          width: 18
+        },
+        {
+          header: 'Disposals',
+          accessor: a => formatDisposal(a.disposalsAtCost), // brackets like UI
+          align: 'right',
+          width: 18
+        },
+        {
+          header: 'Cost c/fwd',
+          accessor: a => formatWholeGBP(a.closingCost),
+          align: 'right',
+          width: 18
+        },
+
+        {
+          header: "Dep'n b/fwd",
+          accessor: a => formatWholeGBP(a.openingAccumulatedDepreciation),
+          align: 'right',
+          width: 18
+        },
+        {
+          header: 'Charge',
+          accessor: a => formatWholeGBP(a.depreciationForPeriod),
+          align: 'right',
+          width: 16
+        },
+        {
+          header: 'Disp',
+          accessor: a => formatDisposal(a.depreciationOnDisposals), // brackets like UI
+          align: 'right',
+          width: 16
+        },
+        {
+          header: "Dep'n c/fwd",
+          accessor: a => formatWholeGBP(a.closingAccumulatedDepreciation),
+          align: 'right',
+          width: 18
+        },
+
+        {
+          header: 'Opening NBV',
+          accessor: a => formatWholeGBP(a.openingNBV),
+          align: 'right',
+          width: 18
+        },
+        {
+          header: 'Closing NBV',
+          accessor: a => formatWholeGBP(a.closingNBV),
+          align: 'right',
+          width: 18
         }
       ],
-      rows: table.getFilteredRowModel().rows.map(r => r.original),
+
+      rows: exportRows,
+
+      // If your PDF helper supports totals as a final row, keep it consistent.
       totals: {
-        'Opening NBV (£)': totals.openingNBV,
-        'Depreciation (£)': totals.depreciation,
-        'Closing NBV (£)': totals.closingNBV
+        'Cost b/fwd': formatWholeGBP(totals.openingCost),
+        Adj: formatWholeGBP(totals.costAdj),
+        Additions: formatWholeGBP(totals.additions),
+        Disposals: formatDisposal(totals.disposalsCost), // ✅ brackets
+        'Cost c/fwd': formatWholeGBP(totals.closingCost),
+
+        "Dep'n b/fwd": formatWholeGBP(totals.openingDep),
+        Charge: formatWholeGBP(totals.depCharge),
+        Disp: formatDisposal(totals.depOnDisp), // ✅ brackets
+        "Dep'n c/fwd": formatWholeGBP(totals.closingDep),
+
+        'Opening NBV': formatWholeGBP(totals.openingNBV),
+        'Closing NBV': formatWholeGBP(totals.closingNBV)
       }
     })
   }
 
   const exportToExcel = async () => {
-    const XLSX = await import('xlsx')
+    const XLSX = await import('xlsx-js-style')
+
+    const exportRows = table.getFilteredRowModel().rows.map(r => r.original)
 
     const worksheet_data = [
-      ['Fixed Assets Register'],
-      [`Period ending: ${new Date().toLocaleDateString('en-GB')}`],
+      [reportSubtitle ?? 'Fixed Assets Register'],
+      [exportContextLine], // ✅
       [],
       [
         'Asset',
         'Category',
         'Purchased',
+
+        'Cost b/fwd',
+        'Adjustment',
+        'Additions',
+        'Disposals',
+        'Cost c/fwd',
+
+        "Dep'n b/fwd",
+        'Charge',
+        "Dep'n on disposals",
+        "Dep'n c/fwd",
+
         'Opening NBV',
-        'Depreciation',
         'Closing NBV'
       ],
-      ...table
-        .getFilteredRowModel()
-        .rows.map(row => [
-          row.original.name,
-          row.original.category?.name ?? '—',
-          formatDate(row.original.acquisitionDate),
-          row.original.openingNBV,
-          row.original.depreciationForPeriod,
-          row.original.closingNBV
-        ]),
-      [],
-      [
-        'TOTAL',
-        '',
-        '',
-        totals.openingNBV,
-        totals.depreciation,
-        totals.closingNBV
-      ]
+      ...exportRows.map(a => [
+        a.name,
+        a.category?.name ?? '—',
+        formatDate(a.acquisitionDate),
+
+        Number(a.openingCost),
+        Number(a.costAdjustmentForPeriod),
+        Number(a.additionsAtCost),
+        -Number(a.disposalsAtCost), // ✅ store as negative in Excel so it naturally brackets if you format accounting later
+        Number(a.closingCost),
+
+        Number(a.openingAccumulatedDepreciation),
+        Number(a.depreciationForPeriod),
+        -Number(a.depreciationOnDisposals), // ✅ negative
+        Number(a.closingAccumulatedDepreciation),
+
+        Number(a.openingNBV),
+        Number(a.closingNBV)
+      ])
     ]
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheet_data)
 
     worksheet['!cols'] = [
-      { wch: 30 },
-      { wch: 20 },
-      { wch: 15 },
-      { wch: 18 },
-      { wch: 15 },
-      { wch: 18 }
+      { wch: 28 }, // Asset
+      { wch: 18 }, // Category
+      { wch: 14 }, // Purchased
+
+      { wch: 14 }, // Cost bfwd
+      { wch: 12 }, // Adj
+      { wch: 12 }, // Additions
+      { wch: 12 }, // Disposals
+      { wch: 14 }, // Cost cfwd
+
+      { wch: 14 }, // Dep bfwd
+      { wch: 12 }, // Charge
+      { wch: 16 }, // Dep on disp
+      { wch: 14 }, // Dep cfwd
+
+      { wch: 14 }, // Opening NBV
+      { wch: 14 } // Closing NBV
     ]
 
-    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }]
+    // Merge the title row across all columns
+    worksheet['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 13 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 13 } } // ✅ context line
+    ]
+
+    // ---- Header styling ----
+    const headerStyle = {
+      font: {
+        bold: true,
+        color: { rgb: 'FFFFFF' }
+      },
+      fill: {
+        patternType: 'solid',
+        fgColor: { rgb: '1F7A1F' }
+      },
+      alignment: {
+        horizontal: 'center',
+        vertical: 'center'
+      }
+    }
+
+    const headerRowIndex = 3
+    const range = XLSX.utils.decode_range(worksheet['!ref']!)
+
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const addr = XLSX.utils.encode_cell({ r: headerRowIndex, c: C })
+      if (worksheet[addr]) worksheet[addr].s = headerStyle
+    }
+
+    // ---- Freeze panes ----
+    worksheet['!freeze'] = { xSplit: 0, ySplit: 4 }
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Fixed Assets')
+
     XLSX.writeFile(workbook, 'fixed-assets-register.xlsx')
   }
 
@@ -692,7 +894,13 @@ export function FixedAssetsTable({
                   colSpan={table.getVisibleLeafColumns().length}
                   className='h-24 text-center'
                 >
-                  No results.
+                  <div className='flex flex-col items-center gap-2 py-6'>
+                    <Package className='text-muted-foreground/50 h-8 w-8' />
+                    <p>No assets found</p>
+                    <p className='text-sm'>
+                      Create your first fixed asset to get started.
+                    </p>
+                  </div>
                 </TableCell>
               </TableRow>
             )}

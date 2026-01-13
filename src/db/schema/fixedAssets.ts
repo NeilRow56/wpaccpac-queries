@@ -3,6 +3,7 @@ import { relations } from 'drizzle-orm'
 import {
   date,
   decimal,
+  index,
   integer,
   pgEnum,
   pgTable,
@@ -223,7 +224,10 @@ export const assetMovements = pgTable(
 
     createdAt: timestamp('created_at').defaultNow()
   },
-  table => [uniqueIndex('asset_movement_idx').on(table.assetId, table.periodId)]
+  table => [
+    index('asset_movement_asset_period_idx').on(table.assetId, table.periodId),
+    index('asset_movement_asset_date_idx').on(table.assetId, table.postingDate)
+  ]
 )
 
 export type AssetMovements = typeof assetMovements.$inferSelect

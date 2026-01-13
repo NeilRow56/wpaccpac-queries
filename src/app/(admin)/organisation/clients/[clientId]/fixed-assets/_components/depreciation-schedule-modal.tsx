@@ -3,6 +3,11 @@
 
 import * as React from 'react'
 import {
+  getAssetDepreciationScheduleAction,
+  type DepScheduleRow
+} from '@/server-actions/depreciation-schedule'
+
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -25,6 +30,7 @@ import { exportTableToPDF } from '@/lib/pdf/export-table-to-pdf'
 
 interface DepreciationScheduleModalProps {
   asset: AssetWithPeriodUI
+  clientId: string
   period: {
     startDate: Date
     endDate: Date
@@ -36,85 +42,163 @@ interface DepreciationScheduleModalProps {
 
 interface ScheduleEntry {
   year: number
-  startDate: Date
-  endDate: Date
+  startDate: string
+  endDate: string
   openingBalance: number
   depreciation: number
   closingBalance: number
+
+  // ✅ disposal export fields
+  proceeds?: number
+  nbvDisposed?: number
+  profitOrLoss?: number
+  status?: string
 }
 
 export function DepreciationScheduleModal({
   asset,
-  period,
+  // period,
+  clientId,
   open,
   onClose
 }: DepreciationScheduleModalProps) {
   const formatGBP = (value: number) =>
-    value.toLocaleString('en-GB', {
+    (Number(value) || 0).toLocaleString('en-GB', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     })
 
+  const formatPL = (value: number) => {
+    const n = Number(value) || 0
+    const abs = Math.abs(n)
+    const txt = formatGBP(abs)
+    return n < 0 ? `(${txt})` : txt
+  }
+
   const formatDate = (date: Date) =>
     new Intl.DateTimeFormat('en-GB').format(date)
 
-  const generateSchedule = () => [
-    {
-      year: 1,
-      startDate: period.startDate,
-      endDate: period.endDate,
-      openingBalance: asset.openingNBV,
-      depreciation: asset.depreciationForPeriod,
-      closingBalance: asset.closingNBV
-    }
-  ]
+  const formatYMD = (ymd: string) => {
+    const [y, m, d] = ymd.split('-').map(Number)
+    return new Intl.DateTimeFormat('en-GB').format(
+      new Date(Date.UTC(y, m - 1, d))
+    )
+  }
 
-  const schedule = generateSchedule()
+  const [rows, setRows] = React.useState<DepScheduleRow[]>([])
+  const [loading, setLoading] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!open) return
+
+    let cancelled = false
+    setLoading(true)
+
+    getAssetDepreciationScheduleAction({ clientId, assetId: asset.id })
+      .then(res => {
+        if (cancelled) return
+        if (res.success) setRows(res.rows)
+        else setRows([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, clientId, asset.id])
+
+  // ✅ Schedule entries for export (now based on accumulated depreciation, not NBV)
+  const schedule: ScheduleEntry[] = rows.map((r, idx) => {
+    const hasDisposal =
+      Number(r.disposalsCost) > 0 || Number(r.disposalProceeds) > 0
+
+    const status = r.isOpen && !r.isPosted ? 'Provisional' : 'Final'
+
+    return {
+      year: idx + 1,
+      startDate: r.startDate,
+      endDate: r.endDate,
+      openingBalance: Number(r.depreciationBfwd ?? 0),
+      depreciation: Number(r.depreciationCharge ?? 0),
+      closingBalance: Number(r.closingAccumulatedDepreciation ?? 0),
+
+      proceeds: hasDisposal ? Number(r.disposalProceeds ?? 0) : undefined,
+      nbvDisposed: hasDisposal ? Number(r.nbvDisposed ?? 0) : undefined,
+      profitOrLoss: hasDisposal
+        ? Number(r.profitOrLossOnDisposal ?? 0)
+        : undefined,
+      status: hasDisposal ? status : undefined
+    }
+  })
 
   const exportScheduleToPDF = async () => {
     await exportTableToPDF<ScheduleEntry>({
       title: 'Depreciation Schedule',
-      subtitle: `Asset: ${asset.name} • Rate: ${asset.depreciationRate}%`,
+      subtitle: `Asset: ${asset.name} • Cost: £${formatGBP(
+        asset.originalCost
+      )} • Rate: ${asset.depreciationRate}% • Purchase: ${formatDate(
+        new Date(asset.acquisitionDate)
+      )} • NBV: £${formatGBP(asset.closingNBV)}`,
       fileName: `depreciation-schedule-${asset.name
         .replace(/\s+/g, '-')
         .toLowerCase()}.pdf`,
-
-      orientation: 'landscape', // ✅ THIS is the key change
+      orientation: 'landscape',
 
       columns: [
+        { header: 'Year', accessor: e => e.year, align: 'center', width: 12 },
         {
-          header: 'Year',
-          accessor: e => e.year,
-          align: 'center',
+          header: 'Start Date',
+          accessor: e => formatYMD(e.startDate),
+          width: 22
+        },
+        { header: 'End Date', accessor: e => formatYMD(e.endDate), width: 22 },
+
+        {
+          header: 'Accum Dep b/fwd',
+          accessor: e => formatGBP(e.openingBalance),
+          align: 'right',
+          width: 24
+        },
+        {
+          header: 'Charge',
+          accessor: e => formatGBP(e.depreciation),
+          align: 'right',
+          width: 18
+        },
+        {
+          header: 'Accum Dep c/fwd',
+          accessor: e => formatGBP(e.closingBalance),
+          align: 'right',
+          width: 24
+        },
+
+        // ✅ disposal columns
+        {
+          header: 'Proceeds',
+          accessor: e => (e.proceeds != null ? formatGBP(e.proceeds) : ''),
+          align: 'right',
+          width: 18
+        },
+        {
+          header: 'NBV disposed',
+          accessor: e =>
+            e.nbvDisposed != null ? formatGBP(e.nbvDisposed) : '',
+          align: 'right',
           width: 20
         },
         {
-          header: 'Start Date',
-          accessor: e => formatDate(e.startDate),
-          width: 30
-        },
-        {
-          header: 'End Date',
-          accessor: e => formatDate(e.endDate),
-          width: 30
-        },
-        {
-          header: 'Opening Balance (£)',
-          accessor: e => formatGBP(e.openingBalance),
+          header: 'Profit/(Loss)',
+          accessor: e =>
+            e.profitOrLoss != null ? formatPL(e.profitOrLoss) : '',
           align: 'right',
-          width: 35
+          width: 20
         },
         {
-          header: 'Depreciation (£)',
-          accessor: e => formatGBP(e.depreciation),
-          align: 'right',
-          width: 35
-        },
-        {
-          header: 'Closing Balance (£)',
-          accessor: e => formatGBP(e.closingBalance),
-          align: 'right',
-          width: 35
+          header: 'Status',
+          accessor: e => e.status ?? '',
+          width: 16
         }
       ],
 
@@ -130,38 +214,54 @@ export function DepreciationScheduleModal({
       [`Asset: ${asset.name}`],
       [`Cost: ${formatGBP(asset.originalCost)}`],
       [`Depreciation Rate: ${asset.depreciationRate}%`],
+      [`Purchase Date: ${formatDate(new Date(asset.acquisitionDate))}`],
+      [`Current NBV: ${formatGBP(asset.closingNBV)}`],
       [`Generated: ${new Date().toLocaleDateString('en-GB')}`],
       [],
       [
         'Year',
         'Start Date',
         'End Date',
-        'Opening Balance',
-        'Depreciation',
-        'Closing Balance'
+        'Accum Dep b/fwd',
+        'Charge',
+        'Accum Dep c/fwd',
+        'Proceeds',
+        'NBV disposed',
+        'Profit/(Loss)',
+        'Status'
       ],
       ...schedule.map(entry => [
         entry.year,
-        formatDate(entry.startDate),
-        formatDate(entry.endDate),
-        entry.openingBalance,
-        entry.depreciation,
-        entry.closingBalance
+        formatYMD(entry.startDate),
+        formatYMD(entry.endDate),
+
+        Number(entry.openingBalance),
+        Number(entry.depreciation),
+        Number(entry.closingBalance),
+
+        entry.proceeds != null ? Number(entry.proceeds) : '',
+        entry.nbvDisposed != null ? Number(entry.nbvDisposed) : '',
+        entry.profitOrLoss != null ? Number(entry.profitOrLoss) : '',
+        entry.status ?? ''
       ])
     ]
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheet_data)
 
     worksheet['!cols'] = [
-      { wch: 10 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 20 }
+      { wch: 8 }, // Year
+      { wch: 14 }, // Start Date
+      { wch: 14 }, // End Date
+      { wch: 18 }, // Acc dep bfwd
+      { wch: 12 }, // Charge
+      { wch: 18 }, // Acc dep cfwd
+      { wch: 14 }, // Proceeds
+      { wch: 14 }, // NBV disposed
+      { wch: 14 }, // Profit/(Loss)
+      { wch: 12 } // Status
     ]
 
-    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }]
+    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }]
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Depreciation Schedule')
@@ -172,8 +272,9 @@ export function DepreciationScheduleModal({
     )
   }
 
-  const totalDepreciation = schedule.reduce(
-    (sum, entry) => sum + entry.depreciation,
+  // ✅ Total depreciation up to disposal (handles elimination in final period)
+  const totalDepreciation = rows.reduce(
+    (max, r) => Math.max(max, Number(r.closingAccumulatedDepreciation ?? 0)),
     0
   )
 
@@ -204,7 +305,7 @@ export function DepreciationScheduleModal({
             <div>
               <p className='text-muted-foreground text-sm'>Purchase Date</p>
               <p className='text-lg font-semibold'>
-                {formatDate(asset.acquisitionDate)}
+                {formatDate(new Date(asset.acquisitionDate))}
               </p>
             </div>
             <div>
@@ -233,42 +334,86 @@ export function DepreciationScheduleModal({
               <TableHeader>
                 <TableRow>
                   <TableHead className='text-center'>Year</TableHead>
-                  <TableHead>Start Date</TableHead>
+                  <TableHead>Period</TableHead>
                   <TableHead>End Date</TableHead>
-                  <TableHead className='text-right'>Opening Balance</TableHead>
-                  <TableHead className='text-right'>Depreciation</TableHead>
-                  <TableHead className='text-right'>Closing Balance</TableHead>
+                  <TableHead className='text-right'>Accum Dep b/fwd</TableHead>
+                  <TableHead className='text-right'>Charge</TableHead>
+                  <TableHead className='text-right'>Accum Dep c/fwd</TableHead>
                 </TableRow>
               </TableHeader>
+
               <TableBody>
-                {schedule.map((entry, index) => (
-                  <TableRow key={index}>
-                    <TableCell className='text-center font-medium'>
-                      {entry.year}
-                    </TableCell>
-                    <TableCell>{formatDate(entry.startDate)}</TableCell>
-                    <TableCell>{formatDate(entry.endDate)}</TableCell>
-                    <TableCell className='text-right'>
-                      {formatGBP(entry.openingBalance)}
-                    </TableCell>
-                    <TableCell className='text-right'>
-                      {formatGBP(entry.depreciation)}
-                    </TableCell>
-                    <TableCell className='text-right font-medium'>
-                      {formatGBP(entry.closingBalance)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {rows.map((r, idx) => {
+                  const hasDisposal =
+                    Number(r.disposalsCost) > 0 ||
+                    Number(r.disposalProceeds) > 0
+
+                  return (
+                    <React.Fragment key={r.periodId}>
+                      <TableRow>
+                        <TableCell className='text-center'>{idx + 1}</TableCell>
+                        <TableCell>{r.periodName}</TableCell>
+                        <TableCell>{formatYMD(r.endDate)}</TableCell>
+
+                        <TableCell className='text-right'>
+                          {formatGBP(r.depreciationBfwd)}
+                        </TableCell>
+                        <TableCell className='text-right'>
+                          {formatGBP(r.depreciationCharge)}
+                        </TableCell>
+                        <TableCell className='text-right'>
+                          {formatGBP(r.closingAccumulatedDepreciation)}
+                        </TableCell>
+                      </TableRow>
+
+                      {hasDisposal && (
+                        <TableRow className='bg-muted/30'>
+                          <TableCell colSpan={6} className='p-3'>
+                            <div className='space-y-1 text-sm'>
+                              <div className='flex items-center justify-between'>
+                                <span>Proceeds</span>
+                                <span className='tabular-nums'>
+                                  {formatGBP(r.disposalProceeds)}
+                                </span>
+                              </div>
+
+                              <div className='flex items-center justify-between'>
+                                <span>NBV disposed</span>
+                                <span className='tabular-nums'>
+                                  {formatGBP(r.nbvDisposed)}
+                                </span>
+                              </div>
+
+                              <div className='flex items-center justify-between font-semibold'>
+                                <span>Profit / (Loss) on disposal</span>
+                                <span className='tabular-nums'>
+                                  {formatPL(r.profitOrLossOnDisposal)}
+                                </span>
+                              </div>
+
+                              {r.isOpen && !r.isPosted && (
+                                <div className='text-muted-foreground pt-1 text-xs'>
+                                  Provisional (period not yet closed)
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  )
+                })}
               </TableBody>
+
               <TableFooter>
                 <TableRow>
                   <TableCell colSpan={4} className='font-bold'>
                     Total Depreciation
                   </TableCell>
                   <TableCell className='text-right font-bold'>
-                    {formatGBP(totalDepreciation)}
+                    {loading ? '—' : formatGBP(totalDepreciation)}
                   </TableCell>
-                  <TableCell></TableCell>
+                  <TableCell />
                 </TableRow>
               </TableFooter>
             </Table>

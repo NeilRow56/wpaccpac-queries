@@ -16,7 +16,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -139,40 +138,6 @@ export function CategoryForm(props: CategoryFormProps) {
             onSubmit={form.handleSubmit(handleSubmit)}
             className='space-y-6'
           >
-            {/* <FormField
-              control={form.control}
-              name='clientId'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client *</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    disabled={mode === 'edit'}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder='Select a client' />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {clients.map(client => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {mode === 'edit' && (
-                    <FormDescription>
-                      Client cannot be changed after creation
-                    </FormDescription>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            /> */}
-
             <FormField
               control={form.control}
               name='name'
@@ -214,19 +179,16 @@ export function CategoryForm(props: CategoryFormProps) {
               name='defaultDepreciationRate'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Default Depreciation Rate (%)</FormLabel>
+                  <FormLabel>Suggested Depreciation Rate (%)</FormLabel>
                   <FormControl>
                     <Input
                       type='number'
                       step='0.01'
-                      placeholder='20'
+                      // placeholder='20'
                       {...field}
                     />
                   </FormControl>
-                  <FormDescription>
-                    Optional: New assets in this category will use this rate by
-                    default
-                  </FormDescription>
+
                   <FormMessage />
                 </FormItem>
               )}

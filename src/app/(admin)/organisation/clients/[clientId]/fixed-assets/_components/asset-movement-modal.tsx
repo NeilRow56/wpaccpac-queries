@@ -27,8 +27,20 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
+
 import type { AssetWithPeriodCalculations } from '@/lib/asset-calculations'
 import { postAssetMovementAction } from '@/server-actions/asset-movements'
+import { useRouter } from 'next/navigation'
 
 const movementTypeUiSchema = z.enum([
   'cost_adj',
@@ -37,7 +49,6 @@ const movementTypeUiSchema = z.enum([
   'disposal' // UI-only
 ])
 
-// Money typed as string in the form; convert in server action or in submit handler.
 const moneyString = z
   .string()
   .trim()
@@ -53,14 +64,11 @@ const percentageString = z
       v == null ||
       v === '' ||
       (!Number.isNaN(Number(v)) && Number(v) > 0 && Number(v) <= 100),
-    {
-      message: 'Percentage must be between 0 and 100'
-    }
+    { message: 'Percentage must be between 0 and 100' }
   )
 
 const ymdSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD')
 
-// Core form schema
 const assetMovementFormSchema = z
   .object({
     movementType: movementTypeUiSchema,
@@ -94,7 +102,6 @@ const assetMovementFormSchema = z
   })
 
 type AssetMovementFormValues = z.input<typeof assetMovementFormSchema>
-
 type MovementType = AssetMovementFormValues['movementType']
 
 const resolver: Resolver<AssetMovementFormValues> = zodResolver(
@@ -103,12 +110,35 @@ const resolver: Resolver<AssetMovementFormValues> = zodResolver(
 
 function formatYmdGb(ymd: string) {
   const [y, m, d] = ymd.split('-').map(Number)
-  // Use UTC to avoid timezone shifting the day
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric'
   })
+}
+
+function formatGBPFromString(value?: string) {
+  const n = Number(value ?? '0')
+  const safe = Number.isFinite(n) ? n : 0
+  return safe.toLocaleString('en-GB', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
+function uiMovementLabel(t: MovementType): string {
+  switch (t) {
+    case 'cost_adj':
+      return 'Cost adjustment'
+    case 'depreciation_adj':
+      return 'Depreciation adjustment'
+    case 'revaluation':
+      return 'Revaluation'
+    case 'disposal':
+      return 'Disposal'
+    default:
+      return 'Movement'
+  }
 }
 
 export function AssetMovementModal(props: {
@@ -126,8 +156,12 @@ export function AssetMovementModal(props: {
 }) {
   const { open, asset, clientId, period, onClose, onPosted } = props
   const [pending, startTransition] = useTransition()
+  const router = useRouter()
 
-  // Default posting date: period end date (common accounting UX)
+  const [confirmOpen, setConfirmOpen] = React.useState(false)
+  const [pendingValues, setPendingValues] =
+    React.useState<AssetMovementFormValues | null>(null)
+
   const form = useForm<AssetMovementFormValues>({
     resolver,
     defaultValues: {
@@ -144,7 +178,6 @@ export function AssetMovementModal(props: {
   const movementType =
     useWatch({ control: form.control, name: 'movementType' }) ?? 'disposal'
 
-  // Ensure posting date stays within period range (date-only string compare works for YYYY-MM-DD)
   const postingDate =
     useWatch({ control: form.control, name: 'postingDate' }) ?? period.endDate
 
@@ -156,6 +189,13 @@ export function AssetMovementModal(props: {
       form.setValue('postingDate', period.endDate, { shouldValidate: true })
     }
   }, [postingDate, period.startDate, period.endDate, form])
+
+  React.useEffect(() => {
+    if (!open) {
+      setConfirmOpen(false)
+      setPendingValues(null)
+    }
+  }, [open])
 
   const title = (() => {
     switch (movementType) {
@@ -176,13 +216,13 @@ export function AssetMovementModal(props: {
     <>
       Posting to <strong>{period.name}</strong>{' '}
       <span className='text-muted-foreground mt-2 block text-sm'>
-        Asset: <span className='text-foreground font-medium'>{asset.name}</span>
+        <span className='text-primary font-bold'>Asset: </span>
+        <span className='text-foreground font-bold'>{asset.name}</span>
       </span>
     </>
   )
 
-  const onSubmit: SubmitHandler<AssetMovementFormValues> = values => {
-    // Map UI -> DB enum (now that DB enum is cost_adj without dot)
+  function mapUiToDbMovementType(values: AssetMovementFormValues) {
     let dbMovementType:
       | 'cost_adj'
       | 'depreciation_adj'
@@ -197,21 +237,36 @@ export function AssetMovementModal(props: {
       dbMovementType = values.movementType
     }
 
+    return dbMovementType
+  }
+
+  const onSubmit: SubmitHandler<AssetMovementFormValues> = values => {
+    if (
+      values.postingDate < period.startDate ||
+      values.postingDate > period.endDate
+    ) {
+      toast.error('Posting date must be within the current period')
+      return
+    }
+
+    // Open confirm dialog instead of posting immediately
+    setPendingValues(values)
+    setConfirmOpen(true)
+  }
+
+  const confirmPost = async () => {
+    const values = pendingValues
+    if (!values) return
+
+    const dbMovementType = mapUiToDbMovementType(values)
+
     startTransition(async () => {
       try {
-        if (
-          values.postingDate < period.startDate ||
-          values.postingDate > period.endDate
-        ) {
-          toast.error('Posting date must be within the current period')
-          return
-        }
-
         const result = await postAssetMovementAction({
           clientId,
           assetId: asset.id,
           periodId: period.id,
-          movementType: dbMovementType, // ✅
+          movementType: dbMovementType,
           postingDate: values.postingDate,
           amountCost: values.amountCost,
           amountDepreciation: values.amountDepreciation ?? '0',
@@ -225,6 +280,10 @@ export function AssetMovementModal(props: {
           return
         }
 
+        router.refresh()
+        // toast.success('Movement posted')
+        setConfirmOpen(false)
+        setPendingValues(null)
         onPosted()
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Something went wrong'
@@ -234,7 +293,6 @@ export function AssetMovementModal(props: {
   }
 
   function renderMovementFields() {
-    // shared field: posting date
     const postingDateField = (
       <div className='space-y-1'>
         <Label htmlFor='postingDate'>Posting date</Label>
@@ -358,8 +416,10 @@ export function AssetMovementModal(props: {
             {...form.register('disposalPercentage')}
           />
           <p className='text-muted-foreground text-xs'>
-            100 = full disposal. For partial disposals, enter the percentage
-            disposed.
+            <span className='text-red-600'>
+              100 = full disposal. For partial disposals, enter the percentage
+              disposed.
+            </span>
           </p>
           <FieldError msg={form.formState.errors.disposalPercentage?.message} />
         </div>
@@ -387,8 +447,10 @@ export function AssetMovementModal(props: {
             {...form.register('amountDepreciation')}
           />
           <p className='text-muted-foreground text-xs'>
-            If provided, this posts to “Depreciation on disposals” for the
-            period.
+            <span className='text-red-600'>
+              Leave as 0 and let the server compute depreciation on disposal
+              from the % disposed and available depreciation.
+            </span>
           </p>
         </div>
 
@@ -402,107 +464,226 @@ export function AssetMovementModal(props: {
             {...form.register('amountCost')}
           />
           <p className='text-muted-foreground text-xs'>
-            v1 suggestion: leave 0 and let the server compute disposal cost from
-            the disposal % and opening cost.
+            <span className='text-red-600'>
+              Leave as 0 and let the server compute disposal cost from the %
+              disposed and available cost.
+            </span>
           </p>
         </div>
       </div>
     )
   }
 
+  const confirmSummary = pendingValues
+    ? {
+        movementLabel: uiMovementLabel(pendingValues.movementType),
+        postingDate: formatYmdGb(pendingValues.postingDate),
+        amountCost: formatGBPFromString(pendingValues.amountCost),
+        amountDep: formatGBPFromString(pendingValues.amountDepreciation ?? '0'),
+        proceeds: formatGBPFromString(pendingValues.amountProceeds ?? '0'),
+        pct:
+          pendingValues.movementType === 'disposal'
+            ? String(pendingValues.disposalPercentage ?? '')
+            : '',
+        note: (pendingValues.note ?? '').trim(),
+        isDisposal: pendingValues.movementType === 'disposal',
+        proceedsIsZero:
+          pendingValues.movementType === 'disposal' &&
+          Number(pendingValues.amountProceeds ?? '0') === 0
+      }
+    : null
+
   return (
-    <Dialog open={open} onOpenChange={open => !open && onClose()}>
-      <DialogContent className='sm:max-w-[560px]'>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={next => !next && onClose()}>
+        <DialogContent className='sm:max-w-[560px]'>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </DialogHeader>
 
-        <form className='space-y-4' onSubmit={form.handleSubmit(onSubmit)}>
-          <div className='space-y-2'>
-            <Label>Movement type</Label>
-            <Select
-              value={movementType}
-              onValueChange={v => {
-                const next = v as MovementType
+          <form className='space-y-4' onSubmit={form.handleSubmit(onSubmit)}>
+            <div className='space-y-2'>
+              <Label>Movement type</Label>
+              <Select
+                value={movementType}
+                onValueChange={v => {
+                  const next = v as MovementType
 
-                // 1) update type
-                form.setValue('movementType', next, {
-                  shouldValidate: true,
-                  shouldDirty: true
-                })
-
-                // 2) clear stale errors from other movement types
-                form.clearErrors()
-
-                // 3) optional: reset irrelevant fields so they don’t carry over
-                if (next !== 'disposal') {
-                  form.setValue('disposalPercentage', '100', {
-                    shouldValidate: false
+                  form.setValue('movementType', next, {
+                    shouldValidate: true,
+                    shouldDirty: true
                   })
-                  form.setValue('amountProceeds', '0', {
-                    shouldValidate: false
-                  })
-                }
 
-                if (next !== 'depreciation_adj') {
-                  form.setValue('amountDepreciation', '0', {
-                    shouldValidate: false
-                  })
-                }
+                  form.clearErrors()
 
-                if (next === 'depreciation_adj') {
-                  // depreciation adj doesn’t care about cost
-                  form.setValue('amountCost', '0', { shouldValidate: false })
-                }
-              }}
-              disabled={pending}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder='Select a movement type' />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='cost_adj'>Cost adjustment</SelectItem>
-                <SelectItem value='depreciation_adj'>
-                  Depreciation adjustment
-                </SelectItem>
-                <SelectItem value='revaluation'>Revaluation</SelectItem>
-                <SelectItem value='disposal'>
-                  Disposal (full/partial)
-                </SelectItem>
-              </SelectContent>
-            </Select>
+                  if (next !== 'disposal') {
+                    form.setValue('disposalPercentage', '100', {
+                      shouldValidate: false
+                    })
+                    form.setValue('amountProceeds', '0', {
+                      shouldValidate: false
+                    })
+                  }
+
+                  if (next !== 'depreciation_adj') {
+                    form.setValue('amountDepreciation', '0', {
+                      shouldValidate: false
+                    })
+                  }
+
+                  if (next === 'depreciation_adj') {
+                    form.setValue('amountCost', '0', { shouldValidate: false })
+                  }
+                }}
+                disabled={pending}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder='Select a movement type' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='cost_adj'>Cost adjustment</SelectItem>
+                  <SelectItem value='depreciation_adj'>
+                    Depreciation adjustment
+                  </SelectItem>
+                  <SelectItem value='revaluation'>Revaluation</SelectItem>
+                  <SelectItem value='disposal'>
+                    Disposal (full/partial)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {renderMovementFields()}
+
+            <div className='space-y-1'>
+              <Label htmlFor='note'>Note (optional)</Label>
+              <Textarea
+                id='note'
+                rows={3}
+                placeholder='Add a short explanation for the audit trail'
+                disabled={pending}
+                {...form.register('note')}
+              />
+            </div>
+
+            <div className='flex justify-end gap-2 pt-2'>
+              <Button
+                type='button'
+                variant='outline'
+                onClick={onClose}
+                disabled={pending}
+              >
+                Cancel
+              </Button>
+              <Button type='submit' disabled={pending}>
+                {pending ? 'Posting…' : 'Review & confirm'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ✅ Confirmation dialog */}
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={next => {
+          if (!pending) setConfirmOpen(next)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className='text-red-600'>
+              Confirm posting
+            </AlertDialogTitle>
+            <AlertDialogDescription className='text-primary'>
+              Review the details below before posting this movement.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className='space-y-3 text-sm'>
+            <div className='rounded-md border p-3'>
+              <div className='flex items-center justify-between gap-4'>
+                <span className='text-muted-foreground'>Asset</span>
+                <span className='font-medium'>{asset.name}</span>
+              </div>
+              <div className='mt-2 flex items-center justify-between gap-4'>
+                <span className='text-muted-foreground'>Period</span>
+                <span className='font-medium'>{period.name}</span>
+              </div>
+              <div className='mt-2 flex items-center justify-between gap-4'>
+                <span className='text-muted-foreground'>Posting date</span>
+                <span className='font-medium'>
+                  {confirmSummary?.postingDate ?? '—'}
+                </span>
+              </div>
+              <div className='mt-2 flex items-center justify-between gap-4'>
+                <span className='text-muted-foreground'>Movement</span>
+                <span className='font-medium'>
+                  {confirmSummary?.movementLabel ?? '—'}
+                </span>
+              </div>
+            </div>
+
+            <div className='rounded-md border p-3'>
+              <div className='flex items-center justify-between gap-4'>
+                <span className='text-muted-foreground'>Cost (£)</span>
+                <span className='font-medium tabular-nums'>
+                  {confirmSummary?.amountCost ?? '—'}
+                </span>
+              </div>
+
+              <div className='mt-2 flex items-center justify-between gap-4'>
+                <span className='text-muted-foreground'>Depreciation (£)</span>
+                <span className='font-medium tabular-nums'>
+                  {confirmSummary?.amountDep ?? '—'}
+                </span>
+              </div>
+
+              {confirmSummary?.isDisposal && (
+                <>
+                  <div className='mt-2 flex items-center justify-between gap-4'>
+                    <span className='text-muted-foreground'>Proceeds (£)</span>
+                    <span className='font-medium tabular-nums'>
+                      {confirmSummary.proceeds}
+                    </span>
+                  </div>
+
+                  <div className='mt-2 flex items-center justify-between gap-4'>
+                    <span className='text-muted-foreground'>Disposal %</span>
+                    <span className='font-medium tabular-nums'>
+                      {confirmSummary.pct}%
+                    </span>
+                  </div>
+
+                  {confirmSummary.proceedsIsZero && (
+                    <div className='mt-3 rounded-md bg-amber-50 p-2 text-amber-900'>
+                      Proceeds are £0.00 — confirm this is correct.
+                    </div>
+                  )}
+                </>
+              )}
+
+              {confirmSummary?.note ? (
+                <div className='mt-3'>
+                  <div className='text-muted-foreground'>Note</div>
+                  <div className='bg-muted mt-1 rounded-md p-2'>
+                    {confirmSummary.note}
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
 
-          {renderMovementFields()}
-
-          <div className='space-y-1'>
-            <Label htmlFor='note'>Note (optional)</Label>
-            <Textarea
-              id='note'
-              rows={3}
-              placeholder='Add a short explanation for the audit trail'
-              disabled={pending}
-              {...form.register('note')}
-            />
-          </div>
-
-          <div className='flex justify-end gap-2 pt-2'>
-            <Button
-              type='button'
-              variant='outline'
-              onClick={onClose}
-              disabled={pending}
-            >
-              Cancel
-            </Button>
-            <Button type='submit' disabled={pending}>
-              {pending ? 'Posting…' : 'Post movement'}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>Back</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPost} disabled={pending}>
+              {pending ? 'Posting…' : 'Confirm & post'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 

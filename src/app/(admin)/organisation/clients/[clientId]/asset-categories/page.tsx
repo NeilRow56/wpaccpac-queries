@@ -42,7 +42,9 @@ export default async function AssetCategoriesPage({
           </Button>
         </Link>
 
-        <h1 className='text-3xl font-bold'>Asset Categories</h1>
+        <h1 className='text-primary text-lg font-bold'>
+          Fixed Asset Categories
+        </h1>
         <p className='text-muted-foreground mt-2'>
           Manage asset categories to organize your fixed assets
         </p>

@@ -33,6 +33,8 @@ import { AssetMovementModal } from './asset-movement-modal'
 interface FixedAssetsTableWrapperProps {
   assets: AssetWithPeriodCalculations[]
   period: AccountingPeriod
+  periodLabel?: string
+  clientName?: string
   clientId: string
   categories: Array<{
     id: string
@@ -44,6 +46,8 @@ interface FixedAssetsTableWrapperProps {
 export function FixedAssetsTableWrapper({
   assets,
   period,
+  periodLabel,
+  clientName,
   clientId,
   categories
 }: FixedAssetsTableWrapperProps) {
@@ -200,6 +204,8 @@ export function FixedAssetsTableWrapper({
 
       <FixedAssetsTable
         assets={assets}
+        periodLabel={periodLabel}
+        clientName={clientName}
         onRowClick={asset => {
           router.push(
             `/organisation/clients/${clientId}/fixed-assets/${asset.id}`
@@ -213,6 +219,7 @@ export function FixedAssetsTableWrapper({
 
       {showScheduleModal && selectedAsset && (
         <DepreciationScheduleModal
+          clientId={clientId}
           asset={toPeriodUIAsset(selectedAsset)}
           period={{
             startDate: new Date(period.startDate),

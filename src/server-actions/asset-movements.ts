@@ -31,11 +31,12 @@ export async function postAssetMovementAction(input: unknown) {
     })
 
     if (!period) return { success: false as const, error: 'Period not found' }
-    if (!period.isOpen)
+    if (!period.isOpen) {
       return {
         success: false as const,
         error: 'Cannot post to a closed period'
       }
+    }
 
     if (
       data.postingDate < period.startDate ||
@@ -48,7 +49,7 @@ export async function postAssetMovementAction(input: unknown) {
     }
 
     // Convert numbers
-    const amountCost = round2(toNumber(data.amountCost))
+    const amountCostInput = round2(toNumber(data.amountCost))
     const amountDepreciationInput = round2(toNumber(data.amountDepreciation))
     const amountProceeds = round2(toNumber(data.amountProceeds))
 
@@ -56,6 +57,8 @@ export async function postAssetMovementAction(input: unknown) {
       data.disposalPercentage != null ? toNumber(data.disposalPercentage) : null
     const disposalPct =
       disposalPctRaw == null ? null : Math.max(0, Math.min(100, disposalPctRaw))
+
+    const EPS = 0.01 // 1p tolerance
 
     await db.transaction(async tx => {
       // 1) Ensure balances row exists
@@ -79,10 +82,38 @@ export async function postAssetMovementAction(input: unknown) {
           target: [assetPeriodBalances.assetId, assetPeriodBalances.periodId]
         })
 
-      // ---- NEW: compute disposal fraction once (if relevant) ----
+      // 1b) Load balances row (now guaranteed to exist)
+      const bal = await tx.query.assetPeriodBalances.findFirst({
+        where: and(
+          eq(assetPeriodBalances.assetId, data.assetId),
+          eq(assetPeriodBalances.periodId, data.periodId)
+        )
+      })
+
+      // Compute available cost BEFORE this movement (canonical)
+      const costBfwdNow = toNumber(bal?.costBfwd ?? 0)
+      const additionsNow = toNumber(bal?.additions ?? 0)
+      const costAdjNow = toNumber(bal?.costAdjustment ?? 0)
+      const disposalsSoFar = toNumber(bal?.disposalsCost ?? 0)
+
+      const availableCostBefore = round2(
+        costBfwdNow + additionsNow + costAdjNow - disposalsSoFar
+      )
+
+      const isFullyDisposed = availableCostBefore <= EPS
+
+      // ---- Movement type helpers ----
       const isDisposal =
         data.movementType === 'disposal_full' ||
         data.movementType === 'disposal_partial'
+
+      // ✅ Guard 1: block any movement if asset is already fully disposed in this period
+      // (You can relax this later if you add explicit "reversal" movement types.)
+      if (isFullyDisposed) {
+        throw new Error(
+          'This asset has been fully disposed in this period and is locked for further movements.'
+        )
+      }
 
       const pctForCalc = isDisposal
         ? (disposalPct ?? (data.movementType === 'disposal_full' ? 100 : 0))
@@ -92,49 +123,46 @@ export async function postAssetMovementAction(input: unknown) {
         ? Math.max(0, Math.min(1, pctForCalc / 100))
         : 0
 
-      // 2) Disposal: auto-calc disposal cost (existing behaviour) AND auto-calc dep on disposals (NEW)
+      // 2) Disposal: auto-calc disposal cost AND auto-calc dep on disposals
       let disposalCostToPost: number | null = null
-
-      // ---- NEW: this is the value we will actually post for amountDepreciation ----
       let amountDepreciationToPost = amountDepreciationInput
 
       if (isDisposal) {
-        const bal = await tx.query.assetPeriodBalances.findFirst({
-          where: and(
-            eq(assetPeriodBalances.assetId, data.assetId),
-            eq(assetPeriodBalances.periodId, data.periodId)
-          )
-        })
-
         // Auto-calc disposal cost if amountCost is 0
-        if (round2(amountCost) === 0) {
-          const costBfwd = toNumber(bal?.costBfwd ?? 0)
-          const additions = toNumber(bal?.additions ?? 0)
-          const costAdj = toNumber(bal?.costAdjustment ?? 0)
-          const disposalsSoFar = toNumber(bal?.disposalsCost ?? 0)
-
-          const availableCost = round2(
-            costBfwd + additions + costAdj - disposalsSoFar
-          )
-
-          disposalCostToPost = round2(availableCost * fraction)
-
-          if (disposalCostToPost > availableCost + 0.01) {
-            throw new Error(
-              'Disposal cost exceeds available cost for this period'
-            )
-          }
+        if (round2(amountCostInput) === 0) {
+          disposalCostToPost = round2(availableCostBefore * fraction)
         }
 
-        // ---- NEW: auto-calc depreciation eliminated on disposal if user left it as 0 ----
+        // Auto-calc depreciation eliminated on disposal if user left it as 0
         if (round2(amountDepreciationInput) === 0) {
-          const openingDep = toNumber(bal?.depreciationBfwd ?? 0)
-          amountDepreciationToPost = round2(openingDep * fraction)
+          const depBfwd = toNumber(bal?.depreciationBfwd ?? 0)
+          const depChargeSoFar = toNumber(bal?.depreciationCharge ?? 0)
+          const depAdjSoFar = toNumber(bal?.depreciationAdjustment ?? 0)
+          const depOnDisposalsSoFar = toNumber(
+            bal?.depreciationOnDisposals ?? 0
+          )
+
+          const availableAccumDep = round2(
+            depBfwd + depChargeSoFar + depAdjSoFar - depOnDisposalsSoFar
+          )
+
+          amountDepreciationToPost = round2(
+            Math.max(0, availableAccumDep) * fraction
+          )
         }
       }
 
       const finalAmountCost =
-        disposalCostToPost != null ? disposalCostToPost : amountCost
+        disposalCostToPost != null ? disposalCostToPost : amountCostInput
+
+      // ✅ Guard 2: disposal cannot exceed available cost (whether user typed a cost or we auto-calculated)
+      if (isDisposal) {
+        if (finalAmountCost > availableCostBefore + EPS) {
+          throw new Error(
+            'Disposal cost exceeds available cost for this period'
+          )
+        }
+      }
 
       // 3) Insert movement row (audit trail)
       await tx.insert(assetMovements).values({
@@ -146,12 +174,10 @@ export async function postAssetMovementAction(input: unknown) {
 
         amountCost: finalAmountCost.toFixed(2),
 
-        // ---- CHANGED: use amountDepreciationToPost ----
-        amountDepreciation: amountDepreciationToPost
-          ? amountDepreciationToPost.toFixed(2)
-          : null,
+        // Store 0.00 consistently (avoids null/undefined edge cases)
+        amountDepreciation: amountDepreciationToPost.toFixed(2),
+        amountProceeds: amountProceeds.toFixed(2),
 
-        amountProceeds: amountProceeds ? amountProceeds.toFixed(2) : null,
         disposalPercentage: isDisposal ? pctForCalc.toFixed(2) : null,
         note: data.note ?? null
       })
@@ -210,10 +236,7 @@ export async function postAssetMovementAction(input: unknown) {
             .update(assetPeriodBalances)
             .set({
               disposalsCost: sql`${assetPeriodBalances.disposalsCost} + ${finalAmountCost}`,
-
-              // ---- CHANGED: use amountDepreciationToPost ----
               depreciationOnDisposals: sql`${assetPeriodBalances.depreciationOnDisposals} + ${amountDepreciationToPost}`,
-
               disposalProceeds: sql`${assetPeriodBalances.disposalProceeds} + ${amountProceeds}`
             })
             .where(

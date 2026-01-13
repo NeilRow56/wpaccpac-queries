@@ -94,12 +94,9 @@ export function calculatePeriodDepreciationFromBalances(params: {
   additionsAtCost: number
   costAdjustmentForPeriod: number
   disposalsAtCost: number
-
   openingAccumulatedDepreciation: number
-
   depreciationRate: number
   method: DepreciationMethod
-
   periodStartDate: Date
   periodEndDate: Date
   acquisitionDate: Date
@@ -124,27 +121,32 @@ export function calculatePeriodDepreciationFromBalances(params: {
   )
   if (daysInPeriod <= 0) return 0
 
-  // Period cost rollforward base
-  const closingCost =
-    openingCost + additionsAtCost + costAdjustmentForPeriod - disposalsAtCost
+  // ✅ Cost base BEFORE disposals (disposals are handled separately)
+  const preDisposalCost =
+    openingCost + additionsAtCost + costAdjustmentForPeriod
 
-  const openingNBV = closingCost - openingAccumulatedDepreciation
-  if (openingNBV <= 0) return 0
+  const preDisposalNBV = preDisposalCost - openingAccumulatedDepreciation
+  if (preDisposalNBV <= 0) return 0
 
   const dep =
     method === 'straight_line'
       ? calculateStraightLineDepreciation(
-          closingCost,
+          preDisposalCost,
           depreciationRate,
           daysInPeriod
         )
       : calculateReducingBalanceDepreciation(
-          openingNBV,
+          preDisposalNBV,
           depreciationRate,
           daysInPeriod
         )
 
-  return Math.min(dep, openingNBV)
+  // ✅ If fully disposed, the *display* charge should be 0 for the remaining asset
+  const closingCost = preDisposalCost - disposalsAtCost
+  const fullyDisposed = closingCost <= 0.00001
+
+  const capped = Math.min(dep, preDisposalNBV)
+  return fullyDisposed ? 0 : capped
 }
 
 export function calculatePeriodDepreciation(params: {
@@ -327,22 +329,54 @@ export function enrichAssetWithPeriodCalculations(
     : acquisitionDate < startDate
       ? Number(asset.totalDepreciationToDate ?? 0)
       : 0
+  const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100
 
+  const preDisposalCost = Math.max(
+    0,
+    openingCost + additionsAtCost + costAdjustmentForPeriod
+  )
+
+  // Remaining fraction after disposals (1 = none disposed, 0 = fully disposed)
+  const remainingFraction =
+    preDisposalCost > 0
+      ? Math.max(
+          0,
+          Math.min(1, (preDisposalCost - disposalsAtCost) / preDisposalCost)
+        )
+      : 1
+
+  // ✅ Estimate “gross” period depreciation ignoring disposals
+  const estimatedDepreciationBeforeDisposals =
+    calculatePeriodDepreciationFromBalances({
+      openingCost,
+      additionsAtCost,
+      costAdjustmentForPeriod,
+      disposalsAtCost: 0, // ✅ critical: do NOT let disposals zero the charge
+      openingAccumulatedDepreciation,
+      depreciationRate,
+      method: asset.depreciationMethod,
+      periodStartDate: startDate,
+      periodEndDate: endDate,
+      acquisitionDate
+    })
+
+  // const depreciationForPeriod = entry
+  //   ? Number(entry.depreciationAmount)
+  //   : calculatePeriodDepreciationFromBalances({
+  //       openingCost,
+  //       additionsAtCost,
+  //       costAdjustmentForPeriod,
+  //       disposalsAtCost,
+  //       openingAccumulatedDepreciation,
+  //       depreciationRate,
+  //       method: asset.depreciationMethod,
+  //       periodStartDate: startDate,
+  //       periodEndDate: endDate,
+  //       acquisitionDate
+  //     })
   const depreciationForPeriod = entry
     ? Number(entry.depreciationAmount)
-    : calculatePeriodDepreciationFromBalances({
-        openingCost,
-        additionsAtCost,
-        costAdjustmentForPeriod,
-        disposalsAtCost,
-        openingAccumulatedDepreciation,
-        depreciationRate,
-        method: asset.depreciationMethod,
-        periodStartDate: startDate,
-        periodEndDate: endDate,
-        acquisitionDate
-      })
-
+    : round2(estimatedDepreciationBeforeDisposals * remainingFraction)
   const depreciationAdjustmentForPeriod = balance
     ? Number(balance.depreciationAdjustment)
     : 0
@@ -355,10 +389,10 @@ export function enrichAssetWithPeriodCalculations(
   // estimate = available accumulated dep * (disposalsAtCost / preDisposalCost)
   //
   // preDisposalCost is the cost base before subtracting disposals.
-  const preDisposalCost = Math.max(
-    0,
-    openingCost + additionsAtCost + costAdjustmentForPeriod
-  )
+  // const preDisposalCost = Math.max(
+  //   0,
+  //   openingCost + additionsAtCost + costAdjustmentForPeriod
+  // )
 
   const availableAccumDep = Math.max(
     0,

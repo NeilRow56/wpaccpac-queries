@@ -39,7 +39,7 @@ export function AssetFields({
   return (
     <div className='grid grid-cols-1 gap-6 md:grid-cols-2'>
       {/* ---------------- Asset details ---------------- */}
-      <section className='space-y-4'>
+      <section className='text-primary space-y-4 font-bold'>
         <h3 className='text-muted-foreground text-sm font-semibold'>
           Asset details
         </h3>
@@ -116,9 +116,7 @@ export function AssetFields({
 
       {/* ---------------- Depreciation ---------------- */}
       <section className='space-y-4'>
-        <h3 className='text-muted-foreground text-sm font-semibold'>
-          Depreciation
-        </h3>
+        <h3 className='text-primary text-sm font-semibold'>Depreciation</h3>
 
         {/* You can keep your existing custom Select block here if you prefer.
             I’m using FormSelect for consistency + less code. */}
@@ -126,7 +124,7 @@ export function AssetFields({
           control={control}
           name={'depreciationMethod' as any}
           label='Depreciation method'
-          className='font-normal text-gray-900'
+          className='font-normal text-gray-900/70'
         >
           <SelectItem value='straight_line'>Straight line</SelectItem>
           <SelectItem value='reducing_balance'>Reducing balance</SelectItem>
@@ -144,7 +142,8 @@ export function AssetFields({
           className='font-normal text-gray-900'
         />
         <FormDescription className='text-muted-foreground font-light'>
-          Annual rate (0–100).
+          Annual rate (0–100). For straight line divide 100 by the asset life
+          e.g. 5 year life = 20
         </FormDescription>
       </section>
     </div>

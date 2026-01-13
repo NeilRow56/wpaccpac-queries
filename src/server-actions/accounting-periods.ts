@@ -5,7 +5,7 @@ import { unstable_noStore as noStore } from 'next/cache'
 import { eq, and, sql } from 'drizzle-orm'
 
 import {
-  calculatePeriodDepreciation,
+  calculatePeriodDepreciationFromBalances,
   calculateDaysInPeriod
 } from '@/lib/asset-calculations'
 import { db } from '@/db'
@@ -282,9 +282,20 @@ export async function calculatePeriodDepreciationForClient(
           ? Number(asset.totalDepreciationToDate ?? 0) // transitional fallback
           : 0
 
-      const depreciationAmount = calculatePeriodDepreciation({
-        originalCost,
+      const additionsAtCost = bal
+        ? Number(bal.additions)
+        : acquisitionDate >= periodStartDate && acquisitionDate <= periodEndDate
+          ? originalCost
+          : 0
+
+      const costAdjustmentForPeriod = bal ? Number(bal.costAdjustment) : 0
+      const disposalsAtCost = bal ? Number(bal.disposalsCost) : 0
+
+      const depreciationAmount = calculatePeriodDepreciationFromBalances({
         openingCost,
+        additionsAtCost,
+        costAdjustmentForPeriod,
+        disposalsAtCost,
         openingAccumulatedDepreciation,
         depreciationRate: Number(asset.depreciationRate),
         method,
@@ -358,8 +369,13 @@ export async function getCurrentAccountingPeriod(
  * ---------------------------------- */
 
 export async function closeAccountingPeriodAction(input: unknown) {
-  const data = closeAccountingPeriodSchema.parse(input)
-  return postDepreciationAndClosePeriod(data)
+  try {
+    const data = closeAccountingPeriodSchema.parse(input)
+    return await postDepreciationAndClosePeriod(data)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Something went wrong'
+    return { success: false as const, error: message }
+  }
 }
 
 /* ----------------------------------
@@ -580,9 +596,11 @@ export async function postDepreciationAndClosePeriod(input: {
           ? Number(asset.totalDepreciationToDate ?? 0) // transitional fallback
           : 0
 
-      const depreciationAmount = calculatePeriodDepreciation({
-        originalCost,
+      const depreciationAmount = calculatePeriodDepreciationFromBalances({
         openingCost,
+        additionsAtCost: additions,
+        costAdjustmentForPeriod,
+        disposalsAtCost: disposalsCost,
         openingAccumulatedDepreciation,
         depreciationRate: Number(asset.depreciationRate),
         method,

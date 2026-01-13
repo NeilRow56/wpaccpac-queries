@@ -120,7 +120,7 @@ export function HistoricAssetForm({
 
             {/* Opening balances */}
             <section className='space-y-3 pt-2'>
-              <h3 className='text-muted-foreground text-sm font-semibold'>
+              <h3 className='text-primary text-sm font-semibold'>
                 Opening balances
               </h3>
 

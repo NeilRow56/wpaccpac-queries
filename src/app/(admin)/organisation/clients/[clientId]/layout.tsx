@@ -36,7 +36,7 @@ export default async function ClientLayout({
                   href={`/organisation/clients/${clientId}/asset-categories`}
                 >
                   <FolderTree className='mr-2 h-4 w-4' />
-                  Fixed asset categories
+                  <span className='text-red-600'>Fixed asset categories</span>
                 </Link>
               </Button>
 
