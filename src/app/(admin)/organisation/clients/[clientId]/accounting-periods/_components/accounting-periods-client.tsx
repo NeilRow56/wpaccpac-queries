@@ -32,19 +32,7 @@ import {
 import { ClosePeriodModal } from './close-period-modal'
 import { PeriodStatus } from '@/db/schema'
 import Link from 'next/link'
-
-interface AccountingPeriod {
-  id: string
-  clientId: string
-  periodName: string
-  startDate: string
-  endDate: string
-
-  status: PeriodStatus // ✅ add this
-  isOpen: boolean // keep for now
-  isCurrent: boolean
-  createdAt: Date | null
-}
+import { AccountingPeriod } from '@/domain/accounting-periods/types'
 
 interface AccountingPeriodsClientProps {
   periods: AccountingPeriod[]
@@ -77,6 +65,8 @@ export function AccountingPeriodsClient({
   const currentPeriod = filteredPeriods.find(
     p => p.isCurrent && p.status === 'OPEN'
   )
+
+  const periodStatus = currentPeriod?.status
 
   // ---------------------------
   // Pagination (simple client-side)
@@ -423,6 +413,7 @@ export function AccountingPeriodsClient({
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreate}
         clientId={clientId}
+        periodStatus={periodStatus}
         mode='create'
       />
 
@@ -436,6 +427,7 @@ export function AccountingPeriodsClient({
         }}
         onSubmit={handleUpdate}
         clientId={clientId}
+        periodStatus={periodStatus}
         mode='edit'
       />
 

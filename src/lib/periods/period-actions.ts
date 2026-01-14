@@ -1,9 +1,9 @@
 import { AccountingPeriod } from '@/db/schema'
 
 export function canClosePeriod(period: AccountingPeriod) {
-  return period.isOpen === true
+  return period.status === 'OPEN'
 }
 
 export function canRollForward(period: AccountingPeriod) {
-  return period.isOpen === true && period.isCurrent === true
+  return period.status === 'OPEN' && period.isCurrent === true
 }

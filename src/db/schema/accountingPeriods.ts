@@ -1,5 +1,5 @@
 import { clients } from './clients'
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import { depreciationEntries } from './fixedAssets'
 
 // Accounting Periods
@@ -10,7 +10,8 @@ import {
   pgEnum,
   pgTable,
   text,
-  timestamp
+  timestamp,
+  uniqueIndex
 } from 'drizzle-orm/pg-core'
 
 export const periodStatusEnum = pgEnum('period_status', [
@@ -36,10 +37,8 @@ export const accountingPeriods = pgTable(
     endDate: date('end_date').notNull(),
 
     // ✅ New
-    status: periodStatusEnum('status').notNull().default('OPEN'),
+    status: periodStatusEnum('status').notNull(),
 
-    // Keep for now (deprecate later)
-    isOpen: boolean('is_open').notNull().default(true),
     isCurrent: boolean('is_current').notNull().default(false),
 
     createdAt: timestamp('created_at').defaultNow()
@@ -49,7 +48,10 @@ export const accountingPeriods = pgTable(
       table.clientId,
       table.startDate,
       table.endDate
-    )
+    ),
+    uniqueIndex('one_open_period_per_client_idx')
+      .on(table.clientId)
+      .where(sql`${table.status} = 'OPEN'`)
   ]
 )
 

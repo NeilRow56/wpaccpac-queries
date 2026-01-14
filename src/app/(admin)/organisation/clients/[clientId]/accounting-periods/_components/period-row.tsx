@@ -20,7 +20,7 @@ export function PeriodRow({
   const [loadingAction, setLoadingAction] = useState<'close' | 'roll' | null>(
     null
   )
-
+  const periodStatus = period.status
   const isClosing = loadingAction === 'close'
   const isRolling = loadingAction === 'roll'
 
@@ -39,7 +39,7 @@ export function PeriodRow({
             period={period}
             disabled={isClosing || isRolling}
             onClick={() => {
-              if (!period.isOpen) return
+              if (periodStatus !== 'OPEN') return
               setLoadingAction('close')
               modal.openClose(period)
             }}
@@ -51,7 +51,7 @@ export function PeriodRow({
             period={period}
             disabled={isClosing || isRolling}
             onClick={() => {
-              if (!period.isOpen || !period.isCurrent) return
+              if (periodStatus !== 'OPEN' || !period.isCurrent) return
               setLoadingAction('roll')
               modal.openRoll(period)
             }}

@@ -1,11 +1,12 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
-import { AccountingPeriod } from '@/db/schema'
+
 import { closeAccountingPeriodAction } from '@/server-actions/accounting-periods'
 
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { AccountingPeriod } from '@/domain/accounting-periods/types'
 
 type Props = {
   period: AccountingPeriod

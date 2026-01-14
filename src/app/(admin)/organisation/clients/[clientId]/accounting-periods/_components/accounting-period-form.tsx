@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { Form, FormField } from '@/components/ui/form'
 import type { SubmitHandler, UseFormReturn } from 'react-hook-form'
+
 import {
   //   FormSelect,
   FormInputDate,
@@ -47,6 +48,7 @@ type BaseProps = {
   onClose: () => void
   //   clients: Array<{ id: string; name: string }>
   clientId: string
+  periodStatus?: PeriodStatus
 }
 
 type CreateProps = BaseProps & {
@@ -164,8 +166,8 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
   return (
     <Dialog
       open={open}
-      onOpenChange={isOpen => {
-        if (!isOpen) onClose()
+      onOpenChange={nextOpen => {
+        if (!nextOpen) onClose()
       }}
     >
       <DialogContent className='max-w-xl'>
@@ -256,28 +258,6 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
                           the default period for calculations.
                         </FieldDescription>
                       </div>
-                      {/* Add isOpen Checkbox - Only show in edit mode */}
-                      {props.mode === 'edit' && (
-                        <>
-                          {/* <FormCheckbox
-                            control={form.control}
-                            name='isOpen'
-                            label='Period is open'
-                          /> */}
-                          <div className='space-y-1 leading-none'>
-                            <FieldLabel
-                              htmlFor='isOpen'
-                              className='cursor-pointer font-normal'
-                            >
-                              Period status
-                            </FieldLabel>
-                            <FieldDescription>
-                              Uncheck to close this period. Closed periods
-                              should not be edited or deleted.
-                            </FieldDescription>
-                          </div>
-                        </>
-                      )}
                     </div>
                   </div>
                 </FieldGroup>

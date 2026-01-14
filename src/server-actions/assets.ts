@@ -41,7 +41,7 @@ export async function createAsset(data: {
       where: and(
         eq(accountingPeriods.clientId, data.clientId),
         eq(accountingPeriods.isCurrent, true),
-        eq(accountingPeriods.isOpen, true)
+        eq(accountingPeriods.status, 'OPEN')
       )
     })
 
@@ -164,7 +164,7 @@ export async function updateAsset(data: {
         where: and(
           eq(accountingPeriods.clientId, data.clientId),
           eq(accountingPeriods.isCurrent, true),
-          eq(accountingPeriods.isOpen, true)
+          eq(accountingPeriods.status, 'OPEN')
         )
       })
 
@@ -276,7 +276,7 @@ export async function deleteAsset(params: { id: string; clientId: string }) {
         .where(
           and(
             eq(accountingPeriods.clientId, clientId),
-            eq(accountingPeriods.isOpen, false),
+            eq(accountingPeriods.status, 'CLOSED'),
             inArray(accountingPeriods.id, periodIds)
           )
         )
@@ -327,7 +327,7 @@ export async function createHistoricAsset(input: unknown) {
     })
 
     if (!period) throw new Error('Period not found')
-    if (!period.isOpen || !period.isCurrent) {
+    if (period.status !== 'OPEN' || !period.isCurrent) {
       throw new Error(
         'Historic assets can only be added to the current open period'
       )

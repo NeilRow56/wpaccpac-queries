@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { unstable_noStore as noStore } from 'next/cache'
 import { eq, and, sql } from 'drizzle-orm'
-
+import { assertValidTransition } from '@/domain/accounting-periods/periodStatus'
 import {
   calculatePeriodDepreciationFromBalances,
   calculateDaysInPeriod
@@ -90,8 +90,7 @@ export async function createAccountingPeriod(data: {
       startDate: data.startDate,
       endDate: data.endDate,
       status: 'PLANNED',
-      isCurrent: false,
-      isOpen: false
+      isCurrent: false
     })
 
     revalidateClientAccountingPages(data.clientId)
@@ -415,30 +414,28 @@ export async function rollAccountingPeriod(input: unknown) {
       })
 
       if (current) {
-        if (current.status !== 'OPEN') {
-          throw new Error('Current period is not open')
-        }
+        assertValidTransition(current.status, 'CLOSED')
 
         await tx
           .update(accountingPeriodsTable)
-          .set({ status: 'CLOSED', isOpen: false, isCurrent: false })
+          .set({ status: 'CLOSED', isCurrent: false })
           .where(eq(accountingPeriodsTable.id, current.id))
       }
 
-      // Important: ensure no other period remains current (belt-and-braces)
+      // Ensure no other period remains current (belt-and-braces)
       await tx
         .update(accountingPeriodsTable)
         .set({ isCurrent: false })
         .where(eq(accountingPeriodsTable.clientId, data.clientId))
 
-      // Create next period as PLANNED (deletable/editable)
+      // Create next period as PLANNED
       await tx.insert(accountingPeriodsTable).values({
         clientId: data.clientId,
         periodName: data.periodName,
         startDate: data.startDate,
         endDate: data.endDate,
         status: 'PLANNED',
-        isOpen: false, // shadow
+
         isCurrent: false
       })
     })
@@ -486,26 +483,21 @@ async function findOrCreateNextPeriod(
       )
     )
     .limit(1)
+    .for('update')
 
   const found = existing[0]
   if (found) {
-    // Hard guards: never reuse a CLOSED period as "next"
-    if (found.status === 'CLOSED') {
+    if (found.status !== 'PLANNED') {
       throw new Error(
-        'Next period already exists for these dates but is CLOSED and cannot be reused'
+        `Next period already exists for these dates but is ${found.status} and cannot be reused`
       )
     }
 
-    // Data-integrity guard: the "next period" should not already be current
     if (found.isCurrent) {
       throw new Error(
         'Next period already exists for these dates and is already current; cannot reuse'
       )
     }
-
-    // Optional: if it exists but is OPEN, allow reuse (it might be a pre-created period)
-    // If you want stricter behavior, change this to require PLANNED only:
-    // if (found.status !== 'PLANNED') throw new Error('Next period must be PLANNED to reuse')
 
     return found
   }
@@ -537,7 +529,7 @@ async function findOrCreateNextPeriod(
       startDate: next.startDate,
       endDate: next.endDate,
       status: 'PLANNED',
-      isOpen: false, // shadow (remove later)
+
       isCurrent: false
     })
     .returning()
@@ -556,28 +548,36 @@ export async function postDepreciationAndClosePeriod(input: {
   }
 }) {
   return await db.transaction(async tx => {
-    const period = await tx.query.accountingPeriods.findFirst({
-      where: and(
-        eq(accountingPeriodsTable.id, input.periodId),
-        eq(accountingPeriodsTable.clientId, input.clientId)
+    // 🔒 Lock the period row to prevent double-close/double-post concurrency
+    const [period] = await tx
+      .select()
+      .from(accountingPeriodsTable)
+      .where(
+        and(
+          eq(accountingPeriodsTable.id, input.periodId),
+          eq(accountingPeriodsTable.clientId, input.clientId)
+        )
       )
-    })
+      .limit(1)
+      .for('update')
 
     if (!period) throw new Error('Accounting period not found')
-    if (period.status !== 'OPEN')
-      throw new Error('Accounting period is not open')
 
-    if (!period.isCurrent)
+    // Formalized rule: only allow OPEN -> CLOSED
+    // This replaces "if (period.status !== 'OPEN')" and also blocks CLOSED/CLOSING/PLANNED.
+    assertValidTransition(period.status, 'CLOSED')
+
+    if (!period.isCurrent) {
       throw new Error('Only the current period can be closed')
+    }
 
-    // ---- replace your existing block with this ----
-    const currentEndYMD = period.endDate // already YYYY-MM-DD in your schema
+    // ---- your existing next-period validation ----
+    const currentEndYMD = period.endDate
     const proposedNextStartYMD = input.nextPeriod.startDate
 
     assertYMD('Current period end date', currentEndYMD)
     assertYMD('Next period start date', proposedNextStartYMD)
 
-    // UX rule: next period must start on/after the next day
     const earliestAllowedStart = addDaysYMD(currentEndYMD, 1)
 
     if (proposedNextStartYMD < earliestAllowedStart) {
@@ -586,7 +586,7 @@ export async function postDepreciationAndClosePeriod(input: {
       )
     }
 
-    // Create or reuse next period from UI input
+    // Create or reuse next period from UI input (your updated helper = PLANNED only)
     const nextPeriod = await findOrCreateNextPeriod(
       tx,
       input.clientId,
@@ -598,7 +598,6 @@ export async function postDepreciationAndClosePeriod(input: {
         .select()
         .from(fixedAssetsTable)
         .where(eq(fixedAssetsTable.clientId, input.clientId)),
-
       tx
         .select()
         .from(assetPeriodBalances)
@@ -608,7 +607,6 @@ export async function postDepreciationAndClosePeriod(input: {
     const balancesByAssetId = new Map(balances.map(b => [b.assetId, b]))
 
     const periodStartDate = ymdToUtcDate('Period start date', period.startDate)
-
     const periodEndDate = ymdToUtcDate('Period end date', period.endDate)
 
     for (const asset of assets) {
@@ -758,22 +756,28 @@ export async function postDepreciationAndClosePeriod(input: {
         })
     }
 
+    // Assert transition is valid (formalized state machine)
+    assertValidTransition(period.status, 'CLOSED')
+
     // Finalize: close current period
+    // Optional extra safety: include status/current in WHERE so we only close what we validated.
     await tx
       .update(accountingPeriodsTable)
-      .set({ status: 'CLOSED', isOpen: false, isCurrent: false })
-      .where(eq(accountingPeriodsTable.id, period.id))
+      .set({ status: 'CLOSED', isCurrent: false })
+      .where(
+        and(
+          eq(accountingPeriodsTable.id, period.id),
+          eq(accountingPeriodsTable.clientId, input.clientId),
+          eq(accountingPeriodsTable.isCurrent, true),
+          eq(accountingPeriodsTable.status, 'OPEN')
+        )
+      )
 
-    // (Optional safety) ensure only one current period
+    // Belt-and-braces: ensure only one current period (optional; can remove later)
     await tx
       .update(accountingPeriodsTable)
       .set({ isCurrent: false })
       .where(eq(accountingPeriodsTable.clientId, input.clientId))
-
-    await tx
-      .update(accountingPeriodsTable)
-      .set({ status: 'PLANNED', isOpen: false, isCurrent: false })
-      .where(eq(accountingPeriodsTable.id, nextPeriod.id))
 
     revalidateClientAccountingPages(input.clientId)
 

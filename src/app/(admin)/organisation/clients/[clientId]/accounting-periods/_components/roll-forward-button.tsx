@@ -19,6 +19,8 @@ export function RollForwardButton({
 }: RollForwardButtonProps) {
   const isDisabled = disabled ?? !canRollForward(period)
 
+  const periodStatus = period.status
+
   return (
     <Button
       size='sm'
@@ -27,7 +29,7 @@ export function RollForwardButton({
       onClick={onClick}
       title={
         isDisabled
-          ? !period.isOpen
+          ? periodStatus !== 'OPEN'
             ? 'Cannot roll a closed period'
             : !period.isCurrent
               ? 'Only current period can be rolled forward'

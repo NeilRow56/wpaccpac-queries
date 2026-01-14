@@ -7,6 +7,8 @@ import {
   type DepScheduleRow
 } from '@/server-actions/depreciation-schedule'
 
+import type { PeriodStatus } from '@/db/schema'
+
 import {
   Dialog,
   DialogContent,
@@ -35,6 +37,7 @@ interface DepreciationScheduleModalProps {
     startDate: Date
     endDate: Date
     name?: string
+    periodStatus: PeriodStatus
   }
   open: boolean
   onClose: () => void
@@ -57,11 +60,13 @@ interface ScheduleEntry {
 
 export function DepreciationScheduleModal({
   asset,
-  // period,
+  period,
   clientId,
   open,
   onClose
 }: DepreciationScheduleModalProps) {
+  const { periodStatus } = period
+
   const formatGBP = (value: number) =>
     (Number(value) || 0).toLocaleString('en-GB', {
       minimumFractionDigits: 2,
@@ -114,7 +119,8 @@ export function DepreciationScheduleModal({
     const hasDisposal =
       Number(r.disposalsCost) > 0 || Number(r.disposalProceeds) > 0
 
-    const status = r.isOpen && !r.isPosted ? 'Provisional' : 'Final'
+    const status =
+      periodStatus === 'OPEN' && !r.isPosted ? 'Provisional' : 'Final'
 
     return {
       year: idx + 1,
@@ -391,7 +397,7 @@ export function DepreciationScheduleModal({
                                 </span>
                               </div>
 
-                              {r.isOpen && !r.isPosted && (
+                              {periodStatus === 'OPEN' && !r.isPosted && (
                                 <div className='text-muted-foreground pt-1 text-xs'>
                                   Provisional (period not yet closed)
                                 </div>

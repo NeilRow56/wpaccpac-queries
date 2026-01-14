@@ -31,7 +31,7 @@ export async function postAssetMovementAction(input: unknown) {
     })
 
     if (!period) return { success: false as const, error: 'Period not found' }
-    if (!period.isOpen) {
+    if (period.status !== 'OPEN') {
       return {
         success: false as const,
         error: 'Cannot post to a closed period'

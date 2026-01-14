@@ -32,7 +32,7 @@ export type DepScheduleRow = {
   disposalProceeds: number
   nbvDisposed: number
   profitOrLossOnDisposal: number
-  isOpen: boolean
+
   isPosted: boolean
 }
 
@@ -49,7 +49,7 @@ export async function getAssetDepreciationScheduleAction(params: {
       periodName: accountingPeriods.periodName,
       startDate: accountingPeriods.startDate,
       endDate: accountingPeriods.endDate,
-      isOpen: accountingPeriods.isOpen // ✅
+      periodStatus: accountingPeriods.status // ✅
     })
     .from(accountingPeriods)
     .where(eq(accountingPeriods.clientId, clientId))
@@ -146,7 +146,7 @@ export async function getAssetDepreciationScheduleAction(params: {
       disposalProceeds,
       nbvDisposed,
       profitOrLossOnDisposal,
-      isOpen: p.isOpen,
+      periodStatus: p.periodStatus,
       isPosted
     }
   })

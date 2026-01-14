@@ -52,7 +52,7 @@ export function FixedAssetsTableWrapper({
   categories
 }: FixedAssetsTableWrapperProps) {
   const router = useRouter()
-
+  const periodStatus = period.status
   const [selectedAsset, setSelectedAsset] =
     React.useState<AssetWithPeriodCalculations | null>(null)
 
@@ -71,7 +71,12 @@ export function FixedAssetsTableWrapper({
       toast.error('No current accounting period available.')
       return
     }
-    if (!period.isOpen) {
+    if (periodStatus === 'PLANNED') {
+      toast.error('You must open the period before posting movements.')
+      return
+    }
+
+    if (periodStatus === 'CLOSED') {
       toast.error('Cannot post movements to a closed period.')
       return
     }
@@ -231,7 +236,8 @@ export function FixedAssetsTableWrapper({
           period={{
             startDate: new Date(period.startDate),
             endDate: new Date(period.endDate),
-            name: period.periodName
+            name: period.periodName,
+            periodStatus: period.status
           }}
           open
           onClose={() => {

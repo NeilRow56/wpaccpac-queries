@@ -23,11 +23,11 @@ export default async function AccountingPeriodsPage({
       periodName: accountingPeriods.periodName,
       startDate: accountingPeriods.startDate,
       endDate: accountingPeriods.endDate,
-      isOpen: accountingPeriods.isOpen, // keep for now
       status: accountingPeriods.status,
       isCurrent: accountingPeriods.isCurrent,
       createdAt: accountingPeriods.createdAt
     })
+
     .from(accountingPeriods)
     .where(eq(accountingPeriods.clientId, clientId))
     .orderBy(sql`${accountingPeriods.startDate} DESC`)
