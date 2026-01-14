@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-
+import * as z from 'zod'
 import {
   Dialog,
   DialogContent,
@@ -31,10 +31,6 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
 import {
-  accountingPeriodFormSchema,
-  AccountingPeriodFormValues
-} from '@/zod-schemas/accountingPeriod'
-import {
   Card,
   CardContent,
   CardDescription,
@@ -42,6 +38,9 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card'
+
+import { accountingPeriodFormSchema } from '@/zod-schemas/accountingPeriod'
+type FormValues = z.infer<typeof accountingPeriodFormSchema>
 
 type BaseProps = {
   open: boolean
@@ -52,15 +51,15 @@ type BaseProps = {
 
 type CreateProps = BaseProps & {
   mode: 'create'
-  onSubmit: (values: AccountingPeriodFormValues) => void
+  onSubmit: (values: FormValues) => void
 }
+
+type PeriodStatus = 'PLANNED' | 'OPEN' | 'CLOSING' | 'CLOSED'
 
 type EditProps = BaseProps & {
   mode: 'edit'
-  accountingPeriods:
-    | (AccountingPeriodFormValues & { id: string; isOpen: boolean })
-    | null // Allow null
-  onSubmit: (values: AccountingPeriodFormValues & { id: string }) => void
+  accountingPeriods: (FormValues & { id: string; status?: PeriodStatus }) | null
+  onSubmit: (values: FormValues & { id: string }) => void
 }
 
 export type AccountingPeriodProps = CreateProps | EditProps
@@ -74,8 +73,7 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
       periodName: '',
       startDate: '',
       endDate: '',
-      isCurrent: false as boolean, // Explicit type,
-      isOpen: true as boolean // Add this
+      isCurrent: false as boolean // Explicit type,
     }
   }) as UseFormReturn<{
     clientId: string
@@ -83,7 +81,6 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
     startDate: string
     endDate: string
     isCurrent: boolean
-    isOpen: boolean // Add this
   }>
 
   React.useEffect(() => {
@@ -100,8 +97,7 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
         periodName: props.accountingPeriods.periodName,
         startDate: formattedStartDate,
         endDate: formattedEndDate,
-        isCurrent: props.accountingPeriods.isCurrent ?? false,
-        isOpen: props.accountingPeriods.isOpen ?? true // Add this
+        isCurrent: props.accountingPeriods.isCurrent ?? false
       })
     } else if (props.mode === 'create') {
       form.reset({
@@ -109,25 +105,27 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
         periodName: '',
         startDate: '',
         endDate: '',
-        isCurrent: false,
-        isOpen: true // Add this
+        isCurrent: false
       })
     }
   }, [props, form, clientId])
 
-  const handleSubmit: SubmitHandler<AccountingPeriodFormValues> = values => {
-    // Ensure clientId is included
-    const formData = {
+  const handleSubmit: SubmitHandler<FormValues> = values => {
+    const formData: FormValues = {
       ...values,
-      clientId: clientId // Make sure clientId is in the submitted data
+      clientId
     }
 
     if (props.mode === 'edit') {
-      if (!props.accountingPeriods) return
-      props.onSubmit({
+      const selected = props.accountingPeriods
+      if (!selected) return
+
+      const payload: FormValues & { id: string } = {
         ...formData,
-        id: props.accountingPeriods.id
-      })
+        id: selected.id
+      }
+
+      props.onSubmit(payload)
     } else {
       props.onSubmit(formData)
     }
@@ -198,29 +196,17 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
                 <FieldGroup>
                   <div className='grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-8'>
                     <div className='text-primary min-w-0 space-y-4 font-medium'>
-                      {/* Client selected from clientId */}
-                      {/* <FormSelect
-                        control={form.control}
-                        name='clientId'
-                        label='Client'
-                      >
-                        {clients.map(cc => (
-                          <SelectItem key={cc.id} value={cc.id}>
-                            {cc.name}
-                          </SelectItem>
-                        ))}
-                      </FormSelect> */}
                       {props.mode === 'edit' && (
                         <FieldDescription>
                           Client cannot be changed after creation
                         </FieldDescription>
                       )}
-                      <FormInputDate<AccountingPeriodFormValues>
+                      <FormInputDate<FormValues>
                         control={form.control}
                         name='startDate'
                         label='Start date'
                       />
-                      <FormInputDate<AccountingPeriodFormValues>
+                      <FormInputDate<FormValues>
                         control={form.control}
                         name='endDate'
                         label='End date'
@@ -273,11 +259,11 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
                       {/* Add isOpen Checkbox - Only show in edit mode */}
                       {props.mode === 'edit' && (
                         <>
-                          <FormCheckbox
+                          {/* <FormCheckbox
                             control={form.control}
                             name='isOpen'
                             label='Period is open'
-                          />
+                          /> */}
                           <div className='space-y-1 leading-none'>
                             <FieldLabel
                               htmlFor='isOpen'

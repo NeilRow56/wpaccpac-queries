@@ -23,7 +23,8 @@ export default async function AccountingPeriodsPage({
       periodName: accountingPeriods.periodName,
       startDate: accountingPeriods.startDate,
       endDate: accountingPeriods.endDate,
-      isOpen: accountingPeriods.isOpen,
+      isOpen: accountingPeriods.isOpen, // keep for now
+      status: accountingPeriods.status,
       isCurrent: accountingPeriods.isCurrent,
       createdAt: accountingPeriods.createdAt
     })
@@ -31,12 +32,10 @@ export default async function AccountingPeriodsPage({
     .where(eq(accountingPeriods.clientId, clientId))
     .orderBy(sql`${accountingPeriods.startDate} DESC`)
 
-  // Fetch the client name
+  const plannedPeriod = allPeriods.find(p => p.status === 'PLANNED') ?? null
+
   const [client] = await db
-    .select({
-      id: clients.id,
-      name: clients.name
-    })
+    .select({ id: clients.id, name: clients.name })
     .from(clients)
     .where(eq(clients.id, clientId))
 
@@ -51,12 +50,20 @@ export default async function AccountingPeriodsPage({
             <span className='text-primary'>Back to Assets</span>
           </Button>
         </Link>
+        <Link href={`/organisation/clients/${clientId}/accounting-periods/`}>
+          <Button variant='ghost' className='mb-4'>
+            <ArrowLeft className='mr-2 h-4 w-4' />
+            <span className='text-primary'>Back to Assets</span>
+          </Button>
+        </Link>
       </div>
       <AccountingPeriodsClient
         periods={allPeriods}
         clientId={clientId}
         clientName={client?.name || clientId}
+        plannedPeriodId={plannedPeriod?.id ?? null}
       />
+
       <div className='text-muted-foreground mt-6 flex-col space-x-4 pl-8'>
         <span className='text-red-600'>NB: </span>
         <div className='flex flex-col space-y-2'>

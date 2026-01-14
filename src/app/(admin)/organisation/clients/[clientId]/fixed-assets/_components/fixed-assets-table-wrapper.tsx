@@ -98,15 +98,19 @@ export function FixedAssetsTableWrapper({
       })
 
       if (!result.success) {
-        toast.error('Failed to create asset')
-        return
+        toast.error(result.error || 'Failed to create asset')
+        return { success: false as const, error: result.error }
       }
 
       toast.success('Asset created successfully')
       setShowCreateModal(false)
       router.refresh()
-    } catch {
-      toast.error('An unexpected error occurred')
+      return { success: true as const }
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : 'An unexpected error occurred'
+      toast.error(msg || 'Failed to create asset')
+      return { success: false as const, error: msg }
     }
   }
 
@@ -142,16 +146,20 @@ export function FixedAssetsTableWrapper({
       })
 
       if (!result.success) {
-        toast.error('Failed to update asset')
-        return
+        toast.error(result.error || 'Failed to update asset')
+        return { success: false as const, error: result.error }
       }
 
       toast.success('Asset updated successfully')
       setShowEditModal(false)
       setSelectedAsset(null)
       router.refresh()
-    } catch {
-      toast.error('An unexpected error occurred')
+      return { success: true as const }
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : 'An unexpected error occurred'
+      toast.error(msg || 'Failed to update asset')
+      return { success: false as const, error: msg }
     }
   }
 
@@ -161,25 +169,24 @@ export function FixedAssetsTableWrapper({
 
   const handleDelete = async (asset: AssetWithPeriodCalculations) => {
     const confirmed = window.confirm(
-      'Are you sure? Assets with posted depreciation cannot be deleted.'
+      'Are you sure? Assets with posted depreciation or period history cannot be deleted.'
     )
     if (!confirmed) return
 
     try {
-      const result = await deleteAsset({
-        id: asset.id,
-        clientId
-      })
+      const result = await deleteAsset({ id: asset.id, clientId })
 
       if (!result.success) {
-        toast.error('Failed to delete asset')
+        toast.error(result.error || 'Failed to delete asset')
         return
       }
 
       toast.success('Asset deleted successfully')
       router.refresh()
-    } catch {
-      toast.error('An unexpected error occurred')
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : 'An unexpected error occurred'
+      toast.error(msg || 'Failed to delete asset')
     }
   }
 

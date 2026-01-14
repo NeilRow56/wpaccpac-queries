@@ -15,17 +15,47 @@ import {
   accountingPeriods as accountingPeriodsTable,
   depreciationEntries,
   fixedAssets as fixedAssetsTable,
-  assetPeriodBalances
+  assetPeriodBalances,
+  PeriodStatus
 } from '@/db/schema'
 import {
   rollAccountingPeriodSchema,
   closeAccountingPeriodSchema
 } from '@/zod-schemas/accountingPeriod'
+import { ensurePeriodOpenForRender } from '@/lib/ensurePeriodOpenForRender'
 
 function revalidateClientAccountingPages(clientId: string) {
   revalidatePath(`/organisation/clients/${clientId}/accounting-periods`)
   revalidatePath(`/organisation/clients/${clientId}/fixed-assets`)
 }
+
+function assertEditablePeriod(period: { status: PeriodStatus }) {
+  if (period.status !== 'OPEN') {
+    throw new Error('Only an OPEN accounting period can be modified')
+  }
+}
+
+// server-actions/accounting-periods.ts
+
+export async function ensurePeriodOpenAction(input: {
+  clientId: string
+  periodId: string
+}) {
+  try {
+    const result = await ensurePeriodOpenForRender(input)
+
+    revalidatePath(`/organisation/clients/${input.clientId}/accounting-periods`)
+    revalidatePath(
+      `/organisation/clients/${input.clientId}/accounting-periods/${input.periodId}/planning`
+    )
+
+    return { success: true as const, promoted: result.promoted }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Something went wrong'
+    return { success: false as const, error: message }
+  }
+}
+
 /* ----------------------------------
  * Create period
  * ---------------------------------- */
@@ -43,11 +73,8 @@ export async function createAccountingPeriod(data: {
       and(
         eq(accountingPeriodsTable.clientId, data.clientId),
         sql`
-          daterange(
-            ${accountingPeriodsTable.startDate},
-            ${accountingPeriodsTable.endDate},
-            '[]'
-          ) && daterange(${data.startDate}, ${data.endDate}, '[]')
+          daterange(${accountingPeriodsTable.startDate}, ${accountingPeriodsTable.endDate}, '[]')
+          && daterange(${data.startDate}, ${data.endDate}, '[]')
         `
       )
     )
@@ -56,22 +83,15 @@ export async function createAccountingPeriod(data: {
     throw new Error('Accounting period overlaps an existing period')
   }
 
-  // unset existing current
   try {
-    await db.transaction(async tx => {
-      await tx
-        .update(accountingPeriodsTable)
-        .set({ isCurrent: false })
-        .where(eq(accountingPeriodsTable.clientId, data.clientId))
-
-      await tx.insert(accountingPeriodsTable).values({
-        clientId: data.clientId,
-        periodName: data.periodName,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        isCurrent: true,
-        isOpen: true
-      })
+    await db.insert(accountingPeriodsTable).values({
+      clientId: data.clientId,
+      periodName: data.periodName,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      status: 'PLANNED',
+      isCurrent: false,
+      isOpen: false
     })
 
     revalidateClientAccountingPages(data.clientId)
@@ -92,7 +112,6 @@ export async function updateAccountingPeriod(data: {
   startDate: string
   endDate: string
   isCurrent?: boolean
-  isOpen?: boolean
 }) {
   try {
     const [period] = await db
@@ -101,13 +120,7 @@ export async function updateAccountingPeriod(data: {
       .where(eq(accountingPeriodsTable.id, data.id))
 
     if (!period) throw new Error('Period not found')
-    if (!period.isOpen)
-      throw new Error('Closed accounting periods cannot be modified')
-
-    // Invariant: a current period must be open
-    if (data.isCurrent === true && data.isOpen === false) {
-      throw new Error('A current period must be open')
-    }
+    assertEditablePeriod(period as { status: PeriodStatus })
 
     await db.transaction(async tx => {
       // If making this period current, unset any other current period for the same client
@@ -131,8 +144,7 @@ export async function updateAccountingPeriod(data: {
           periodName: data.periodName,
           startDate: data.startDate,
           endDate: data.endDate,
-          isCurrent: data.isCurrent ?? period.isCurrent,
-          isOpen: data.isOpen ?? period.isOpen
+          isCurrent: data.isCurrent ?? period.isCurrent
         })
         .where(eq(accountingPeriodsTable.id, data.id))
     })
@@ -152,19 +164,27 @@ export async function updateAccountingPeriod(data: {
 export async function deleteAccountingPeriod(id: string) {
   try {
     const [period] = await db
-      .select({ clientId: accountingPeriodsTable.clientId })
+      .select({
+        clientId: accountingPeriodsTable.clientId,
+        status: accountingPeriodsTable.status
+      })
       .from(accountingPeriodsTable)
       .where(eq(accountingPeriodsTable.id, id))
 
     if (!period) return { success: false as const, error: 'Period not found' }
 
+    if (period.status !== 'PLANNED' && period.status !== 'OPEN') {
+      return {
+        success: false as const,
+        error: 'Cannot delete a non-editable accounting period'
+      }
+    }
+
     await db
       .delete(accountingPeriodsTable)
       .where(eq(accountingPeriodsTable.id, id))
 
-    // ✅ Revalidate client-scoped pages that depend on periods
     revalidateClientAccountingPages(period.clientId)
-
     return { success: true as const }
   } catch (error) {
     console.error('Error deleting period:', error)
@@ -231,10 +251,10 @@ export async function calculatePeriodDepreciationForClient(
       )
 
     if (!period) return { success: false as const, error: 'Period not found' }
-    if (!period.isOpen) {
+    if (period.status !== 'OPEN') {
       return {
         success: false as const,
-        error: 'Cannot preview depreciation for a closed period'
+        error: 'Cannot preview depreciation for a non-open period'
       }
     }
 
@@ -351,7 +371,7 @@ export async function getCurrentAccountingPeriod(
       and(
         eq(accountingPeriodsTable.clientId, clientId),
         eq(accountingPeriodsTable.isCurrent, true),
-        eq(accountingPeriodsTable.isOpen, true)
+        eq(accountingPeriodsTable.status, 'OPEN')
       )
     )
 
@@ -395,29 +415,35 @@ export async function rollAccountingPeriod(input: unknown) {
       })
 
       if (current) {
-        if (!current.isOpen) {
-          throw new Error('Current period is already closed')
+        if (current.status !== 'OPEN') {
+          throw new Error('Current period is not open')
         }
 
         await tx
           .update(accountingPeriodsTable)
-          .set({ isOpen: false, isCurrent: false })
+          .set({ status: 'CLOSED', isOpen: false, isCurrent: false })
           .where(eq(accountingPeriodsTable.id, current.id))
       }
 
+      // Important: ensure no other period remains current (belt-and-braces)
+      await tx
+        .update(accountingPeriodsTable)
+        .set({ isCurrent: false })
+        .where(eq(accountingPeriodsTable.clientId, data.clientId))
+
+      // Create next period as PLANNED (deletable/editable)
       await tx.insert(accountingPeriodsTable).values({
         clientId: data.clientId,
         periodName: data.periodName,
         startDate: data.startDate,
         endDate: data.endDate,
-
-        isOpen: true,
-        isCurrent: true
+        status: 'PLANNED',
+        isOpen: false, // shadow
+        isCurrent: false
       })
     })
 
     revalidateClientAccountingPages(data.clientId)
-
     return { success: true as const }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Something went wrong'
@@ -448,7 +474,7 @@ async function findOrCreateNextPeriod(
     throw new Error('Next period start date must be before end date')
   }
 
-  // If exact match exists, reuse it
+  // If exact match exists, reuse it (but validate it)
   const existing = await tx
     .select()
     .from(accountingPeriodsTable)
@@ -461,9 +487,30 @@ async function findOrCreateNextPeriod(
     )
     .limit(1)
 
-  if (existing[0]) return existing[0]
+  const found = existing[0]
+  if (found) {
+    // Hard guards: never reuse a CLOSED period as "next"
+    if (found.status === 'CLOSED') {
+      throw new Error(
+        'Next period already exists for these dates but is CLOSED and cannot be reused'
+      )
+    }
 
-  // Optional: overlap protection (recommended)
+    // Data-integrity guard: the "next period" should not already be current
+    if (found.isCurrent) {
+      throw new Error(
+        'Next period already exists for these dates and is already current; cannot reuse'
+      )
+    }
+
+    // Optional: if it exists but is OPEN, allow reuse (it might be a pre-created period)
+    // If you want stricter behavior, change this to require PLANNED only:
+    // if (found.status !== 'PLANNED') throw new Error('Next period must be PLANNED to reuse')
+
+    return found
+  }
+
+  // Overlap protection
   const overlapping = await tx
     .select({ id: accountingPeriodsTable.id })
     .from(accountingPeriodsTable)
@@ -489,7 +536,8 @@ async function findOrCreateNextPeriod(
       periodName: next.periodName,
       startDate: next.startDate,
       endDate: next.endDate,
-      isOpen: false,
+      status: 'PLANNED',
+      isOpen: false, // shadow (remove later)
       isCurrent: false
     })
     .returning()
@@ -516,7 +564,9 @@ export async function postDepreciationAndClosePeriod(input: {
     })
 
     if (!period) throw new Error('Accounting period not found')
-    if (!period.isOpen) throw new Error('Accounting period is already closed')
+    if (period.status !== 'OPEN')
+      throw new Error('Accounting period is not open')
+
     if (!period.isCurrent)
       throw new Error('Only the current period can be closed')
 
@@ -708,16 +758,21 @@ export async function postDepreciationAndClosePeriod(input: {
         })
     }
 
-    // 4) Close current period
+    // Finalize: close current period
     await tx
       .update(accountingPeriodsTable)
-      .set({ isOpen: false, isCurrent: false })
+      .set({ status: 'CLOSED', isOpen: false, isCurrent: false })
       .where(eq(accountingPeriodsTable.id, period.id))
 
-    // 5) Make next period the open/current period (only now, after closing current)
+    // (Optional safety) ensure only one current period
     await tx
       .update(accountingPeriodsTable)
-      .set({ isOpen: true, isCurrent: true })
+      .set({ isCurrent: false })
+      .where(eq(accountingPeriodsTable.clientId, input.clientId))
+
+    await tx
+      .update(accountingPeriodsTable)
+      .set({ status: 'PLANNED', isOpen: false, isCurrent: false })
       .where(eq(accountingPeriodsTable.id, nextPeriod.id))
 
     revalidateClientAccountingPages(input.clientId)

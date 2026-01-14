@@ -466,7 +466,7 @@ export function FixedAssetsTable({
       columnVisibility
     },
     initialState: {
-      pagination: { pageSize: 20 }
+      pagination: { pageSize: 10 }
     }
   })
 

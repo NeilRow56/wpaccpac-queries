@@ -1,16 +1,27 @@
-import {
-  boolean,
-  date,
-  index,
-  pgTable,
-  text,
-  timestamp
-} from 'drizzle-orm/pg-core'
 import { clients } from './clients'
 import { relations } from 'drizzle-orm'
 import { depreciationEntries } from './fixedAssets'
 
 // Accounting Periods
+import {
+  boolean,
+  date,
+  index,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp
+} from 'drizzle-orm/pg-core'
+
+export const periodStatusEnum = pgEnum('period_status', [
+  'PLANNED',
+  'OPEN',
+  'CLOSING',
+  'CLOSED'
+])
+
+export type PeriodStatus = (typeof periodStatusEnum.enumValues)[number]
+
 export const accountingPeriods = pgTable(
   'accounting_periods',
   {
@@ -23,8 +34,14 @@ export const accountingPeriods = pgTable(
     periodName: text('period_name').notNull(),
     startDate: date('start_date').notNull(),
     endDate: date('end_date').notNull(),
+
+    // ✅ New
+    status: periodStatusEnum('status').notNull().default('OPEN'),
+
+    // Keep for now (deprecate later)
     isOpen: boolean('is_open').notNull().default(true),
     isCurrent: boolean('is_current').notNull().default(false),
+
     createdAt: timestamp('created_at').defaultNow()
   },
   table => [

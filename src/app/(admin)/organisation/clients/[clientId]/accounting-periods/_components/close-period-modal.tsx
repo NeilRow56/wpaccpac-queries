@@ -141,21 +141,6 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
     return { ok: true, message: '' }
   }, [nextStartDate, nextEndDate, nextPeriodName, currentEnd])
 
-  // function handleConfirm() {
-  //   startTransition(async () => {
-  //     await closeAccountingPeriodAction({
-  //       clientId,
-  //       periodId: period.id,
-  //       nextPeriod: {
-  //         periodName: nextPeriodName.trim(),
-  //         startDate: nextStartDate,
-  //         endDate: nextEndDate
-  //       }
-  //     })
-  //     onClose()
-  //   })
-  // }
-
   // inside component:
   const router = useRouter()
 
@@ -177,7 +162,10 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
       }
 
       toast.success(`Closed period. Posted ${res.assetsPosted} assets.`)
-      onClose()
+      // ✅ go straight into planning for the next period
+      router.push(
+        `/organisation/clients/${clientId}/accounting-periods/${res.nextPeriodId}/planning`
+      )
       router.refresh()
     })
   }

@@ -30,6 +30,8 @@ import {
   updateAccountingPeriod
 } from '@/server-actions/accounting-periods'
 import { ClosePeriodModal } from './close-period-modal'
+import { PeriodStatus } from '@/db/schema'
+import Link from 'next/link'
 
 interface AccountingPeriod {
   id: string
@@ -37,7 +39,9 @@ interface AccountingPeriod {
   periodName: string
   startDate: string
   endDate: string
-  isOpen: boolean
+
+  status: PeriodStatus // ✅ add this
+  isOpen: boolean // keep for now
   isCurrent: boolean
   createdAt: Date | null
 }
@@ -46,12 +50,18 @@ interface AccountingPeriodsClientProps {
   periods: AccountingPeriod[]
   clientId: string
   clientName: string
+  plannedPeriodId: string | null
 }
+
+const getStatus = (p: AccountingPeriod): PeriodStatus => p.status
+
+const isEditable = (p: AccountingPeriod) => p.status === 'OPEN'
 
 export function AccountingPeriodsClient({
   periods,
   clientId,
-  clientName
+  clientName,
+  plannedPeriodId
 }: AccountingPeriodsClientProps) {
   const router = useRouter()
   const [selectedPeriod, setSelectedPeriod] =
@@ -64,7 +74,9 @@ export function AccountingPeriodsClient({
     React.useState<AccountingPeriod | null>(null)
 
   const filteredPeriods = periods
-  const currentPeriod = filteredPeriods.find(p => p.isCurrent)
+  const currentPeriod = filteredPeriods.find(
+    p => p.isCurrent && p.status === 'OPEN'
+  )
 
   // ---------------------------
   // Pagination (simple client-side)
@@ -135,7 +147,7 @@ export function AccountingPeriodsClient({
   }
 
   const handleDelete = async (period: AccountingPeriod) => {
-    if (!period.isOpen) {
+    if (!isEditable(period)) {
       toast.error('Cannot delete a closed period')
       return
     }
@@ -177,8 +189,17 @@ export function AccountingPeriodsClient({
         <div className='flex items-center justify-between'>
           {!currentPeriod && (
             <div className='rounded-md border border-yellow-300 bg-yellow-50 p-4 text-sm'>
-              <strong>No current accounting period.</strong> Please create a new
-              period to continue posting activity.
+              <strong>No current accounting period is being worked on.</strong>{' '}
+              Please open the new period via Planning.
+              {plannedPeriodId && (
+                <div className='mt-3'>
+                  <Link
+                    href={`/organisation/clients/${clientId}/accounting-periods/${plannedPeriodId}/planning`}
+                  >
+                    <Button size='sm'>Open via Planning</Button>
+                  </Link>
+                </div>
+              )}
             </div>
           )}
 
@@ -231,93 +252,105 @@ export function AccountingPeriodsClient({
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedPeriods.map(period => (
-                  <TableRow key={period.id}>
-                    <TableCell>
-                      <div className='flex items-center gap-2'>
-                        <span className='font-medium'>{period.periodName}</span>
-                        {period.isCurrent && (
-                          <Badge
-                            variant='outline'
-                            className='border-primary border text-xs'
-                          >
-                            Current
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    <TableCell>{clientName}</TableCell>
-
-                    <TableCell className='text-sm'>
-                      {formatDate(period.startDate)}
-                    </TableCell>
-                    <TableCell className='text-sm'>
-                      {formatDate(period.endDate)}
-                    </TableCell>
-                    <TableCell className='text-muted-foreground text-sm'>
-                      {getDaysInPeriod(period.startDate, period.endDate)} days
-                    </TableCell>
-                    <TableCell>
-                      {period.isOpen ? (
-                        <Badge variant='default' className='bg-green-600'>
-                          Open
-                        </Badge>
-                      ) : (
-                        <Badge variant='destructive'>Closed</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className='text-muted-foreground text-sm'>
-                      {period.createdAt
-                        ? formatDate(period.createdAt.toString())
-                        : '—'}
-                    </TableCell>
-
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant='ghost' className='h-8 w-8 p-0'>
-                            <span className='sr-only'>Open menu</span>
-                            <MoreHorizontal className='h-4 w-4' />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align='end'>
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem
-                            onClick={() => handleEdit(period)}
-                            disabled={!period.isOpen}
-                          >
-                            <Pencil className='mr-2 h-4 w-4' />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(period)}
-                            className='text-red-600'
-                            disabled={!period.isOpen}
-                          >
-                            <Trash2 className='mr-2 h-4 w-4' />
-                            Delete
-                          </DropdownMenuItem>
-                          {period.isCurrent && period.isOpen && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className='text-red-600'
-                                onClick={() => {
-                                  setPeriodToClose(period)
-                                  setShowCloseModal(true)
-                                }}
-                              >
-                                Close period
-                              </DropdownMenuItem>
-                            </>
+                paginatedPeriods.map(period => {
+                  const status = getStatus(period)
+                  return (
+                    <TableRow key={period.id}>
+                      <TableCell>
+                        <div className='flex items-center gap-2'>
+                          <span className='font-medium'>
+                            {period.periodName}
+                          </span>
+                          {period.isCurrent && (
+                            <Badge
+                              variant='outline'
+                              className='border-primary border text-xs'
+                            >
+                              Current
+                            </Badge>
                           )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
+                        </div>
+                      </TableCell>
+
+                      <TableCell>{clientName}</TableCell>
+
+                      <TableCell className='text-sm'>
+                        {formatDate(period.startDate)}
+                      </TableCell>
+                      <TableCell className='text-sm'>
+                        {formatDate(period.endDate)}
+                      </TableCell>
+                      <TableCell className='text-muted-foreground text-sm'>
+                        {getDaysInPeriod(period.startDate, period.endDate)} days
+                      </TableCell>
+                      <TableCell>
+                        {status === 'OPEN' ? (
+                          <Badge variant='default' className='bg-green-600'>
+                            Open
+                          </Badge>
+                        ) : status === 'PLANNED' ? (
+                          <Badge variant='secondary'>Planned</Badge>
+                        ) : status === 'CLOSING' ? (
+                          <Badge variant='outline'>Closing</Badge>
+                        ) : status === 'CLOSED' ? (
+                          <Badge variant='destructive'>Closed</Badge>
+                        ) : (
+                          <Badge variant='outline'>Unknown</Badge>
+                        )}
+                      </TableCell>
+
+                      <TableCell className='text-muted-foreground text-sm'>
+                        {period.createdAt
+                          ? formatDate(period.createdAt.toString())
+                          : '—'}
+                      </TableCell>
+
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant='ghost' className='h-8 w-8 p-0'>
+                              <span className='sr-only'>Open menu</span>
+                              <MoreHorizontal className='h-4 w-4' />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align='end'>
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() => handleEdit(period)}
+                              disabled={!isEditable(period)}
+                            >
+                              <Pencil className='mr-2 h-4 w-4' />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(period)}
+                              className='text-red-600'
+                              disabled={!isEditable(period)}
+                            >
+                              <Trash2 className='mr-2 h-4 w-4' />
+                              Delete
+                            </DropdownMenuItem>
+                            {period.isCurrent && isEditable(period) && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className='text-red-600'
+                                  onClick={() => {
+                                    setPeriodToClose(period)
+                                    setShowCloseModal(true)
+                                  }}
+                                >
+                                  Close period
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>

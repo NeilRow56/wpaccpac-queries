@@ -2,7 +2,8 @@ import {
   Controller,
   ControllerProps,
   FieldPath,
-  FieldValues
+  FieldValues,
+  useFormState
 } from 'react-hook-form'
 import {
   Field,
@@ -31,6 +32,8 @@ type FormControlProps<
   label: ReactNode
   description?: ReactNode
   control: ControllerProps<TFieldValues, TName, TTransformedValues>['control']
+  // ✅ NEW: show error even if untouched after user tries to submit
+  showErrorOnSubmit?: boolean
 }
 
 type FormBaseProps<
@@ -73,14 +76,22 @@ function FormBase<
   name,
   description,
   controlFirst,
-  horizontal
+  horizontal,
+  showErrorOnSubmit
 }: FormBaseProps<TFieldValues, TName, TTransformedValues>) {
+  const { submitCount, isSubmitted } = useFormState({ control })
+
   return (
     <Controller
       control={control}
       name={name}
       render={({ field, fieldState }) => {
-        const invalid = fieldState.invalid && fieldState.isTouched
+        const shouldShow = !!(
+          fieldState.isTouched ||
+          (showErrorOnSubmit && (isSubmitted || submitCount > 0))
+        )
+
+        const invalid = !!(fieldState.invalid && shouldShow)
 
         const labelElement = (
           <>
@@ -95,7 +106,10 @@ function FormBase<
           'aria-invalid': invalid
         })
 
-        const errorElem = invalid && <FieldError errors={[fieldState.error]} />
+        const errorElem =
+          invalid && fieldState.error ? (
+            <FieldError errors={[fieldState.error]} />
+          ) : null
 
         return (
           <Field

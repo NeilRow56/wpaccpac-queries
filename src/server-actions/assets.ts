@@ -4,7 +4,9 @@
 import { db } from '@/db'
 import {
   accountingPeriods,
+  assetMovements,
   assetPeriodBalances,
+  depreciationEntries,
   fixedAssets,
   fixedAssets as fixedAssetsTable
 } from '@/db/schema'
@@ -12,9 +14,15 @@ import {
   CreateHistoricAssetInput,
   createHistoricAssetSchema
 } from '@/zod-schemas/fixedAssets'
-
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+
+type DepMethod = 'straight_line' | 'reducing_balance'
+
+function isYmdWithinPeriod(ymd: string, startYmd: string, endYmd: string) {
+  // YYYY-MM-DD string compare is safe
+  return ymd >= startYmd && ymd <= endYmd
+}
 
 export async function createAsset(data: {
   name: string
@@ -24,10 +32,37 @@ export async function createAsset(data: {
   originalCost: string
   acquisitionDate: string // YYYY-MM-DD
   costAdjustment: string
-  depreciationMethod: 'straight_line' | 'reducing_balance'
+  depreciationMethod: DepMethod
   depreciationRate: string
 }) {
   try {
+    // 0) Get current open period FIRST (needed both for validation + seeding)
+    const period = await db.query.accountingPeriods.findFirst({
+      where: and(
+        eq(accountingPeriods.clientId, data.clientId),
+        eq(accountingPeriods.isCurrent, true),
+        eq(accountingPeriods.isOpen, true)
+      )
+    })
+
+    if (!period) {
+      return {
+        success: false as const,
+        error:
+          'No current open accounting period found. Create/open a period before adding assets.'
+      }
+    }
+
+    // ✅ Guard: acquisition date must be within current open period
+    if (
+      !isYmdWithinPeriod(data.acquisitionDate, period.startDate, period.endDate)
+    ) {
+      return {
+        success: false as const,
+        error: `Purchase date must be within the current period (${period.startDate} to ${period.endDate}).`
+      }
+    }
+
     // 1) Create asset (master record) and get id
     const inserted = await db
       .insert(fixedAssetsTable)
@@ -49,46 +84,31 @@ export async function createAsset(data: {
       return { success: false as const, error: 'Failed to create asset' }
     }
 
-    // 2) Seed balances for the current open period (Solution A)
-    const period = await db.query.accountingPeriods.findFirst({
-      where: and(
-        eq(accountingPeriods.clientId, data.clientId),
-        eq(accountingPeriods.isCurrent, true),
-        eq(accountingPeriods.isOpen, true)
-      )
-    })
+    // 2) Seed balances for the current open period
+    const originalCostNum = Number(data.originalCost ?? 0)
+    const costAdjNum = Number(data.costAdjustment ?? '0')
+    const adjustedCost = (originalCostNum + costAdjNum).toFixed(2)
 
-    if (period) {
-      const originalCostNum = Number(data.originalCost ?? 0)
-      const costAdjNum = Number(data.costAdjustment ?? '0')
-      const adjustedCost = (originalCostNum + costAdjNum).toFixed(2)
+    // Since we now require acquisitionDate to be within the period,
+    // acquiredBeforePeriod will always be false.
+    // Kept here for safety/future rule changes.
+    const acquiredBeforePeriod = data.acquisitionDate < period.startDate
 
-      // Dates are YYYY-MM-DD so string compare is safe
-      const acquiredBeforePeriod = data.acquisitionDate < period.startDate
+    await db
+      .insert(assetPeriodBalances)
+      .values({
+        assetId,
+        periodId: period.id,
 
-      await db
-        .insert(assetPeriodBalances)
-        .values({
-          assetId,
-          periodId: period.id,
+        costBfwd: acquiredBeforePeriod ? adjustedCost : '0',
+        additions: acquiredBeforePeriod ? '0' : originalCostNum.toFixed(2),
+        depreciationBfwd: '0'
+      })
+      .onConflictDoNothing({
+        target: [assetPeriodBalances.assetId, assetPeriodBalances.periodId]
+      })
 
-          // If asset existed before the period, treat cost as BFWD
-          costBfwd: acquiredBeforePeriod ? adjustedCost : '0',
-
-          // If acquired in-period, treat as additions at cost
-          additions: acquiredBeforePeriod ? '0' : originalCostNum.toFixed(2),
-
-          // Start depreciation BFWD at 0 for newly created assets
-          depreciationBfwd: '0'
-        })
-        .onConflictDoNothing({
-          target: [assetPeriodBalances.assetId, assetPeriodBalances.periodId]
-        })
-    }
-
-    // 3) Revalidate client fixed assets page
     revalidatePath(`/organisation/clients/${data.clientId}/fixed-assets`)
-
     return { success: true as const, assetId }
   } catch (error) {
     console.error('Error creating asset:', error)
@@ -106,47 +126,187 @@ export async function updateAsset(data: {
   acquisitionDate: string
   costAdjustment?: string
   depreciationMethod: 'straight_line' | 'reducing_balance'
-
   depreciationRate: string
-  // totalDepreciationToDate?: string
 }) {
   try {
+    // 0) Load current stored acquisitionDate (so we can detect change)
+    const existing = await db
+      .select({
+        acquisitionDate: fixedAssetsTable.acquisitionDate
+      })
+      .from(fixedAssetsTable)
+      .where(eq(fixedAssetsTable.id, data.id))
+      .then(rows => rows[0])
+
+    if (!existing) {
+      return { success: false as const, error: 'Asset not found' }
+    }
+
+    // 1) Does this asset have period history?
+    const hasHistory = await db
+      .select({ id: assetPeriodBalances.id })
+      .from(assetPeriodBalances)
+      .where(eq(assetPeriodBalances.assetId, data.id))
+      .limit(1)
+      .then(rows => rows.length > 0)
+
+    // ✅ OPTION B: Lock acquisitionDate once the asset has history
+    if (hasHistory && data.acquisitionDate !== existing.acquisitionDate) {
+      return {
+        success: false as const,
+        error: 'Purchase date is locked once an asset has period history. '
+      }
+    }
+
+    // 2) Only enforce "within current open period" when there's NO history yet
+    if (!hasHistory) {
+      const period = await db.query.accountingPeriods.findFirst({
+        where: and(
+          eq(accountingPeriods.clientId, data.clientId),
+          eq(accountingPeriods.isCurrent, true),
+          eq(accountingPeriods.isOpen, true)
+        )
+      })
+
+      if (!period) {
+        return {
+          success: false as const,
+          error:
+            'No current open accounting period found. Create/open a period before updating assets.'
+        }
+      }
+
+      // YYYY-MM-DD string compare is safe
+      if (
+        data.acquisitionDate < period.startDate ||
+        data.acquisitionDate > period.endDate
+      ) {
+        return {
+          success: false as const,
+          error: `Purchase date must be within the current period (${period.startDate} to ${period.endDate}).`
+        }
+      }
+    }
+
+    // 3) Perform update (date will be unchanged for history assets)
     await db
       .update(fixedAssetsTable)
       .set({
         name: data.name,
         clientId: data.clientId,
-        ...(data.categoryId !== undefined && {
-          categoryId: data.categoryId
-        }),
+        ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
         description: data.description ?? null,
         originalCost: data.originalCost,
         acquisitionDate: data.acquisitionDate,
         costAdjustment: data.costAdjustment ?? '0',
         depreciationMethod: data.depreciationMethod,
-
         depreciationRate: data.depreciationRate
-        // totalDepreciationToDate: data.totalDepreciationToDate ?? '0'
       })
       .where(eq(fixedAssetsTable.id, data.id))
 
     revalidatePath(`/organisation/clients/${data.clientId}/fixed-assets`)
-    return { success: true }
+    return { success: true as const }
   } catch (error) {
     console.error('Error updating asset:', error)
-    return { success: false, error: 'Failed to update asset' }
+    return { success: false as const, error: 'Failed to update asset' }
   }
 }
 
 export async function deleteAsset(params: { id: string; clientId: string }) {
   try {
-    await db.delete(fixedAssetsTable).where(eq(fixedAssetsTable.id, params.id))
+    const { id: assetId, clientId } = params
 
-    revalidatePath(`/organisation/clients/${params.clientId}/fixed-assets`)
-    return { success: true }
-  } catch (error) {
-    console.error('Error deleting asset:', error)
-    return { success: false, error: 'Failed to delete asset' }
+    const asset = await db
+      .select({ id: fixedAssets.id })
+      .from(fixedAssets)
+      .where(
+        and(eq(fixedAssets.id, assetId), eq(fixedAssets.clientId, clientId))
+      )
+      .then(r => r[0])
+
+    if (!asset) {
+      return {
+        success: false as const,
+        error: 'Asset not found for this client.'
+      }
+    }
+
+    // 1) Any depreciation entries? (posted depreciation exists)
+    const hasDepEntries = await db
+      .select({ id: depreciationEntries.id })
+      .from(depreciationEntries)
+      .where(eq(depreciationEntries.assetId, assetId))
+      .limit(1)
+      .then(r => r.length > 0)
+
+    if (hasDepEntries) {
+      return {
+        success: false as const,
+        error: 'This asset has posted depreciation and cannot be deleted.'
+      }
+    }
+
+    // 2) Any movements? (audit trail exists)
+    const hasMovements = await db
+      .select({ id: assetMovements.id })
+      .from(assetMovements)
+      .where(eq(assetMovements.assetId, assetId))
+      .limit(1)
+      .then(r => r.length > 0)
+
+    if (hasMovements) {
+      return {
+        success: false as const,
+        error: 'This asset has movements posted and cannot be deleted.'
+      }
+    }
+
+    // 3) Any balances in closed periods?
+    const balances = await db
+      .select({ periodId: assetPeriodBalances.periodId })
+      .from(assetPeriodBalances)
+      .where(eq(assetPeriodBalances.assetId, assetId))
+
+    if (balances.length > 0) {
+      const periodIds = balances.map(b => b.periodId)
+
+      const closedHit = await db
+        .select({ id: accountingPeriods.id })
+        .from(accountingPeriods)
+        .where(
+          and(
+            eq(accountingPeriods.clientId, clientId),
+            eq(accountingPeriods.isOpen, false),
+            inArray(accountingPeriods.id, periodIds)
+          )
+        )
+        .limit(1)
+        .then(r => r.length > 0)
+
+      if (closedHit) {
+        return {
+          success: false as const,
+          error:
+            'This asset exists in a closed period and cannot be deleted. Use disposal/reversal instead.'
+        }
+      }
+    }
+
+    // ✅ If we reach here, safe to delete
+    await db
+      .delete(fixedAssets)
+      .where(
+        and(eq(fixedAssets.id, assetId), eq(fixedAssets.clientId, clientId))
+      )
+
+    revalidatePath(`/organisation/clients/${clientId}/fixed-assets`)
+    revalidatePath(`/organisation/clients/${clientId}/accounting-periods`)
+
+    return { success: true as const }
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : 'Failed to delete asset'
+    return { success: false as const, error: message }
   }
 }
 
