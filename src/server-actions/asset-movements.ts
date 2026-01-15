@@ -135,15 +135,30 @@ export async function postAssetMovementAction(input: unknown) {
 
         // Auto-calc depreciation eliminated on disposal if user left it as 0
         if (round2(amountDepreciationInput) === 0) {
+          // const depBfwd = toNumber(bal?.depreciationBfwd ?? 0)
+          // const depChargeSoFar = toNumber(bal?.depreciationCharge ?? 0)
+          // const depAdjSoFar = toNumber(bal?.depreciationAdjustment ?? 0)
+          // const depOnDisposalsSoFar = toNumber(
+          //   bal?.depreciationOnDisposals ?? 0
+          // )
+
+          // const availableAccumDep = round2(
+          //   depBfwd + depChargeSoFar + depAdjSoFar - depOnDisposalsSoFar
+          // )
+
+          // amountDepreciationToPost = round2(
+          //   Math.max(0, availableAccumDep) * fraction
+          // )
           const depBfwd = toNumber(bal?.depreciationBfwd ?? 0)
-          const depChargeSoFar = toNumber(bal?.depreciationCharge ?? 0)
           const depAdjSoFar = toNumber(bal?.depreciationAdjustment ?? 0)
           const depOnDisposalsSoFar = toNumber(
             bal?.depreciationOnDisposals ?? 0
           )
 
+          // Policy: eliminate depreciation based on opening accumulated depreciation only.
+          // Include depreciation adjustments (optional), but exclude current period depreciation charge.
           const availableAccumDep = round2(
-            depBfwd + depChargeSoFar + depAdjSoFar - depOnDisposalsSoFar
+            depBfwd + depAdjSoFar - depOnDisposalsSoFar
           )
 
           amountDepreciationToPost = round2(
@@ -257,7 +272,9 @@ export async function postAssetMovementAction(input: unknown) {
     revalidatePath(`/organisation/clients/${data.clientId}/fixed-assets`)
     revalidatePath(`/organisation/clients/${data.clientId}/accounting-periods`)
 
-    return { success: true as const }
+    return {
+      success: true as const
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Something went wrong'
     return { success: false as const, error: message }

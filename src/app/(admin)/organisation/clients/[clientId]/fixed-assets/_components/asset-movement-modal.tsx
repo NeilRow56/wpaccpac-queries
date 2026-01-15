@@ -126,6 +126,27 @@ function formatGBPFromString(value?: string) {
   })
 }
 
+// ✅ helpers for estimates
+function n0(v: unknown) {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+// function formatGBP(value: number) {
+//   const safe = Number.isFinite(value) ? value : 0
+//   return safe.toLocaleString('en-GB', {
+//     minimumFractionDigits: 2,
+//     maximumFractionDigits: 2
+//   })
+// }
+
+function formatWholeGBP(value: number) {
+  const safe = Number.isFinite(value) ? value : 0
+  return new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 }).format(
+    Math.round(safe)
+  )
+}
+
 function uiMovementLabel(t: MovementType): string {
   switch (t) {
     case 'cost_adj':
@@ -249,7 +270,6 @@ export function AssetMovementModal(props: {
       return
     }
 
-    // Open confirm dialog instead of posting immediately
     setPendingValues(values)
     setConfirmOpen(true)
   }
@@ -281,7 +301,6 @@ export function AssetMovementModal(props: {
         }
 
         router.refresh()
-        // toast.success('Movement posted')
         setConfirmOpen(false)
         setPendingValues(null)
         onPosted()
@@ -475,22 +494,48 @@ export function AssetMovementModal(props: {
   }
 
   const confirmSummary = pendingValues
-    ? {
-        movementLabel: uiMovementLabel(pendingValues.movementType),
-        postingDate: formatYmdGb(pendingValues.postingDate),
-        amountCost: formatGBPFromString(pendingValues.amountCost),
-        amountDep: formatGBPFromString(pendingValues.amountDepreciation ?? '0'),
-        proceeds: formatGBPFromString(pendingValues.amountProceeds ?? '0'),
-        pct:
-          pendingValues.movementType === 'disposal'
+    ? (() => {
+        const isDisposal = pendingValues.movementType === 'disposal'
+        const pct = isDisposal
+          ? n0(pendingValues.disposalPercentage ?? '0') / 100
+          : 0
+
+        const inputCost = n0(pendingValues.amountCost)
+        const inputDep = n0(pendingValues.amountDepreciation ?? '0')
+
+        const costIsAuto = isDisposal && Math.abs(inputCost) < 0.000001
+        const depIsAuto = isDisposal && Math.abs(inputDep) < 0.000001
+
+        const availableCost = n0(asset.closingCost)
+        const availableDep = n0(asset.openingAccumulatedDepreciation) // ✅ b/fwd basis
+
+        const estCost = availableCost * pct
+        const estDep = availableDep * pct
+
+        return {
+          movementLabel: uiMovementLabel(pendingValues.movementType),
+          postingDate: formatYmdGb(pendingValues.postingDate),
+
+          amountCost: formatGBPFromString(pendingValues.amountCost),
+          amountDep: formatGBPFromString(
+            pendingValues.amountDepreciation ?? '0'
+          ),
+
+          costIsAuto,
+          depIsAuto,
+          estCost: formatWholeGBP(estCost),
+          estDep: formatWholeGBP(estDep),
+
+          proceeds: formatGBPFromString(pendingValues.amountProceeds ?? '0'),
+          pctText: isDisposal
             ? String(pendingValues.disposalPercentage ?? '')
             : '',
-        note: (pendingValues.note ?? '').trim(),
-        isDisposal: pendingValues.movementType === 'disposal',
-        proceedsIsZero:
-          pendingValues.movementType === 'disposal' &&
-          Number(pendingValues.amountProceeds ?? '0') === 0
-      }
+          note: (pendingValues.note ?? '').trim(),
+          isDisposal,
+          proceedsIsZero:
+            isDisposal && n0(pendingValues.amountProceeds ?? '0') === 0
+        }
+      })()
     : null
 
   return (
@@ -626,18 +671,44 @@ export function AssetMovementModal(props: {
             </div>
 
             <div className='rounded-md border p-3'>
+              {/* Cost */}
               <div className='flex items-center justify-between gap-4'>
                 <span className='text-muted-foreground'>Cost (£)</span>
-                <span className='font-medium tabular-nums'>
-                  {confirmSummary?.amountCost ?? '—'}
-                </span>
+
+                {confirmSummary?.isDisposal && confirmSummary.costIsAuto ? (
+                  <div className='text-right'>
+                    <div className='font-medium tabular-nums'>
+                      Auto-calculated (est. {confirmSummary.estCost})
+                    </div>
+                    <div className='text-muted-foreground text-xs'>
+                      Final value computed on posting
+                    </div>
+                  </div>
+                ) : (
+                  <span className='font-medium tabular-nums'>
+                    {confirmSummary?.amountCost ?? '—'}
+                  </span>
+                )}
               </div>
 
+              {/* Depreciation */}
               <div className='mt-2 flex items-center justify-between gap-4'>
                 <span className='text-muted-foreground'>Depreciation (£)</span>
-                <span className='font-medium tabular-nums'>
-                  {confirmSummary?.amountDep ?? '—'}
-                </span>
+
+                {confirmSummary?.isDisposal && confirmSummary.depIsAuto ? (
+                  <div className='text-right'>
+                    <div className='font-medium tabular-nums'>
+                      Auto-calculated (est. {confirmSummary.estDep})
+                    </div>
+                    <div className='text-muted-foreground text-xs'>
+                      Final value computed on posting
+                    </div>
+                  </div>
+                ) : (
+                  <span className='font-medium tabular-nums'>
+                    {confirmSummary?.amountDep ?? '—'}
+                  </span>
+                )}
               </div>
 
               {confirmSummary?.isDisposal && (
@@ -652,7 +723,7 @@ export function AssetMovementModal(props: {
                   <div className='mt-2 flex items-center justify-between gap-4'>
                     <span className='text-muted-foreground'>Disposal %</span>
                     <span className='font-medium tabular-nums'>
-                      {confirmSummary.pct}%
+                      {confirmSummary.pctText}%
                     </span>
                   </div>
 

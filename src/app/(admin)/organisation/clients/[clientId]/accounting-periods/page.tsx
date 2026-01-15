@@ -1,13 +1,13 @@
 // app/accounting-periods/page.tsx
 
 import { eq, sql } from 'drizzle-orm'
-
-import { accountingPeriods, clients } from '@/db/schema'
-import { db } from '@/db'
-import { AccountingPeriodsClient } from './_components/accounting-periods-client'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
+
+import { db } from '@/db'
+import { accountingPeriods, clients } from '@/db/schema'
+import { AccountingPeriodsClient } from './_components/accounting-periods-client'
+import { Button } from '@/components/ui/button'
 
 export default async function AccountingPeriodsPage({
   params
@@ -15,6 +15,7 @@ export default async function AccountingPeriodsPage({
   params: Promise<{ clientId: string }>
 }) {
   const { clientId } = await params
+
   // Fetch periods for this client only
   const allPeriods = await db
     .select({
@@ -27,11 +28,11 @@ export default async function AccountingPeriodsPage({
       isCurrent: accountingPeriods.isCurrent,
       createdAt: accountingPeriods.createdAt
     })
-
     .from(accountingPeriods)
     .where(eq(accountingPeriods.clientId, clientId))
     .orderBy(sql`${accountingPeriods.startDate} DESC`)
 
+  // Pick a PLANNED period to open (most recent by startDate DESC)
   const plannedPeriod = allPeriods.find(p => p.status === 'PLANNED') ?? null
 
   const [client] = await db
@@ -50,13 +51,8 @@ export default async function AccountingPeriodsPage({
             <span className='text-primary'>Back to Assets</span>
           </Button>
         </Link>
-        <Link href={`/organisation/clients/${clientId}/accounting-periods/`}>
-          <Button variant='ghost' className='mb-4'>
-            <ArrowLeft className='mr-2 h-4 w-4' />
-            <span className='text-primary'>Back to Assets</span>
-          </Button>
-        </Link>
       </div>
+
       <AccountingPeriodsClient
         periods={allPeriods}
         clientId={clientId}
@@ -71,7 +67,12 @@ export default async function AccountingPeriodsPage({
             The control of accounting periods is fundamental to protecting the
             accuracy of your client data.
           </span>
-          <span>Only one period can be current.</span>
+          <span>
+            New periods are created as{' '}
+            <span className='text-blue-600'>&apos;Planned&apos;</span>. Enable
+            full posting capabilities by clicking{' '}
+            <span className='text-primary'>Open planned period</span> button.
+          </span>
           <span>
             We suggest leaving a period open until you are ready to commence the
             following financial period, or you are absolutely sure there will be

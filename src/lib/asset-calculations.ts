@@ -394,13 +394,15 @@ export function enrichAssetWithPeriodCalculations(
   //   openingCost + additionsAtCost + costAdjustmentForPeriod
   // )
 
-  const availableAccumDep = Math.max(
+  // ✅ Disposal depreciation policy (match server):
+  // eliminate ONLY opening accumulated depreciation (plus any dep adjustments),
+  // NOT current period depreciation charge.
+  const availableAccumDepForDisposal = Math.max(
     0,
-    openingAccumulatedDepreciation +
-      depreciationForPeriod +
-      depreciationAdjustmentForPeriod
+    openingAccumulatedDepreciation + depreciationAdjustmentForPeriod
   )
 
+  // Disposal fraction is based on cost disposed as a proportion of pre-disposal cost base.
   const disposalFraction =
     preDisposalCost > 0
       ? Math.max(0, Math.min(1, disposalsAtCost / preDisposalCost))
@@ -408,13 +410,16 @@ export function enrichAssetWithPeriodCalculations(
 
   const estimatedDepreciationOnDisposals =
     disposalsAtCost > 0
-      ? Math.round(availableAccumDep * disposalFraction * 100) / 100
+      ? Math.round(availableAccumDepForDisposal * disposalFraction * 100) / 100
       : 0
 
   const depreciationOnDisposals =
-    actualDepreciationOnDisposals > 0
-      ? actualDepreciationOnDisposals
-      : estimatedDepreciationOnDisposals
+    disposalsAtCost > 0
+      ? Number.isFinite(actualDepreciationOnDisposals) &&
+        actualDepreciationOnDisposals !== 0
+        ? actualDepreciationOnDisposals
+        : estimatedDepreciationOnDisposals
+      : 0
 
   const closingAccumulatedDepreciation =
     openingAccumulatedDepreciation +

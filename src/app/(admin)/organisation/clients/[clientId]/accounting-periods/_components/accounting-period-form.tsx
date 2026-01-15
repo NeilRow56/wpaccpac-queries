@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/card'
 
 import { accountingPeriodFormSchema } from '@/zod-schemas/accountingPeriod'
+import { PeriodStatus } from '@/db/schema'
 type FormValues = z.infer<typeof accountingPeriodFormSchema>
 
 type BaseProps = {
@@ -56,11 +57,9 @@ type CreateProps = BaseProps & {
   onSubmit: (values: FormValues) => void
 }
 
-type PeriodStatus = 'PLANNED' | 'OPEN' | 'CLOSING' | 'CLOSED'
-
 type EditProps = BaseProps & {
   mode: 'edit'
-  accountingPeriods: (FormValues & { id: string; status?: PeriodStatus }) | null
+  accountingPeriod: (FormValues & { id: string; status: PeriodStatus }) | null
   onSubmit: (values: FormValues & { id: string }) => void
 }
 
@@ -86,20 +85,20 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
   }>
 
   React.useEffect(() => {
-    if (props.mode === 'edit' && props.accountingPeriods) {
+    if (props.mode === 'edit' && props.accountingPeriod) {
       // This now checks for null
-      const formattedEndDate = new Date(props.accountingPeriods.endDate)
+      const formattedEndDate = new Date(props.accountingPeriod.endDate)
         .toISOString()
         .split('T')[0]
-      const formattedStartDate = new Date(props.accountingPeriods.startDate)
+      const formattedStartDate = new Date(props.accountingPeriod.startDate)
         .toISOString()
         .split('T')[0]
       form.reset({
-        clientId: props.accountingPeriods.clientId,
-        periodName: props.accountingPeriods.periodName,
+        clientId: props.accountingPeriod.clientId,
+        periodName: props.accountingPeriod.periodName,
         startDate: formattedStartDate,
         endDate: formattedEndDate,
-        isCurrent: props.accountingPeriods.isCurrent ?? false
+        isCurrent: props.accountingPeriod.isCurrent ?? false
       })
     } else if (props.mode === 'create') {
       form.reset({
@@ -119,7 +118,7 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
     }
 
     if (props.mode === 'edit') {
-      const selected = props.accountingPeriods
+      const selected = props.accountingPeriod
       if (!selected) return
 
       const payload: FormValues & { id: string } = {
@@ -249,9 +248,9 @@ export function AccountingPeriodForm(props: AccountingPeriodProps) {
                       <div className='space-y-1 leading-none'>
                         <FieldLabel
                           htmlFor='isCurrent'
-                          className='cursor-pointer font-normal'
+                          className='cursor-pointer font-normal text-red-600'
                         >
-                          Set as current period
+                          Set as current period?
                         </FieldLabel>
                         <FieldDescription>
                           Only one period can be current at a time. This will be

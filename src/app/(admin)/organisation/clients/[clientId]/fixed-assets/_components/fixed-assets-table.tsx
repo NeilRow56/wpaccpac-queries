@@ -471,44 +471,49 @@ export function FixedAssetsTable({
   })
 
   // ---- Conditional disclosure: hide numeric columns when total == 0 (filtered view) ----
+
+  const n0 = (v: unknown) => {
+    const n = Number(v)
+    return Number.isFinite(n) ? n : 0
+  }
   React.useEffect(() => {
     const rows = table.getFilteredRowModel().rows
 
     const totalsById: Record<string, number> = {
-      openingCost: rows.reduce((a, r) => a + Number(r.original.openingCost), 0),
+      openingCost: rows.reduce((a, r) => a + n0(r.original.openingCost), 0),
       costAdjustmentForPeriod: rows.reduce(
-        (a, r) => a + Number(r.original.costAdjustmentForPeriod),
+        (a, r) => a + n0(r.original.costAdjustmentForPeriod),
         0
       ),
       additionsAtCost: rows.reduce(
-        (a, r) => a + Number(r.original.additionsAtCost),
+        (a, r) => a + n0(r.original.additionsAtCost),
         0
       ),
       disposalsAtCost: rows.reduce(
-        (a, r) => a + Number(r.original.disposalsAtCost),
+        (a, r) => a + n0(r.original.disposalsAtCost),
         0
       ),
-      closingCost: rows.reduce((a, r) => a + Number(r.original.closingCost), 0),
+      closingCost: rows.reduce((a, r) => a + n0(r.original.closingCost), 0),
 
       openingAccumulatedDepreciation: rows.reduce(
-        (a, r) => a + Number(r.original.openingAccumulatedDepreciation),
+        (a, r) => a + n0(r.original.openingAccumulatedDepreciation),
         0
       ),
       depreciationForPeriod: rows.reduce(
-        (a, r) => a + Number(r.original.depreciationForPeriod),
+        (a, r) => a + n0(r.original.depreciationForPeriod),
         0
       ),
       depreciationOnDisposals: rows.reduce(
-        (a, r) => a + Number(r.original.depreciationOnDisposals),
+        (a, r) => a + n0(r.original.depreciationOnDisposals),
         0
       ),
       closingAccumulatedDepreciation: rows.reduce(
-        (a, r) => a + Number(r.original.closingAccumulatedDepreciation),
+        (a, r) => a + n0(r.original.closingAccumulatedDepreciation),
         0
       ),
 
-      openingNBV: rows.reduce((a, r) => a + Number(r.original.openingNBV), 0),
-      closingNBV: rows.reduce((a, r) => a + Number(r.original.closingNBV), 0)
+      openingNBV: rows.reduce((a, r) => a + n0(r.original.openingNBV), 0),
+      closingNBV: rows.reduce((a, r) => a + n0(r.original.closingNBV), 0)
     }
 
     const alwaysShow = new Set<string>([
@@ -527,7 +532,7 @@ export function FixedAssetsTable({
     }
 
     setColumnVisibility(prev => ({ ...prev, ...nextVisibility }))
-  }, [table])
+  }, [table, assets])
 
   // ✅ PLACE IT HERE (right after `table`)
   const exportContextLine = React.useMemo(() => {

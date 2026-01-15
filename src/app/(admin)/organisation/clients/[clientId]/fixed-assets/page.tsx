@@ -2,10 +2,11 @@
 
 import { enrichAssetWithPeriodCalculations } from '@/lib/asset-calculations'
 
-import { eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 
 import { db } from '@/db'
 import {
+  accountingPeriods,
   assetCategories,
   assetPeriodBalances,
   clients,
@@ -14,7 +15,7 @@ import {
 } from '@/db/schema'
 import { FixedAssetsTableWrapper } from './_components/fixed-assets-table-wrapper'
 import { getCurrentAccountingPeriod } from '@/server-actions/accounting-periods'
-import { ArrowLeft, Calendar } from 'lucide-react'
+import { Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
@@ -24,26 +25,69 @@ export default async function FixedAssetsPage({
   params: Promise<{ clientId: string }>
 }) {
   const { clientId } = await params
-  /* ----------------------- Get current accounting period ---------------------- */
-  const period = await getCurrentAccountingPeriod(clientId)
 
-  if (!period) {
+  const planned = await db
+    .select({ id: accountingPeriods.id })
+    .from(accountingPeriods)
+    .where(
+      and(
+        eq(accountingPeriods.clientId, clientId),
+        eq(accountingPeriods.status, 'PLANNED')
+      )
+    )
+    .orderBy(sql`${accountingPeriods.startDate} DESC`)
+    .limit(1)
+
+  const plannedPeriodId = planned[0]?.id ?? null
+  /* ----------------------- Get current accounting period ---------------------- */
+  const period = await getCurrentAccountingPeriod(clientId) // OPEN current, or null
+  const showNoOpenPeriodBanner = !period
+
+  if (showNoOpenPeriodBanner) {
     return (
-      <div className='flex flex-col items-center gap-2 py-6'>
-        <Calendar className='text-muted-foreground/50 h-8 w-8' />
-        <p>No accounting period found</p>
-        <p className='text-sm'>
-          Create your first accounting period to get started.
-        </p>
-        <Link href={`/organisation/clients/${clientId}/accounting-periods`}>
-          <Button variant='ghost' className='mb-4'>
-            <ArrowLeft className='mr-2 h-4 w-4' />
-            <span className='text-primary'>Accouting periods</span>
-          </Button>
-        </Link>
+      <div className='mb-4 rounded-lg border p-4'>
+        <div className='flex items-start gap-3'>
+          <Calendar className='text-muted-foreground h-5 w-5' />
+          <div className='flex-1'>
+            <p className='font-medium text-red-600'>
+              No open accounting period
+            </p>
+
+            <p className='text-muted-foreground text-sm'>
+              To create asset records, calculate depreciation, and make
+              postings, you need an <span className='text-red-600'>open</span>{' '}
+              period.
+            </p>
+
+            <div className='mt-3 flex gap-2'>
+              <Link
+                href={`/organisation/clients/${clientId}/accounting-periods`}
+              >
+                <Button variant='outline' size='sm'>
+                  Go to accounting periods
+                </Button>
+              </Link>
+
+              {plannedPeriodId && (
+                <Link
+                  href={`/organisation/clients/${clientId}/accounting-periods/${plannedPeriodId}/planning`}
+                >
+                  <Button size='sm'>Open planned period</Button>
+                </Link>
+              )}
+            </div>
+
+            {!plannedPeriodId && (
+              <p className='text-muted-foreground mt-2 text-xs'>
+                No planned period found yet — create a period first.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     )
   }
+
   const [rawAssets, client, categories, periodEntries, periodBalances] =
     await Promise.all([
       // Assets + category

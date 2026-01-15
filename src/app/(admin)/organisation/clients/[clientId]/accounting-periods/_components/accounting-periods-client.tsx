@@ -1,9 +1,13 @@
+// app/accounting-periods/_components/accounting-periods-client.tsx
+
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, MoreHorizontal, Pencil, Trash2, Calendar } from 'lucide-react'
+import { Calendar, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+
 import {
   Table,
   TableBody,
@@ -20,19 +24,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+
 import { AccountingPeriodForm } from './accounting-period-form'
+import { ClosePeriodModal } from './close-period-modal'
 import {
   createAccountingPeriod,
   deleteAccountingPeriod,
   updateAccountingPeriod
 } from '@/server-actions/accounting-periods'
-import { ClosePeriodModal } from './close-period-modal'
-import { PeriodStatus } from '@/db/schema'
-import Link from 'next/link'
-import { AccountingPeriod } from '@/domain/accounting-periods/types'
+
+import type { PeriodStatus } from '@/db/schema'
+import type { AccountingPeriod } from '@/domain/accounting-periods/types'
 
 interface AccountingPeriodsClientProps {
   periods: AccountingPeriod[]
@@ -43,7 +47,9 @@ interface AccountingPeriodsClientProps {
 
 const getStatus = (p: AccountingPeriod): PeriodStatus => p.status
 
-const isEditable = (p: AccountingPeriod) => p.status === 'OPEN'
+// Editable means you can edit/delete/close via UI rules (adjust if your rule differs)
+const isEditable = (p: AccountingPeriod) =>
+  p.status === 'OPEN' || p.status === 'PLANNED'
 
 export function AccountingPeriodsClient({
   periods,
@@ -52,8 +58,10 @@ export function AccountingPeriodsClient({
   plannedPeriodId
 }: AccountingPeriodsClientProps) {
   const router = useRouter()
+
   const [selectedPeriod, setSelectedPeriod] =
     React.useState<AccountingPeriod | null>(null)
+
   const [showCreateModal, setShowCreateModal] = React.useState(false)
   const [showEditModal, setShowEditModal] = React.useState(false)
 
@@ -61,12 +69,17 @@ export function AccountingPeriodsClient({
   const [periodToClose, setPeriodToClose] =
     React.useState<AccountingPeriod | null>(null)
 
+  // Derived state
   const filteredPeriods = periods
-  const currentPeriod = filteredPeriods.find(
+  const currentOpenPeriod = filteredPeriods.find(
     p => p.isCurrent && p.status === 'OPEN'
   )
 
-  const periodStatus = currentPeriod?.status
+  const hasAnyPeriods = filteredPeriods.length > 0
+  const hasOpen = filteredPeriods.some(p => p.status === 'OPEN')
+
+  // For form context only (optional)
+  const periodStatus: PeriodStatus | undefined = currentOpenPeriod?.status
 
   // ---------------------------
   // Pagination (simple client-side)
@@ -77,12 +90,10 @@ export function AccountingPeriodsClient({
   const totalItems = filteredPeriods.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
 
-  // Reset to page 1 when the dataset changes (e.g. switching client / refresh)
   React.useEffect(() => {
     setPage(1)
   }, [clientId, totalItems])
 
-  // Clamp current page if rows shrink (e.g. after delete)
   React.useEffect(() => {
     setPage(prev => Math.min(prev, totalPages))
   }, [totalPages])
@@ -98,7 +109,6 @@ export function AccountingPeriodsClient({
   const handleCreate = async (values: any) => {
     try {
       const result = await createAccountingPeriod(values)
-
       if (result.success) {
         toast.success('Accounting period created successfully')
         setShowCreateModal(false)
@@ -121,7 +131,6 @@ export function AccountingPeriodsClient({
   const handleUpdate = async (values: any) => {
     try {
       const result = await updateAccountingPeriod(values)
-
       if (result.success) {
         toast.success('Accounting period updated successfully')
         setShowEditModal(false)
@@ -148,7 +157,6 @@ export function AccountingPeriodsClient({
 
     try {
       const result = await deleteAccountingPeriod(period.id)
-
       if (result.success) {
         toast.success('Accounting period deleted successfully')
         router.refresh()
@@ -175,20 +183,56 @@ export function AccountingPeriodsClient({
   return (
     <>
       <div className='space-y-4'>
-        {/* Header with filters and actions */}
-        <div className='flex items-center justify-between'>
-          {!currentPeriod && (
-            <div className='rounded-md border border-yellow-300 bg-yellow-50 p-4 text-sm'>
-              <strong>No current accounting period is being worked on.</strong>{' '}
-              Please open the new period via Planning.
-              {plannedPeriodId && (
-                <div className='mt-3'>
-                  <Link
-                    href={`/organisation/clients/${clientId}/accounting-periods/${plannedPeriodId}/planning`}
-                  >
-                    <Button size='sm'>Open via Planning</Button>
-                  </Link>
-                </div>
+        {/* Header: guided setup banner + stats + actions */}
+        <div className='flex items-start justify-between gap-4'>
+          {!currentOpenPeriod && (
+            <div className='w-full max-w-xl rounded-md border border-yellow-300 bg-yellow-50 p-4 text-sm'>
+              {!hasAnyPeriods ? (
+                <>
+                  <strong>Create your first accounting period.</strong>
+                  <div className='text-muted-foreground mt-1'>
+                    Periods are required for depreciation schedules and posting.
+                  </div>
+                  <div className='mt-3'>
+                    <Button size='sm' onClick={() => setShowCreateModal(true)}>
+                      <Plus className='mr-2 h-4 w-4' />
+                      Create period
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <strong>No open period is currently active.</strong>
+                  <div className='text-muted-foreground mt-1'>
+                    Open a planned period to enable posting and depreciation.
+                  </div>
+
+                  <div className='mt-3 flex gap-2'>
+                    {plannedPeriodId ? (
+                      <Link
+                        href={`/organisation/clients/${clientId}/accounting-periods/${plannedPeriodId}/planning`}
+                      >
+                        <Button size='sm'>Open planned period</Button>
+                      </Link>
+                    ) : (
+                      <Button
+                        size='sm'
+                        onClick={() => setShowCreateModal(true)}
+                      >
+                        <Plus className='mr-2 h-4 w-4' />
+                        Create next period
+                      </Button>
+                    )}
+
+                    {/* <Link
+                      href={`/organisation/clients/${clientId}/fixed-assets`}
+                    >
+                      <Button variant='outline' size='sm'>
+                        Go to fixed assets
+                      </Button>
+                    </Link> */}
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -200,10 +244,8 @@ export function AccountingPeriodsClient({
             </p>
           </div>
 
-          <Button
-            onClick={() => setShowCreateModal(true)}
-            disabled={!!currentPeriod}
-          >
+          {/* Your current UX: prevent creating a new period while one is OPEN/current */}
+          <Button onClick={() => setShowCreateModal(true)} disabled={!!hasOpen}>
             <Plus className='mr-2 h-4 w-4' />
             Create Period
           </Button>
@@ -244,6 +286,7 @@ export function AccountingPeriodsClient({
               ) : (
                 paginatedPeriods.map(period => {
                   const status = getStatus(period)
+
                   return (
                     <TableRow key={period.id}>
                       <TableCell>
@@ -270,9 +313,11 @@ export function AccountingPeriodsClient({
                       <TableCell className='text-sm'>
                         {formatDate(period.endDate)}
                       </TableCell>
+
                       <TableCell className='text-muted-foreground text-sm'>
                         {getDaysInPeriod(period.startDate, period.endDate)} days
                       </TableCell>
+
                       <TableCell>
                         {status === 'OPEN' ? (
                           <Badge variant='default' className='bg-green-600'>
@@ -303,8 +348,10 @@ export function AccountingPeriodsClient({
                               <MoreHorizontal className='h-4 w-4' />
                             </Button>
                           </DropdownMenuTrigger>
+
                           <DropdownMenuContent align='end'>
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+
                             <DropdownMenuItem
                               onClick={() => handleEdit(period)}
                               disabled={!isEditable(period)}
@@ -312,7 +359,9 @@ export function AccountingPeriodsClient({
                               <Pencil className='mr-2 h-4 w-4' />
                               Edit
                             </DropdownMenuItem>
+
                             <DropdownMenuSeparator />
+
                             <DropdownMenuItem
                               onClick={() => handleDelete(period)}
                               className='text-red-600'
@@ -321,7 +370,8 @@ export function AccountingPeriodsClient({
                               <Trash2 className='mr-2 h-4 w-4' />
                               Delete
                             </DropdownMenuItem>
-                            {period.isCurrent && isEditable(period) && (
+
+                            {period.isCurrent && period.status === 'OPEN' && (
                               <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -419,7 +469,7 @@ export function AccountingPeriodsClient({
 
       {/* Edit Modal */}
       <AccountingPeriodForm
-        accountingPeriods={selectedPeriod}
+        accountingPeriod={selectedPeriod}
         open={showEditModal}
         onClose={() => {
           setShowEditModal(false)
