@@ -371,10 +371,9 @@ export async function createHistoricAsset(input: unknown) {
         costAdjustment: costAdjNum.toFixed(2),
 
         depreciationMethod: data.depreciationMethod,
-        depreciationRate: Number(data.depreciationRate).toFixed(2),
+        depreciationRate: Number(data.depreciationRate).toFixed(2)
 
         // Keep “to date” out of the asset master if you’re going full Option B
-        totalDepreciationToDate: '0'
       })
       .returning({ id: fixedAssets.id })
 

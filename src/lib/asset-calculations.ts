@@ -323,7 +323,7 @@ export function enrichAssetWithPeriodCalculations(
 
   // BFWD depreciation:
   // - If a balance row exists, use it.
-  // - Else (transitional), fall back to fixed_assets.totalDepreciationToDate for pre-period assets only.
+
   const openingAccumulatedDepreciation = balance
     ? Number(balance.depreciationBfwd)
     : 0

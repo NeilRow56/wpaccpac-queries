@@ -297,9 +297,7 @@ export async function calculatePeriodDepreciationForClient(
 
       const openingAccumulatedDepreciation = bal
         ? Number(bal.depreciationBfwd)
-        : acquisitionDate < periodStartDate
-          ? Number(asset.totalDepreciationToDate ?? 0) // transitional fallback
-          : 0
+        : 0
 
       const additionsAtCost = bal
         ? Number(bal.additions)
@@ -640,9 +638,7 @@ export async function postDepreciationAndClosePeriod(input: {
 
       const openingAccumulatedDepreciation = bal
         ? Number(bal.depreciationBfwd)
-        : acquisitionDate < periodStartDate
-          ? Number(asset.totalDepreciationToDate ?? 0) // transitional fallback
-          : 0
+        : 0
 
       const depreciationAmount = calculatePeriodDepreciationFromBalances({
         openingCost,
