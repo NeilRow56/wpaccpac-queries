@@ -1,10 +1,8 @@
-import { relations, sql } from 'drizzle-orm'
 import { boolean, pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core'
 
 import { organization } from './authSchema'
 import { costCentres } from './costCentres'
-import { fixedAssets } from './fixedAssets'
-import { accountingPeriods } from './accountingPeriods'
+import { sql } from 'drizzle-orm'
 
 export const clients = pgTable('clients', {
   id: text('id')
@@ -32,12 +30,3 @@ export const clients = pgTable('clients', {
 })
 
 export type Client = typeof clients.$inferSelect
-
-export const ClientRelations = relations(clients, ({ many, one }) => ({
-  costCentre: one(costCentres, {
-    fields: [clients.costCentreId],
-    references: [costCentres.id]
-  }),
-  accountingPeriods: many(accountingPeriods),
-  fixedAssets: many(fixedAssets)
-}))

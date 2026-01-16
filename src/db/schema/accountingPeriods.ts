@@ -1,6 +1,4 @@
 import { clients } from './clients'
-import { relations, sql } from 'drizzle-orm'
-import { depreciationEntries } from './fixedAssets'
 
 // Accounting Periods
 import {
@@ -13,6 +11,8 @@ import {
   timestamp,
   uniqueIndex
 } from 'drizzle-orm/pg-core'
+
+import { sql } from 'drizzle-orm'
 
 export const periodStatusEnum = pgEnum('period_status', [
   'PLANNED',
@@ -56,14 +56,3 @@ export const accountingPeriods = pgTable(
 )
 
 export type AccountingPeriod = typeof accountingPeriods.$inferSelect
-
-export const accountingPeriodRelations = relations(
-  accountingPeriods,
-  ({ one, many }) => ({
-    client: one(clients, {
-      fields: [accountingPeriods.clientId],
-      references: [clients.id]
-    }),
-    depreciationEntries: many(depreciationEntries)
-  })
-)

@@ -1,5 +1,3 @@
-// lib/schema.ts
-import { relations } from 'drizzle-orm'
 import {
   date,
   decimal,
@@ -79,10 +77,7 @@ export const fixedAssets = pgTable('fixed_assets', {
     precision: 5,
     scale: 2
   }).notNull(),
-  totalDepreciationToDate: decimal('total_depreciation_to_date', {
-    precision: 10,
-    scale: 2
-  }).default('0'),
+
   usefulLifeYears: integer('useful_life_years'),
 
   createdAt: timestamp('created_at').defaultNow()
@@ -155,42 +150,6 @@ export const assetPeriodBalances = pgTable(
 
 export type AssetPeriodBalances = typeof assetPeriodBalances.$inferSelect
 
-// Depreciation Entries (audit trail)
-export const depreciationEntries = pgTable(
-  'depreciation_entries',
-  {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
-
-    assetId: text('asset_id')
-      .notNull()
-      .references(() => fixedAssets.id, { onDelete: 'cascade' }),
-
-    periodId: text('period_id')
-      .notNull()
-      .references(() => accountingPeriods.id),
-
-    depreciationAmount: decimal('depreciation_amount', {
-      precision: 12,
-      scale: 2
-    }).notNull(),
-
-    daysInPeriod: integer('days_in_period').notNull(),
-    rateUsed: decimal('rate_used', { precision: 5, scale: 2 }).notNull(),
-
-    createdAt: timestamp('created_at').defaultNow()
-  },
-  table => [
-    uniqueIndex('depreciation_asset_period_idx').on(
-      table.assetId,
-      table.periodId
-    )
-  ]
-)
-
-export type DepreciationEntry = typeof depreciationEntries.$inferSelect
-
 export const assetMovements = pgTable(
   'asset_movements',
   {
@@ -231,56 +190,3 @@ export const assetMovements = pgTable(
 )
 
 export type AssetMovements = typeof assetMovements.$inferSelect
-
-// Relations
-export const categoryRelations = relations(
-  assetCategories,
-  ({ one, many }) => ({
-    client: one(clients, {
-      fields: [assetCategories.clientId],
-      references: [clients.id]
-    }),
-    assets: many(fixedAssets)
-  })
-)
-
-export const fixedAssetRelations = relations(fixedAssets, ({ one, many }) => ({
-  client: one(clients, {
-    fields: [fixedAssets.clientId],
-    references: [clients.id]
-  }),
-  category: one(assetCategories, {
-    fields: [fixedAssets.categoryId],
-    references: [assetCategories.id]
-  }),
-  periodBalances: many(assetPeriodBalances),
-  depreciationEntries: many(depreciationEntries)
-}))
-
-export const depreciationEntryRelations = relations(
-  depreciationEntries,
-  ({ one }) => ({
-    asset: one(fixedAssets, {
-      fields: [depreciationEntries.assetId],
-      references: [fixedAssets.id]
-    }),
-    period: one(accountingPeriods, {
-      fields: [depreciationEntries.periodId],
-      references: [accountingPeriods.id]
-    })
-  })
-)
-
-export const assetPeriodBalanceRelations = relations(
-  assetPeriodBalances,
-  ({ one }) => ({
-    asset: one(fixedAssets, {
-      fields: [assetPeriodBalances.assetId],
-      references: [fixedAssets.id]
-    }),
-    period: one(accountingPeriods, {
-      fields: [assetPeriodBalances.periodId],
-      references: [accountingPeriods.id]
-    })
-  })
-)

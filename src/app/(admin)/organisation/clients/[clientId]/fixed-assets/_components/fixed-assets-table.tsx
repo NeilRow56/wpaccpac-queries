@@ -112,6 +112,35 @@ export function FixedAssetsTable({
     return new Intl.DateTimeFormat('en-GB').format(new Date(date))
   }
 
+  const COST_CUTOFF = 1 // group “disposed” (or ~fully disposed) at the end
+
+  const sortedAssets = React.useMemo(() => {
+    const toTime = (d: Date | string | null | undefined) => {
+      if (!d) return 0
+      const t = new Date(d).getTime()
+      return Number.isFinite(t) ? t : 0
+    }
+
+    const toNum = (v: unknown) => {
+      const n = Number(v)
+      return Number.isFinite(n) ? n : 0
+    }
+
+    return [...assets].sort((a, b) => {
+      const aClosing = toNum(a.closingCost)
+      const bClosing = toNum(b.closingCost)
+
+      const aDisposed = aClosing < COST_CUTOFF
+      const bDisposed = bClosing < COST_CUTOFF
+
+      // 1) Active assets first, disposed last
+      if (aDisposed !== bDisposed) return aDisposed ? 1 : -1
+
+      // 2) Within each group: acquisition date DESC
+      return toTime(b.acquisitionDate) - toTime(a.acquisitionDate)
+    })
+  }, [assets])
+
   const columns: ColumnDef<AssetWithPeriodCalculations>[] = React.useMemo(
     () => [
       {
@@ -449,7 +478,7 @@ export function FixedAssetsTable({
   )
 
   const table = useReactTable<AssetWithPeriodCalculations>({
-    data: assets,
+    data: sortedAssets,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
