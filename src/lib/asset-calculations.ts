@@ -326,9 +326,8 @@ export function enrichAssetWithPeriodCalculations(
   // - Else (transitional), fall back to fixed_assets.totalDepreciationToDate for pre-period assets only.
   const openingAccumulatedDepreciation = balance
     ? Number(balance.depreciationBfwd)
-    : acquisitionDate < startDate
-      ? Number(asset.totalDepreciationToDate ?? 0)
-      : 0
+    : 0
+
   const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100
 
   const preDisposalCost = Math.max(
