@@ -1,7 +1,7 @@
 import { db } from '@/db'
 import { accountingPeriods, PeriodStatus } from '@/db/schema'
 import { and, eq } from 'drizzle-orm'
-import { PlanningClient } from './_components/planning-client'
+import { PlanningIndexClient } from './_components/planning-index-client'
 
 export default async function PlanningPage({
   params
@@ -29,7 +29,7 @@ export default async function PlanningPage({
     <div className='space-y-4'>
       <h1 className='text-primary text-xl font-bold'>Planning</h1>
 
-      <PlanningClient
+      <PlanningIndexClient
         clientId={clientId}
         periodId={periodId}
         status={period.status as PeriodStatus} // ideally import your PeriodStatus type instead of any

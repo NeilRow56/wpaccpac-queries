@@ -21,7 +21,7 @@ export default async function PlanningDocPage({
         </div>
 
         <Link
-          className='text-sm underline'
+          className='text-sm text-blue-600 underline'
           href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/planning`}
         >
           Back to Planning index

@@ -33,7 +33,7 @@ export default async function ClientLayout({
       {/* Workspace header */}
       <div className='bg-background/80 supports-backdrop-filter:bg-background/60 sticky top-0 z-10 backdrop-blur'>
         <div className='border-b'>
-          <div className='container mx-auto flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between'>
+          <div className='mx-auto flex max-w-screen-2xl flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between'>
             <div className='min-w-0'>
               <h1 className='truncate text-2xl font-semibold'>{client.name}</h1>
 
@@ -93,7 +93,7 @@ export default async function ClientLayout({
       </div>
 
       {/* Sidebar slot wiring + page content */}
-      <div className='container mx-auto px-4 py-6'>
+      <div className='mx-auto max-w-screen-2xl py-6'>
         <ClientLayoutInner clientId={clientId}>{children}</ClientLayoutInner>
       </div>
     </div>
