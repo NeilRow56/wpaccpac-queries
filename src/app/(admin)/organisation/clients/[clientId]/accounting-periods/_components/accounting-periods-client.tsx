@@ -291,9 +291,13 @@ export function AccountingPeriodsClient({
                     <TableRow key={period.id}>
                       <TableCell>
                         <div className='flex items-center gap-2'>
-                          <span className='font-medium'>
+                          <Link
+                            href={`/organisation/clients/${clientId}/accounting-periods/${period.id}/planning`}
+                            className='font-medium hover:underline'
+                          >
                             {period.periodName}
-                          </span>
+                          </Link>
+
                           {period.isCurrent && (
                             <Badge
                               variant='outline'

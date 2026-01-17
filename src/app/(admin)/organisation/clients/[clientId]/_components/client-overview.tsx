@@ -26,6 +26,9 @@ type ClientOverviewProps = {
     assets: number
     categories: number
     periods: number
+    periodsPlanned: number
+    periodsOpen: number
+    periodsClosed: number
   }
   currentPeriod: null | {
     id: string
@@ -169,37 +172,27 @@ export function ClientOverview(props: ClientOverviewProps) {
       {/* Right: Current period + period notes */}
       <Card>
         <CardHeader>
-          <CardTitle>Current period</CardTitle>
+          <CardTitle>Period context</CardTitle>
         </CardHeader>
         <CardContent className='space-y-3'>
           {!currentPeriod ? (
             <div className='space-y-2'>
               <p className='font-medium text-red-600'>
-                No open accounting period
+                No accounting periods yet
               </p>
               <p className='text-muted-foreground text-sm'>
-                Create a period and open it via Planning to enable depreciation
-                & posting.
+                Create an accounting period to start posting movements and
+                running depreciation.
               </p>
 
               <div className='flex flex-col gap-2'>
-                <Button asChild variant='outline' size='sm'>
+                <Button asChild size='sm'>
                   <Link
                     href={`/organisation/clients/${clientId}/accounting-periods`}
                   >
-                    Go to accounting periods
+                    Create first period
                   </Link>
                 </Button>
-
-                {plannedPeriodId ? (
-                  <Button asChild size='sm'>
-                    <Link
-                      href={`/organisation/clients/${clientId}/accounting-periods/${plannedPeriodId}/planning`}
-                    >
-                      Open via Planning
-                    </Link>
-                  </Button>
-                ) : null}
               </div>
             </div>
           ) : (
@@ -214,7 +207,16 @@ export function ClientOverview(props: ClientOverviewProps) {
                       {formatYmdGb(currentPeriod.startDate)} →{' '}
                       {formatYmdGb(currentPeriod.endDate)}
                     </div>
+
+                    {currentPeriod.status !== 'OPEN' ? (
+                      <div className='text-muted-foreground mt-1 text-xs'>
+                        No open period (showing{' '}
+                        {currentPeriod.status.toLowerCase()}
+                        period).
+                      </div>
+                    ) : null}
                   </div>
+
                   <Badge
                     variant={
                       currentPeriod.status === 'OPEN' ? 'default' : 'secondary'
@@ -225,45 +227,82 @@ export function ClientOverview(props: ClientOverviewProps) {
                 </div>
               </div>
 
-              <div>
-                <div className='flex items-center justify-between'>
-                  <div className='text-sm font-medium'>Period notes</div>
-                  {!canEditPeriodNote ? (
-                    <div className='text-muted-foreground text-xs'>
-                      Read-only (period not OPEN)
+              {/* If no OPEN period exists, guide user */}
+              {counts.periodsOpen === 0 ? (
+                <div className='space-y-2'>
+                  <p className='text-muted-foreground text-sm'>
+                    Notes are read-only until a period is OPEN.
+                  </p>
+
+                  <div className='flex flex-col gap-2'>
+                    <Button asChild variant='outline' size='sm'>
+                      <Link
+                        href={`/organisation/clients/${clientId}/accounting-periods`}
+                      >
+                        Go to accounting periods
+                      </Link>
+                    </Button>
+
+                    {plannedPeriodId ? (
+                      <Button asChild size='sm'>
+                        <Link
+                          href={`/organisation/clients/${clientId}/accounting-periods/${plannedPeriodId}/planning`}
+                        >
+                          Open via Planning
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button asChild size='sm'>
+                        <Link
+                          href={`/organisation/clients/${clientId}/accounting-periods`}
+                        >
+                          Create next period
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className='flex items-center justify-between'>
+                    <div className='text-sm font-medium'>Period notes</div>
+                    {!canEditPeriodNote ? (
+                      <div className='text-muted-foreground text-xs'>
+                        Read-only (period not OPEN)
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <Textarea
+                    className='mt-2 min-h-[180px]'
+                    value={noteDraft}
+                    onChange={e => setNoteDraft(e.target.value)}
+                    placeholder={
+                      canEditPeriodNote
+                        ? 'Add period-specific notes here (adjustments, exceptions, approvals, etc.)'
+                        : 'Notes are available once a period is OPEN.'
+                    }
+                    disabled={!canEditPeriodNote || saving}
+                  />
+
+                  <div className='mt-2 flex justify-end'>
+                    <Button
+                      size='sm'
+                      onClick={handleSave}
+                      disabled={!canEditPeriodNote || saving}
+                    >
+                      {saving ? 'Saving…' : 'Save notes'}
+                    </Button>
+                  </div>
+
+                  {currentPeriodNote?.updatedAt ? (
+                    <div className='text-muted-foreground mt-2 text-xs'>
+                      Last updated:{' '}
+                      {currentPeriodNote.updatedAt.toLocaleString('en-GB')}
                     </div>
                   ) : null}
                 </div>
-
-                <Textarea
-                  className='mt-2 min-h-[180px]'
-                  value={noteDraft}
-                  onChange={e => setNoteDraft(e.target.value)}
-                  placeholder={
-                    canEditPeriodNote
-                      ? 'Add period-specific notes here (adjustments, exceptions, approvals, etc.)'
-                      : 'Notes are available once a period is OPEN.'
-                  }
-                  disabled={!canEditPeriodNote || saving}
-                />
-
-                <div className='mt-2 flex justify-end'>
-                  <Button
-                    size='sm'
-                    onClick={handleSave}
-                    disabled={!canEditPeriodNote || saving}
-                  >
-                    {saving ? 'Saving…' : 'Save notes'}
-                  </Button>
-                </div>
-
-                {currentPeriodNote?.updatedAt ? (
-                  <div className='text-muted-foreground mt-2 text-xs'>
-                    Last updated:{' '}
-                    {currentPeriodNote.updatedAt.toLocaleString('en-GB')}
-                  </div>
-                ) : null}
-              </div>
+              )}
             </>
           )}
         </CardContent>

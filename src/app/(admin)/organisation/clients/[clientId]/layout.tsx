@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Calendar, FolderTree } from 'lucide-react'
+import { Calendar, FolderTree, Package } from 'lucide-react'
 
 import { getClientById } from '@/server-actions/clients'
 import { getCurrentAccountingPeriod } from '@/server-actions/accounting-periods'
@@ -56,12 +56,26 @@ export default async function ClientLayout({
 
             {/* Optional quick actions */}
             <div className='flex flex-wrap gap-2'>
+              {period ? (
+                <Button asChild variant='outline' size='sm'>
+                  <Link href={`/organisation/clients/${clientId}/fixed-assets`}>
+                    <Package className='mr-2 h-4 w-4' />
+                    Fixed assets
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant='outline' size='sm' disabled>
+                  <Package className='mr-2 h-4 w-4' />
+                  Fixed assets
+                </Button>
+              )}
+
               <Button asChild variant='outline' size='sm'>
                 <Link
                   href={`/organisation/clients/${clientId}/asset-categories`}
                 >
                   <FolderTree className='mr-2 h-4 w-4' />
-                  <span className='text-red-600'>Fixed asset categories</span>
+                  <span className=''>Fixed asset categories</span>
                 </Link>
               </Button>
 

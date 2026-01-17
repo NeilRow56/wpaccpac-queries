@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, sql, desc, asc } from 'drizzle-orm'
 import { db } from '@/db'
 import {
   assetCategories,
@@ -8,7 +8,7 @@ import {
   accountingPeriods,
   accountingPeriodNotes
 } from '@/db/schema'
-import { ClientOverview } from './_components/client-overvies'
+import { ClientOverview } from './_components/client-overview'
 
 export default async function ClientPage({
   params
@@ -33,8 +33,8 @@ export default async function ClientPage({
 
   if (!client) notFound()
 
-  // Current OPEN period (and current flag)
-  const currentPeriod = await db
+  // ---- Period context (OPEN -> latest CLOSED -> nearest PLANNED) ----
+  const currentOpen = await db
     .select({
       id: accountingPeriods.id,
       periodName: accountingPeriods.periodName,
@@ -54,22 +54,71 @@ export default async function ClientPage({
     .limit(1)
     .then(r => r[0] ?? null)
 
-  // Planned period id (handy CTA if no current OPEN)
-  const plannedPeriodId = await db
-    .select({ id: accountingPeriods.id })
-    .from(accountingPeriods)
-    .where(
-      and(
-        eq(accountingPeriods.clientId, clientId),
-        eq(accountingPeriods.status, 'PLANNED')
-      )
-    )
-    .orderBy(sql`${accountingPeriods.startDate} DESC`)
-    .limit(1)
-    .then(r => r[0]?.id ?? null)
+  const latestClosed = !currentOpen
+    ? await db
+        .select({
+          id: accountingPeriods.id,
+          periodName: accountingPeriods.periodName,
+          startDate: accountingPeriods.startDate,
+          endDate: accountingPeriods.endDate,
+          status: accountingPeriods.status,
+          isCurrent: accountingPeriods.isCurrent
+        })
+        .from(accountingPeriods)
+        .where(
+          and(
+            eq(accountingPeriods.clientId, clientId),
+            eq(accountingPeriods.status, 'CLOSED')
+          )
+        )
+        .orderBy(desc(accountingPeriods.endDate))
+        .limit(1)
+        .then(r => r[0] ?? null)
+    : null
 
-  // Period note for current period (1:1)
-  const currentPeriodNote = currentPeriod
+  const nearestPlanned =
+    !currentOpen && !latestClosed
+      ? await db
+          .select({
+            id: accountingPeriods.id,
+            periodName: accountingPeriods.periodName,
+            startDate: accountingPeriods.startDate,
+            endDate: accountingPeriods.endDate,
+            status: accountingPeriods.status,
+            isCurrent: accountingPeriods.isCurrent
+          })
+          .from(accountingPeriods)
+          .where(
+            and(
+              eq(accountingPeriods.clientId, clientId),
+              eq(accountingPeriods.status, 'PLANNED')
+            )
+          )
+          .orderBy(asc(accountingPeriods.startDate))
+          .limit(1)
+          .then(r => r[0] ?? null)
+      : null
+
+  const contextPeriod = currentOpen ?? latestClosed ?? nearestPlanned
+
+  // Optional: newest planned for CTA if there's no OPEN
+  const plannedPeriodId = !currentOpen
+    ? await db
+        .select({ id: accountingPeriods.id })
+        .from(accountingPeriods)
+        .where(
+          and(
+            eq(accountingPeriods.clientId, clientId),
+            eq(accountingPeriods.status, 'PLANNED')
+          )
+        )
+        .orderBy(desc(accountingPeriods.startDate))
+        .limit(1)
+        .then(r => r[0]?.id ?? null)
+    : null
+
+  // Period note for the context period (1:1)
+  const contextPeriodNote = contextPeriod
     ? await db
         .select({
           periodId: accountingPeriodNotes.periodId,
@@ -80,15 +129,15 @@ export default async function ClientPage({
         .where(
           and(
             eq(accountingPeriodNotes.clientId, clientId),
-            eq(accountingPeriodNotes.periodId, currentPeriod.id)
+            eq(accountingPeriodNotes.periodId, contextPeriod.id)
           )
         )
         .limit(1)
         .then(r => r[0] ?? null)
     : null
 
-  // Useful counts
-  const [assetsCount, categoriesCount, periodsCount] = await Promise.all([
+  // Useful counts + period status breakdown
+  const [assetsCount, categoriesCount, periodsAgg] = await Promise.all([
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(fixedAssets)
@@ -102,16 +151,24 @@ export default async function ClientPage({
       .then(r => r[0]?.count ?? 0),
 
     db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({
+        total: sql<number>`count(*)::int`,
+        planned: sql<number>`sum(case when ${accountingPeriods.status} = 'PLANNED' then 1 else 0 end)::int`,
+        open: sql<number>`sum(case when ${accountingPeriods.status} = 'OPEN' then 1 else 0 end)::int`,
+        closed: sql<number>`sum(case when ${accountingPeriods.status} = 'CLOSED' then 1 else 0 end)::int`
+      })
       .from(accountingPeriods)
       .where(eq(accountingPeriods.clientId, clientId))
-      .then(r => r[0]?.count ?? 0)
+      .then(r => r[0] ?? { total: 0, planned: 0, open: 0, closed: 0 })
   ])
 
   const counts = {
     assets: assetsCount,
     categories: categoriesCount,
-    periods: periodsCount
+    periods: periodsAgg.total,
+    periodsPlanned: periodsAgg.planned,
+    periodsOpen: periodsAgg.open,
+    periodsClosed: periodsAgg.closed
   }
 
   return (
@@ -119,8 +176,8 @@ export default async function ClientPage({
       clientId={clientId}
       client={client}
       counts={counts}
-      currentPeriod={currentPeriod}
-      currentPeriodNote={currentPeriodNote}
+      currentPeriod={contextPeriod} // keep prop name if you want
+      currentPeriodNote={contextPeriodNote} // keep prop name if you want
       plannedPeriodId={plannedPeriodId}
     />
   )

@@ -1,38 +1,48 @@
 import { getAccountingPeriodById } from '@/server-actions/accounting-periods'
 import { getClientById } from '@/server-actions/clients'
 import { notFound } from 'next/navigation'
+import PeriodSidebar from './_components/period-sidebar'
 
 type Params = { clientId: string; periodId: string }
 
-export default async function PeriodLayout(props: {
-  params: Promise<Params> // Next 15/16 compatible
+export default async function PeriodLayout({
+  params,
+  children
+}: {
+  params: Promise<Params>
   children: React.ReactNode
 }) {
-  const { clientId, periodId } = await props.params
+  const { clientId, periodId } = await params
 
-  // Optional: if you already guard client exists in parent layout,
-  // you can remove this.
   const client = await getClientById(clientId)
   if (!client) notFound()
 
   const period = await getAccountingPeriodById(periodId)
-  if (!period) notFound()
+  if (!period || period.clientId !== clientId) notFound()
 
-  // 🔐 Critical protection: period must belong to client
-  if (period.clientId !== clientId) notFound()
-
-  const isLocked = period.status !== 'OPEN' // or whatever enum you use
+  const isLocked = period.status !== 'OPEN'
 
   return (
-    <>
-      {/* Optional UX banner */}
-      {isLocked ? (
-        <div className='mb-3 rounded-md border p-3 text-sm'>
-          This period is locked. Posting and edits are disabled..
-        </div>
-      ) : null}
+    <div className='flex gap-6'>
+      {/* ✅ SIDEBAR LIVES HERE */}
+      <PeriodSidebar
+        clientId={clientId}
+        periodId={periodId}
+        periodName={period.periodName}
+        startDate={period.startDate}
+        endDate={period.endDate}
+        status={period.status}
+      />
 
-      {props.children}
-    </>
+      <main className='min-w-0 flex-1'>
+        {isLocked && (
+          <div className='mb-3 rounded-md border p-3 text-sm'>
+            This period is locked. Posting and edits are disabled.
+          </div>
+        )}
+
+        {children}
+      </main>
+    </div>
   )
 }

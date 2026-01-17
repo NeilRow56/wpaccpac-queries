@@ -1,12 +1,15 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ensurePeriodOpenAction } from '@/server-actions/accounting-periods'
+import type { PeriodStatus } from '@/db/schema'
 
-type PeriodStatus = 'PLANNED' | 'OPEN' | 'CLOSING' | 'CLOSED'
+import { B_DOCS } from '@/planning/registry'
+import type { PlanningPackConfig } from '@/planning/types'
 
 export function PlanningClient(props: {
   clientId: string
@@ -30,7 +33,6 @@ export function PlanningClient(props: {
       if (result.promoted) toast.success('New period started.')
       else toast.message('Period is already open.')
 
-      // Refresh server components (re-fetch status)
       router.refresh()
     } finally {
       setIsStarting(false)
@@ -64,11 +66,40 @@ export function PlanningClient(props: {
     )
   }
 
+  // TODO: load this from DB later (planningPackConfig). Empty config means “defaults”.
+  const config: PlanningPackConfig = {}
+
+  const visibleDocs = B_DOCS.filter(d =>
+    d.visibleWhen ? d.visibleWhen(config) : true
+  ).sort((a, b) => a.order - b.order)
+
   return (
     <div className='space-y-4'>
-      {/* ✅ Your real planning UI goes here */}
       <div className='text-muted-foreground text-sm'>
-        Planning content / materiality inputs etc.
+        Select a planning document for this period:
+      </div>
+
+      <div className='grid gap-2'>
+        {visibleDocs.map(doc => (
+          <Button
+            key={doc.code}
+            asChild
+            variant='outline'
+            className='justify-start'
+          >
+            <Link
+              href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/${encodeURIComponent(doc.code)}`}
+            >
+              <span className='mr-2 font-mono text-xs'>{doc.code}</span>
+              <span>{doc.title}</span>
+            </Link>
+          </Button>
+        ))}
+      </div>
+
+      <div className='text-muted-foreground text-xs'>
+        Completion status and roll-forward will appear once document instances
+        are saved for this period.
       </div>
     </div>
   )
