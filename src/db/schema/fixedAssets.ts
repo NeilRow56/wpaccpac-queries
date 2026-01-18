@@ -158,15 +158,15 @@ export const assetMovements = pgTable(
       .$defaultFn(() => crypto.randomUUID()),
     clientId: text('client_id')
       .notNull()
-      .references(() => clients.id),
+      .references(() => clients.id, { onDelete: 'restrict' }),
 
     assetId: text('asset_id')
       .notNull()
-      .references(() => fixedAssets.id, { onDelete: 'cascade' }),
+      .references(() => fixedAssets.id, { onDelete: 'restrict' }),
 
     periodId: text('period_id')
       .notNull()
-      .references(() => accountingPeriods.id),
+      .references(() => accountingPeriods.id, { onDelete: 'restrict' }),
     movementType: assetMovementsEnum('asset_movement_type').notNull(),
     postingDate: date('posting_date').notNull(),
     amountCost: decimal('amount_cost', { precision: 12, scale: 2 }).notNull(),

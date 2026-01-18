@@ -12,6 +12,7 @@ import {
   assetMovements
 } from './fixedAssets'
 import { depreciationEntries } from './depreciationEntries'
+import { planningDocs } from './planningDocs'
 
 // ---- Clients ----
 export const clientRelations = relations(clients, ({ many }) => ({
@@ -126,5 +127,18 @@ export const assetMovementRelations = relations(assetMovements, ({ one }) => ({
   client: one(clients, {
     fields: [assetMovements.clientId],
     references: [clients.id]
+  })
+}))
+
+// ---- Planning Docs ----
+
+export const planningDocsRelations = relations(planningDocs, ({ one }) => ({
+  client: one(clients, {
+    fields: [planningDocs.clientId],
+    references: [clients.id]
+  }),
+  period: one(accountingPeriods, {
+    fields: [planningDocs.periodId],
+    references: [accountingPeriods.id]
   })
 }))

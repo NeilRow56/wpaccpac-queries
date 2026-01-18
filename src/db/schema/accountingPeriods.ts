@@ -31,7 +31,7 @@ export const accountingPeriods = pgTable(
       .$defaultFn(() => crypto.randomUUID()),
     clientId: text('client_id')
       .notNull()
-      .references(() => clients.id),
+      .references(() => clients.id, { onDelete: 'restrict' }),
     periodName: text('period_name').notNull(),
     startDate: date('start_date').notNull(),
     endDate: date('end_date').notNull(),

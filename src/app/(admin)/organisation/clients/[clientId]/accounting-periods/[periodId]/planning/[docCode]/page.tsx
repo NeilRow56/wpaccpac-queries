@@ -1,4 +1,7 @@
-import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { B_DOCS } from '@/planning/registry'
+import { getPlanningDoc } from '@/server-actions/planning-docs'
+import PlanningDocClient from '../_components/planning-doc-client'
 
 export default async function PlanningDocPage({
   params
@@ -7,31 +10,36 @@ export default async function PlanningDocPage({
 }) {
   const { clientId, periodId, docCode } = await params
 
-  // docCode is URL-encoded because codes include characters like "(" and ")"
-  const decodedCode = decodeURIComponent(docCode)
+  // Decode URL-safe codes like B14-2(a)
+  const code = decodeURIComponent(docCode)
+
+  // 1️⃣ Find registry definition
+  const docDef = B_DOCS.find(d => d.code === code)
+  if (!docDef) notFound()
+
+  // 2️⃣ Load existing DB content (if any)
+  const existing = await getPlanningDoc({
+    clientId,
+    periodId,
+    code
+  })
 
   return (
     <div className='space-y-4'>
-      <div className='flex items-center justify-between'>
-        <div>
-          <h1 className='text-xl font-bold'>{decodedCode}</h1>
-          <p className='text-muted-foreground text-sm'>
-            Planning document editor (textarea coming next)
-          </p>
-        </div>
+      <h1 className='text-xl font-semibold'>
+        {docDef.code} — {docDef.title}
+      </h1>
 
-        <Link
-          className='text-sm text-blue-600 underline'
-          href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/planning`}
-        >
-          Back to Planning index
-        </Link>
-      </div>
-
-      <div className='rounded-md border p-4 text-sm'>
-        Route OK. docCode param ={' '}
-        <span className='font-mono'>{decodedCode}</span>
-      </div>
+      <PlanningDocClient
+        clientId={clientId}
+        periodId={periodId}
+        code={docDef.code}
+        type={docDef.type}
+        defaultText={docDef.defaultText ?? ''}
+        initialContent={existing?.content ?? ''}
+        initialComplete={existing?.isComplete ?? false}
+        updatedAt={existing?.updatedAt ?? null}
+      />
     </div>
   )
 }

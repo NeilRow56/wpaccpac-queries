@@ -20,11 +20,11 @@ export const depreciationEntries = pgTable(
 
     assetId: text('asset_id')
       .notNull()
-      .references(() => fixedAssets.id, { onDelete: 'cascade' }),
+      .references(() => fixedAssets.id, { onDelete: 'restrict' }),
 
     periodId: text('period_id')
       .notNull()
-      .references(() => accountingPeriods.id, { onDelete: 'cascade' }),
+      .references(() => accountingPeriods.id, { onDelete: 'restrict' }),
 
     depreciationAmount: decimal('depreciation_amount', {
       precision: 12,

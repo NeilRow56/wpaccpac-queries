@@ -8,12 +8,12 @@ export const accountingPeriodNotes = pgTable('accounting_period_notes', {
   // ✅ periodId is the PK => one row per period, guaranteed
   periodId: text('period_id')
     .primaryKey()
-    .references(() => accountingPeriods.id, { onDelete: 'cascade' }),
+    .references(() => accountingPeriods.id, { onDelete: 'restrict' }),
 
   // ✅ optional but recommended for scoping + safety
   clientId: text('client_id')
     .notNull()
-    .references(() => clients.id, { onDelete: 'cascade' }),
+    .references(() => clients.id, { onDelete: 'restrict' }),
 
   notes: text('notes').notNull().default(''),
 
