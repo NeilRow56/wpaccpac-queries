@@ -1,4 +1,4 @@
-export type PlanningDocType = 'TEXT' | 'NOTES'
+export type PlanningDocType = 'TEXT' | 'NOTES' | 'CHECKLIST'
 
 export type PlanningPackConfig = Partial<{
   auditExemptionApplies: boolean
@@ -8,11 +8,28 @@ export type PlanningPackConfig = Partial<{
   materialityRequired: boolean
 }>
 
-export type PlanningDocDef = {
-  code: string // "B11", "B14-2(a)"
-  title: string
-  type: PlanningDocType
-  order: number // for display sorting
-  defaultText?: string // for TEXT docs
-  visibleWhen?: (cfg: PlanningPackConfig) => boolean
+export type ChecklistRowDef = {
+  id: string
+  text: string
 }
+
+/**
+ * Registry definition type (what lives in B_DOCS)
+ */
+export type PlanningDocDef =
+  | {
+      code: string
+      title: string
+      type: 'TEXT' | 'NOTES'
+      order: number
+      defaultText?: string
+      visibleWhen?: (cfg: PlanningPackConfig) => boolean
+    }
+  | {
+      code: string
+      title: string
+      type: 'CHECKLIST'
+      order: number
+      defaultChecklist: ChecklistRowDef[]
+      visibleWhen?: (cfg: PlanningPackConfig) => boolean
+    }

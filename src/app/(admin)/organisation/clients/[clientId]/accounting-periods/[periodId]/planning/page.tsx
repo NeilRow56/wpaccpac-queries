@@ -1,9 +1,11 @@
 import { db } from '@/db'
-import { accountingPeriods, PeriodStatus } from '@/db/schema'
-import { and, eq } from 'drizzle-orm'
-import { PlanningIndexClient } from './_components/planning-index-client'
+import { and, desc, eq, lt } from 'drizzle-orm'
+import { accountingPeriods, planningDocs } from '@/db/schema'
+import { B_DOCS } from '@/planning/registry'
+import PlanningIndexClient from './_components/planning-index-client'
+import { notFound } from 'next/navigation'
 
-export default async function PlanningPage({
+export default async function PlanningIndexPage({
   params
 }: {
   params: Promise<{ clientId: string; periodId: string }>
@@ -16,23 +18,82 @@ export default async function PlanningPage({
       eq(accountingPeriods.clientId, clientId)
     )
   })
+  if (!period) notFound()
 
-  if (!period) {
-    return (
-      <div className='rounded-md border border-red-300 bg-red-50 p-4 text-sm'>
-        Period not found.
-      </div>
+  const prev = await db
+    .select({
+      id: accountingPeriods.id,
+      endDate: accountingPeriods.endDate
+    })
+    .from(accountingPeriods)
+    .where(
+      and(
+        eq(accountingPeriods.clientId, clientId),
+        lt(accountingPeriods.endDate, period.startDate)
+      )
     )
+    .orderBy(desc(accountingPeriods.endDate))
+    .limit(1)
+    .then(r => r[0] ?? null)
+
+  const currentDocs = await db
+    .select({
+      code: planningDocs.code,
+      isComplete: planningDocs.isComplete
+    })
+    .from(planningDocs)
+    .where(
+      and(
+        eq(planningDocs.clientId, clientId),
+        eq(planningDocs.periodId, periodId)
+      )
+    )
+
+  const currentByCode = new Map(currentDocs.map(d => [d.code, d] as const))
+
+  const prevDocs = prev
+    ? await db
+        .select({ code: planningDocs.code })
+        .from(planningDocs)
+        .where(
+          and(
+            eq(planningDocs.clientId, clientId),
+            eq(planningDocs.periodId, prev.id)
+          )
+        )
+    : []
+
+  const prevSet = new Set(prevDocs.map(d => d.code))
+
+  let availableFromPrevCount = 0
+  for (const d of B_DOCS) {
+    if (prevSet.has(d.code)) availableFromPrevCount += 1
   }
+
+  const docsForIndex = [...B_DOCS]
+    .sort((a, b) => a.order - b.order)
+    .map(d => {
+      const row = currentByCode.get(d.code)
+      return {
+        code: d.code,
+        title: d.title,
+        order: d.order,
+        enabled: true,
+        isComplete: row?.isComplete ?? false
+      }
+    })
 
   return (
     <div className='space-y-4'>
-      <h1 className='text-primary text-xl font-bold'>Planning</h1>
-
       <PlanningIndexClient
         clientId={clientId}
         periodId={periodId}
-        status={period.status as PeriodStatus} // ideally import your PeriodStatus type instead of any
+        docs={docsForIndex}
+        hint={
+          prev && availableFromPrevCount > 0
+            ? { count: availableFromPrevCount, prevPeriodId: prev.id }
+            : null
+        }
       />
     </div>
   )

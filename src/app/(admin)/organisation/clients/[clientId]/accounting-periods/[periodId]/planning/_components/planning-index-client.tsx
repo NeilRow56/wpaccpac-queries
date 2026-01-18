@@ -1,65 +1,66 @@
 'use client'
 
 import Link from 'next/link'
-import { CheckCircle2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 
-// import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import type { PeriodStatus } from '@/db/schema'
-import { B_DOCS } from '@/planning/registry'
-
-export function PlanningIndexClient(props: {
+export default function PlanningIndexClient(props: {
   clientId: string
   periodId: string
-  status: PeriodStatus
+  docs: Array<{
+    code: string
+    title: string
+    order: number
+    enabled: boolean
+    isComplete: boolean
+  }>
+  hint: null | { count: number; prevPeriodId: string }
 }) {
-  const { clientId, periodId, status } = props
-  const isOpen = status === 'OPEN'
-
-  // TODO: later filter based on PlanningPackConfig (Option B + partial)
-  const docs = [...B_DOCS].sort((a, b) => a.order - b.order)
+  const { clientId, periodId, docs, hint } = props
 
   return (
-    <div className='space-y-2'>
-      {!isOpen ? (
-        <div className='rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm'>
-          This period is <strong>{status}</strong>. Planning is read-only.
+    <div className='space-y-3'>
+      {hint ? (
+        <div className='bg-muted/40 rounded-md border p-3 text-sm'>
+          <span className='font-medium'>
+            {hint.count} document{hint.count === 1 ? '' : 's'} available from
+            the previous period.
+          </span>
+          <div className='text-muted-foreground mt-1 text-xs'>
+            These were carried forward to save re-keying. Review and update for
+            this period.
+          </div>
         </div>
       ) : null}
 
       <div className='rounded-md border'>
         <div className='divide-y'>
-          {docs.map(doc => {
-            const encoded = encodeURIComponent(doc.code)
+          {docs.map(d => {
+            const encoded = encodeURIComponent(d.code)
             const href = `/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/${encoded}`
 
             return (
-              <div
-                key={doc.code}
-                className='flex items-center justify-between p-3'
+              <Link
+                key={d.code}
+                href={href}
+                className={cn(
+                  'hover:bg-muted/50 flex items-center justify-between px-4 py-3 text-sm'
+                )}
               >
                 <div className='min-w-0'>
-                  <div className='flex items-center gap-2'>
-                    <div className='font-medium'>{doc.code}</div>
-                    <div className='truncate'>{doc.title}</div>
-                    {/* <Badge variant='secondary' className='ml-2'>
-                      {doc.type}
-                    </Badge> */}
+                  <div className='truncate font-medium'>
+                    {d.code} — {d.title}
                   </div>
                 </div>
 
                 <div className='flex items-center gap-2'>
-                  {/* Placeholder completion UI for now */}
-                  <Button variant='ghost' size='sm' disabled>
-                    <CheckCircle2 className='mr-2 h-4 w-4' />
-                    Complete
-                  </Button>
-
-                  <Button asChild size='sm' variant='outline'>
-                    <Link href={href}>Open</Link>
-                  </Button>
+                  {d.isComplete ? (
+                    <Badge className='bg-green-600'>Complete</Badge>
+                  ) : (
+                    <Badge variant='secondary'>In progress</Badge>
+                  )}
                 </div>
-              </div>
+              </Link>
             )
           })}
         </div>

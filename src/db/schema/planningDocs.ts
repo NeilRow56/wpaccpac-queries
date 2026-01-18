@@ -3,7 +3,8 @@ import {
   text,
   boolean,
   timestamp,
-  uniqueIndex
+  uniqueIndex,
+  jsonb
 } from 'drizzle-orm/pg-core'
 import { clients } from './clients'
 import { accountingPeriods } from './accountingPeriods'
@@ -25,7 +26,7 @@ export const planningDocs = pgTable(
     code: text('code').notNull(), // e.g. "B14-2(a)"
 
     content: text('content').notNull().default(''),
-
+    contentJson: jsonb('content_json'),
     isComplete: boolean('is_complete').notNull().default(false),
 
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),

@@ -2,6 +2,7 @@ import { getAccountingPeriodById } from '@/server-actions/accounting-periods'
 import { getClientById } from '@/server-actions/clients'
 import { notFound } from 'next/navigation'
 import PeriodSidebar from './_components/period-sidebar'
+import { getPlanningCompletionForPeriod } from '@/lib/planning/planning-completion'
 
 type Params = { clientId: string; periodId: string }
 
@@ -22,6 +23,11 @@ export default async function PeriodLayout({
 
   const isLocked = period.status !== 'OPEN'
 
+  const completion = await getPlanningCompletionForPeriod({
+    clientId,
+    periodId
+  })
+
   return (
     <div className='flex gap-6'>
       {/* ✅ SIDEBAR LIVES HERE */}
@@ -32,6 +38,7 @@ export default async function PeriodLayout({
         startDate={period.startDate}
         endDate={period.endDate}
         status={period.status}
+        planningCompletion={completion}
       />
 
       <main className='min-w-0 flex-1'>

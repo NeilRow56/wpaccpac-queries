@@ -7,10 +7,41 @@ export const B_DOCS: PlanningDocDef[] = [
   {
     code: 'B11',
     title: 'Planning Checklist',
-    type: 'TEXT',
+    type: 'CHECKLIST',
     order: 11,
-    defaultText: '...'
+    defaultChecklist: [
+      {
+        id: 'perm-info-h',
+        text: 'Ensure permanent information includes:'
+      },
+      {
+        id: 'perm-info-1',
+        text: 'An appropriate and up to date letter of engagement'
+      },
+      {
+        id: 'perm-info-2',
+        text: 'Signed client acceptance documentation'
+      },
+      {
+        id: 'perm-info-3',
+        text: 'Evidence of professional clearance where applicable'
+      },
+
+      {
+        id: 'ml-h',
+        text: 'Money laundering and client due diligence:'
+      },
+      {
+        id: 'ml-1',
+        text: 'Client due diligence completed and up to date'
+      },
+      {
+        id: 'ml-2',
+        text: 'Money laundering risk assessment documented'
+      }
+    ]
   },
+
   {
     code: 'B12',
     title: 'Audit exemption – Eligibility Checklist',

@@ -9,6 +9,7 @@ import {
   calculateDaysInPeriod
 } from '@/lib/asset-calculations'
 import { db } from '@/db'
+import { rollForwardPlanningDocsTx } from '@/server-actions/_helpers/rollforward-planning-docs'
 
 import {
   AccountingPeriod,
@@ -591,6 +592,15 @@ export async function postDepreciationAndClosePeriod(input: {
       input.nextPeriod
     )
 
+    const planningRoll = await rollForwardPlanningDocsTx({
+      tx,
+      clientId: input.clientId,
+      fromPeriodId: period.id, // the period being closed
+      toPeriodId: nextPeriod.id, // the newly created/reused next period
+      overwrite: false,
+      resetComplete: true
+    })
+
     const [assets, balances] = await Promise.all([
       tx
         .select()
@@ -780,7 +790,8 @@ export async function postDepreciationAndClosePeriod(input: {
     return {
       success: true as const,
       assetsPosted: assets.length,
-      nextPeriodId: nextPeriod.id
+      nextPeriodId: nextPeriod.id,
+      planningDocsSourceCount: planningRoll.sourceCount // rename to avoid implying “inserted”
     }
   })
 }

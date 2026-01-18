@@ -33,6 +33,10 @@ export default function PeriodSidebar(props: {
   startDate: string
   endDate: string
   status: PeriodStatus
+  planningCompletion: {
+    completed: number
+    total: number
+  }
 }) {
   //   const { clientId, periodId, periodName, startDate, endDate, status } = props
   const { clientId, periodId, status } = props
@@ -206,7 +210,7 @@ export default function PeriodSidebar(props: {
           return (
             <Link
               key={section.key}
-              href={href} // ✅ now defined
+              href={href}
               className={cn(
                 'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
                 isActive
@@ -215,7 +219,14 @@ export default function PeriodSidebar(props: {
               )}
             >
               {section.icon}
-              {section.label}
+              <span className='min-w-0 truncate'>{section.label}</span>
+
+              {section.key === 'planning' && (
+                <span className='text-muted-foreground ml-auto text-xs tabular-nums'>
+                  {props.planningCompletion.completed} /{' '}
+                  {props.planningCompletion.total}
+                </span>
+              )}
             </Link>
           )
         })}

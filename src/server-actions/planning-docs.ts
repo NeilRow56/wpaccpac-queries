@@ -25,12 +25,17 @@ export async function getPlanningDoc(params: {
     .select({
       id: planningDocs.id,
       content: planningDocs.content,
+      contentJson: planningDocs.contentJson,
       isComplete: planningDocs.isComplete,
       updatedAt: planningDocs.updatedAt
     })
     .from(planningDocs)
     .where(
-      and(eq(planningDocs.periodId, periodId), eq(planningDocs.code, code))
+      and(
+        eq(planningDocs.clientId, clientId), // ✅ add this
+        eq(planningDocs.periodId, periodId),
+        eq(planningDocs.code, code)
+      )
     )
     .limit(1)
     .then(r => r[0] ?? null)
@@ -42,10 +47,11 @@ export async function upsertPlanningDocAction(input: {
   clientId: string
   periodId: string
   code: string
-  content: string
+  content?: string
+  contentJson?: unknown
   isComplete?: boolean
 }) {
-  const { clientId, periodId, code, content } = input
+  const { clientId, periodId, code } = input
   const isComplete = input.isComplete ?? false
 
   // Ensure period belongs to client (safety)
@@ -67,32 +73,40 @@ export async function upsertPlanningDocAction(input: {
     }
   }
 
+  // Only update the fields that were provided (prevents wiping).
+  const set: Partial<typeof planningDocs.$inferInsert> = {
+    isComplete,
+    updatedAt: new Date()
+  }
+
+  if (typeof input.content === 'string') {
+    set.content = input.content
+  }
+
+  if (input.contentJson !== undefined) {
+    set.contentJson = input.contentJson
+  }
+
   await db
     .insert(planningDocs)
     .values({
       clientId,
       periodId,
       code,
-      content: content ?? '',
+      content: typeof input.content === 'string' ? input.content : '',
+      contentJson: input.contentJson ?? null,
       isComplete
     })
     .onConflictDoUpdate({
       target: [planningDocs.periodId, planningDocs.code],
-      set: {
-        content: content ?? '',
-        isComplete,
-        updatedAt: new Date()
-      }
+      set
     })
 
   const encoded = encodeURIComponent(code)
 
-  // Planning index
   revalidatePath(
     `/organisation/clients/${clientId}/accounting-periods/${periodId}/planning`
   )
-
-  // Planning doc page (/planning/[docCode])
   revalidatePath(
     `/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/${encoded}`
   )
@@ -116,7 +130,8 @@ export async function setPlanningDocCompleteAction(input: {
     clientId: input.clientId,
     periodId: input.periodId,
     code: input.code,
-    content: existing?.content ?? '',
+    content: existing?.content,
+    contentJson: existing?.contentJson,
     isComplete: input.isComplete
   })
 }
