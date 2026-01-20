@@ -60,13 +60,13 @@ export default async function ClientLayout({
                 <Button asChild variant='outline' size='sm'>
                   <Link href={`/organisation/clients/${clientId}/fixed-assets`}>
                     <Package className='mr-2 h-4 w-4' />
-                    Fixed assets
+                    Fixed assets register
                   </Link>
                 </Button>
               ) : (
                 <Button variant='outline' size='sm' disabled>
                   <Package className='mr-2 h-4 w-4' />
-                  Fixed assets
+                  Fixed assets register
                 </Button>
               )}
 

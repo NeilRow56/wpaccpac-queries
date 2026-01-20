@@ -1,11 +1,10 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 import { closeAccountingPeriodAction } from '@/server-actions/accounting-periods'
-
-import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
 import { AccountingPeriod } from '@/domain/accounting-periods/types'
 
 type Props = {
@@ -60,7 +59,6 @@ function formatMonYearGB(date: Date) {
 /**
  * Preferred default naming convention:
  *   "Jan 2025 – Dec 2025"
- * This communicates the span clearly and matches your manual periods.
  */
 function autoPeriodNameFromStartEndYMD(startYmd: string, endYmd: string) {
   const start = new Date(startYmd)
@@ -87,6 +85,7 @@ function defaultNextPeriod(current: AccountingPeriod) {
 
 export function ClosePeriodModal({ period, clientId, onClose }: Props) {
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   const suggested = useMemo(() => defaultNextPeriod(period), [period])
 
@@ -97,6 +96,16 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
   // Tracks whether the user has manually edited the period name
   const [isCustomName, setIsCustomName] = useState(false)
 
+  const [override, setOverride] = useState<null | {
+    completed: number
+    total: number
+    incompleteCodes?: string[]
+  }>(null)
+
+  function clearOverride() {
+    setOverride(null)
+  }
+
   const currentEnd = useMemo(() => toDate(period.endDate), [period])
   const currentEndGB = useMemo(() => formatGB(currentEnd), [currentEnd])
 
@@ -106,6 +115,7 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
   )
 
   function resetToDefaultName() {
+    clearOverride()
     setIsCustomName(false)
     setNextPeriodName(defaultName)
   }
@@ -142,10 +152,7 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
     return { ok: true, message: '' }
   }, [nextStartDate, nextEndDate, nextPeriodName, currentEnd])
 
-  // inside component:
-  const router = useRouter()
-
-  function handleConfirm() {
+  function handleConfirm(force = false) {
     startTransition(async () => {
       const res = await closeAccountingPeriodAction({
         clientId,
@@ -154,16 +161,26 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
           periodName: nextPeriodName.trim(),
           startDate: nextStartDate,
           endDate: nextEndDate
-        }
+        },
+        force
       })
 
       if (!res.success) {
-        toast.error(res.error)
+        // ✅ narrow: only the override variant has needsOverride/completion
+        if ('needsOverride' in res && res.needsOverride) {
+          setOverride({
+            completed: res.completion.completed,
+            total: res.completion.total
+          })
+          return
+        }
+
+        toast.error(res.error ?? 'Failed to close period')
         return
       }
 
       toast.success(`Closed period. Posted ${res.assetsPosted} assets.`)
-      // ✅ go straight into planning for the next period
+
       router.push(
         `/organisation/clients/${clientId}/accounting-periods/${res.nextPeriodId}/planning`
       )
@@ -196,7 +213,6 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
                   Period name
                 </div>
 
-                {/* ✅ Reset link */}
                 {isCustomName && (
                   <button
                     type='button'
@@ -215,6 +231,7 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
                 onChange={e => {
                   setNextPeriodName(e.target.value)
                   setIsCustomName(true)
+                  clearOverride()
                 }}
                 placeholder={defaultName}
                 disabled={isPending}
@@ -237,8 +254,8 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
                   onChange={e => {
                     const value = e.target.value
                     setNextStartDate(value)
+                    clearOverride()
 
-                    // ✅ Auto-update name only if not custom
                     if (!isCustomName) {
                       setNextPeriodName(
                         autoPeriodNameFromStartEndYMD(value, nextEndDate)
@@ -263,8 +280,8 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
                   onChange={e => {
                     const value = e.target.value
                     setNextEndDate(value)
+                    clearOverride()
 
-                    // ✅ Auto-update name only if not custom
                     if (!isCustomName) {
                       setNextPeriodName(
                         autoPeriodNameFromStartEndYMD(nextStartDate, value)
@@ -294,9 +311,25 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
           </div>
         </div>
 
+        {override && (
+          <div className='rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900'>
+            <div className='font-medium'>Planning pack is incomplete</div>
+            <div className='mt-1 text-xs'>
+              Only {override.completed} of {override.total} planning sections
+              are marked complete.
+            </div>
+            <div className='mt-2 text-xs text-amber-800'>
+              You can still close the period if you want to proceed anyway.
+            </div>
+          </div>
+        )}
+
         <div className='flex justify-end gap-2 pt-2'>
           <button
-            onClick={onClose}
+            onClick={() => {
+              clearOverride()
+              onClose()
+            }}
             disabled={isPending}
             className='rounded border px-4 py-2 text-sm'
           >
@@ -305,10 +338,14 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
 
           <button
             className='rounded bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-60'
-            onClick={handleConfirm}
+            onClick={() => handleConfirm(override != null)}
             disabled={isPending || !validation.ok}
           >
-            {isPending ? 'Closing…' : 'Close Period'}
+            {isPending
+              ? 'Closing…'
+              : override
+                ? 'Close anyway'
+                : 'Close Period'}
           </button>
         </div>
       </div>

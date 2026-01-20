@@ -270,7 +270,9 @@ export async function postAssetMovementAction(input: unknown) {
     })
 
     revalidatePath(`/organisation/clients/${data.clientId}/fixed-assets`)
-    revalidatePath(`/organisation/clients/${data.clientId}/accounting-periods`)
+    revalidatePath(
+      `/organisation/clients/${data.clientId}/accounting-periods/${data.periodId}/assets`
+    )
 
     return {
       success: true as const
