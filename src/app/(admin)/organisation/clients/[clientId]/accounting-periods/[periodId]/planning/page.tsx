@@ -4,6 +4,7 @@ import { accountingPeriods, planningDocs } from '@/db/schema'
 import { B_DOCS } from '@/planning/registry'
 import PlanningIndexClient from './_components/planning-index-client'
 import { notFound } from 'next/navigation'
+import { PlanningClient } from './_components/planning-client'
 
 export default async function PlanningIndexPage({
   params
@@ -85,16 +86,24 @@ export default async function PlanningIndexPage({
 
   return (
     <div className='space-y-4'>
-      <PlanningIndexClient
+      <PlanningClient
         clientId={clientId}
         periodId={periodId}
-        docs={docsForIndex}
-        hint={
-          prev && availableFromPrevCount > 0
-            ? { count: availableFromPrevCount, prevPeriodId: prev.id }
-            : null
-        }
+        status={period.status}
       />
+
+      {period.status === 'OPEN' && (
+        <PlanningIndexClient
+          clientId={clientId}
+          periodId={periodId}
+          docs={docsForIndex}
+          hint={
+            prev && availableFromPrevCount > 0
+              ? { count: availableFromPrevCount, prevPeriodId: prev.id }
+              : null
+          }
+        />
+      )}
     </div>
   )
 }

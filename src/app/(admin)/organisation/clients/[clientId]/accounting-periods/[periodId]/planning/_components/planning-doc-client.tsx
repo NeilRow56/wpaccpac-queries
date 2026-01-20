@@ -7,10 +7,19 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { upsertPlanningDocAction } from '@/server-actions/planning-docs'
+import {
+  resetPlanningDocToTemplateAction,
+  upsertPlanningDocAction
+} from '@/server-actions/planning-docs'
 import ChecklistEditor from './checklist-editor'
+import RichTextEditor from './rich-text-editor'
+
 import type { ChecklistDoc } from '@/lib/planning/checklist-types'
-import { buildChecklistDocFromDefaults } from '@/lib/planning/checklist-types'
+import {
+  buildChecklistDocFromDefaults,
+  isChecklistDocJson
+} from '@/lib/planning/checklist-types'
+import type { JSONContent } from '@tiptap/core'
 
 type BaseProps = {
   clientId: string
@@ -18,6 +27,12 @@ type BaseProps = {
   code: string
   initialComplete: boolean
   updatedAt: string | null
+}
+
+type RichTextProps = BaseProps & {
+  type: 'RICH_TEXT'
+  defaultContentJson: JSONContent
+  initialContentJson: JSONContent | null
 }
 
 type TextProps = BaseProps & {
@@ -32,7 +47,12 @@ type ChecklistProps = BaseProps & {
   initialChecklist: ChecklistDoc | null
 }
 
-type Props = TextProps | ChecklistProps
+type Props = TextProps | ChecklistProps | RichTextProps
+
+const EMPTY_RICH_DOC: JSONContent = {
+  type: 'doc',
+  content: [{ type: 'paragraph', content: [] }]
+}
 
 export default function PlanningDocClient(props: Props) {
   const { clientId, periodId, code, initialComplete, updatedAt } = props
@@ -41,6 +61,7 @@ export default function PlanningDocClient(props: Props) {
   const [isComplete, setIsComplete] = React.useState(initialComplete)
   const [saving, setSaving] = React.useState(false)
 
+  // TEXT / NOTES state
   const [content, setContent] = React.useState(() => {
     if (props.type === 'TEXT' || props.type === 'NOTES') {
       return props.initialContent || props.defaultText
@@ -48,6 +69,7 @@ export default function PlanningDocClient(props: Props) {
     return ''
   })
 
+  // CHECKLIST state
   const [checklistDoc, setChecklistDoc] = React.useState<ChecklistDoc>(() => {
     if (props.type === 'CHECKLIST') {
       return (
@@ -55,9 +77,22 @@ export default function PlanningDocClient(props: Props) {
         buildChecklistDocFromDefaults(props.defaultChecklist)
       )
     }
-    // never used for text docs, but must exist to keep hook order stable
+    // never used for non-checklist docs, but must exist for stable hook order
     return { kind: 'CHECKLIST', rows: [] }
   })
+
+  // RICH_TEXT state
+  const [richJson, setRichJson] = React.useState<JSONContent>(() => {
+    if (props.type === 'RICH_TEXT') {
+      return (
+        props.initialContentJson ?? props.defaultContentJson ?? EMPTY_RICH_DOC
+      )
+    }
+    // never used for non-rich docs, but must exist for stable hook order
+    return EMPTY_RICH_DOC
+  })
+
+  const [richSyncKey, setRichSyncKey] = React.useState(1)
 
   async function saveTextDoc() {
     if (saving) return
@@ -106,7 +141,33 @@ export default function PlanningDocClient(props: Props) {
     }
   }
 
+  async function saveRichText() {
+    if (props.type !== 'RICH_TEXT') return
+    if (saving) return
+    try {
+      setSaving(true)
+      const res = await upsertPlanningDocAction({
+        clientId,
+        periodId,
+        code,
+        contentJson: richJson,
+        isComplete
+      })
+      if (!res.success) {
+        toast.error(res.error ?? 'Failed to save')
+        return
+      }
+      toast.success('Saved')
+    } catch {
+      toast.error('Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ----------------------------
   // CHECKLIST branch
+  // ----------------------------
   if (props.type === 'CHECKLIST') {
     return (
       <div className='space-y-4'>
@@ -121,6 +182,45 @@ export default function PlanningDocClient(props: Props) {
           </label>
 
           <div className='ml-auto flex items-center gap-2'>
+            <Button
+              type='button'
+              variant='outline'
+              disabled={saving}
+              onClick={async () => {
+                if (saving) return
+                try {
+                  setSaving(true)
+
+                  const res = await resetPlanningDocToTemplateAction({
+                    clientId,
+                    periodId,
+                    code
+                  })
+
+                  if (!res.success) {
+                    toast.error(res.error ?? 'Failed to reset')
+                    return
+                  }
+
+                  setChecklistDoc(
+                    isChecklistDocJson(res.contentJson)
+                      ? res.contentJson
+                      : buildChecklistDocFromDefaults(props.defaultChecklist)
+                  )
+
+                  setIsComplete(false)
+
+                  toast.success('Reset to template')
+                } catch {
+                  toast.error('Failed to reset')
+                } finally {
+                  setSaving(false)
+                }
+              }}
+            >
+              Reset to template
+            </Button>
+
             <Button type='button' onClick={saveChecklist} disabled={saving}>
               {saving ? 'Saving…' : 'Save'}
             </Button>
@@ -138,7 +238,86 @@ export default function PlanningDocClient(props: Props) {
     )
   }
 
+  // ----------------------------
+  // RICH_TEXT branch
+  // ----------------------------
+  if (props.type === 'RICH_TEXT') {
+    const template = props.defaultContentJson ?? EMPTY_RICH_DOC
+
+    return (
+      <div className='space-y-4'>
+        <div className='flex items-center gap-3'>
+          <Checkbox
+            id='doc-complete'
+            checked={isComplete}
+            onCheckedChange={v => setIsComplete(v === true)}
+          />
+          <label htmlFor='doc-complete' className='text-sm'>
+            Mark document as complete
+          </label>
+
+          <div className='ml-auto flex items-center gap-2'>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={async () => {
+                if (saving) return
+                try {
+                  setSaving(true)
+
+                  const res = await resetPlanningDocToTemplateAction({
+                    clientId,
+                    periodId,
+                    code
+                  })
+
+                  if (!res.success) {
+                    toast.error(res.error ?? 'Failed to reset')
+                    return
+                  }
+
+                  // Prefer server-returned JSON (canonical), fallback to template
+                  const next = (res.contentJson ?? template) as JSONContent
+                  setRichJson(next)
+                  setRichSyncKey(k => k + 1)
+                  setIsComplete(false)
+
+                  toast.success('Reset to template')
+                } catch {
+                  toast.error('Failed to reset')
+                } finally {
+                  setSaving(false)
+                }
+              }}
+              disabled={saving}
+            >
+              Reset to template
+            </Button>
+
+            <Button type='button' onClick={saveRichText} disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        </div>
+
+        <RichTextEditor
+          value={richJson}
+          onChange={setRichJson}
+          syncKey={richSyncKey}
+        />
+
+        <div className='text-muted-foreground text-xs'>
+          {updatedAt
+            ? `Last updated: ${new Date(updatedAt).toLocaleString()}`
+            : 'Not yet saved'}
+        </div>
+      </div>
+    )
+  }
+
+  // ----------------------------
   // TEXT / NOTES branch
+  // ----------------------------
   const defaultText = props.defaultText ?? ''
 
   return (
@@ -157,7 +336,34 @@ export default function PlanningDocClient(props: Props) {
           <Button
             type='button'
             variant='outline'
-            onClick={() => setContent(defaultText)}
+            onClick={async () => {
+              if (saving) return
+              try {
+                setSaving(true)
+
+                const res = await resetPlanningDocToTemplateAction({
+                  clientId,
+                  periodId,
+                  code
+                })
+
+                if (!res.success) {
+                  toast.error(res.error ?? 'Failed to reset')
+                  return
+                }
+
+                setContent(
+                  typeof res.content === 'string' ? res.content : defaultText
+                )
+                setIsComplete(false)
+
+                toast.success('Reset to template')
+              } catch {
+                toast.error('Failed to reset')
+              } finally {
+                setSaving(false)
+              }
+            }}
             disabled={saving}
           >
             Reset to template

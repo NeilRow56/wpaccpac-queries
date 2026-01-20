@@ -15,6 +15,7 @@ export const planningDocs = pgTable(
     id: text('id')
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
+
     clientId: text('client_id')
       .notNull()
       .references(() => clients.id, { onDelete: 'restrict' }),
@@ -23,7 +24,7 @@ export const planningDocs = pgTable(
       .notNull()
       .references(() => accountingPeriods.id, { onDelete: 'restrict' }),
 
-    code: text('code').notNull(), // e.g. "B14-2(a)"
+    code: text('code').notNull(),
 
     content: text('content').notNull().default(''),
     contentJson: jsonb('content_json'),
@@ -36,10 +37,9 @@ export const planningDocs = pgTable(
       .$onUpdateFn(() => new Date())
   },
   t => ({
-    uniqPeriodCode: uniqueIndex('planning_docs_period_code_uniq').on(
-      t.periodId,
-      t.code
-    )
+    uniqClientPeriodCode: uniqueIndex(
+      'planning_docs_client_period_code_uniq'
+    ).on(t.clientId, t.periodId, t.code)
   })
 )
 

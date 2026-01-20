@@ -24,6 +24,7 @@ import {
   closeAccountingPeriodSchema
 } from '@/zod-schemas/accountingPeriod'
 import { ensurePeriodOpenForRender } from '@/lib/ensurePeriodOpenForRender'
+import { getPlanningCompletionForPeriodTx } from '@/lib/planning/planning-completion'
 
 function revalidateClientAccountingPages(clientId: string) {
   revalidatePath(`/organisation/clients/${clientId}/accounting-periods`)
@@ -545,6 +546,7 @@ export async function postDepreciationAndClosePeriod(input: {
     startDate: string // YYYY-MM-DD
     endDate: string // YYYY-MM-DD
   }
+  force?: boolean
 }) {
   return await db.transaction(async tx => {
     // 🔒 Lock the period row to prevent double-close/double-post concurrency
@@ -583,6 +585,20 @@ export async function postDepreciationAndClosePeriod(input: {
       throw new Error(
         `Next period must start on or after ${earliestAllowedStart} (the day after the current period end date)`
       )
+    }
+
+    const completion = await getPlanningCompletionForPeriodTx(tx, {
+      clientId: input.clientId,
+      periodId: period.id
+    })
+
+    if (!input.force && completion.completed < completion.total) {
+      return {
+        success: false as const,
+        needsOverride: true as const,
+        error: `Planning pack incomplete (${completion.completed}/${completion.total}).`,
+        completion
+      }
     }
 
     // Create or reuse next period from UI input (your updated helper = PLANNED only)

@@ -1,9 +1,9 @@
-import type { PlanningDocDef } from './types'
+import type { PlanningDocDef } from '@/planning/types'
 
 const cfgBool = (v: boolean | undefined) => v === true
 const cfgRisk = (v: 'normal' | 'elevated' | undefined) => v ?? 'normal'
 
-export const B_DOCS: PlanningDocDef[] = [
+export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
   {
     code: 'B11',
     title: 'Planning Checklist',
@@ -20,11 +20,15 @@ export const B_DOCS: PlanningDocDef[] = [
       },
       {
         id: 'perm-info-2',
-        text: 'Signed client acceptance documentation'
+        text: 'Laws and regulations relevant to the client'
       },
       {
         id: 'perm-info-3',
         text: 'Evidence of professional clearance where applicable'
+      },
+      {
+        id: 'perm-info-4',
+        text: 'Any independence issues, together with reasons that the firm acts for the client'
       },
 
       {
@@ -33,11 +37,47 @@ export const B_DOCS: PlanningDocDef[] = [
       },
       {
         id: 'ml-1',
-        text: 'Client due diligence completed and up to date'
+        text: 'Confirm that we fully understand the ownership and control structure of the company, including beneficial ownership.  List all 25% beneficial owners.'
       },
       {
         id: 'ml-2',
-        text: 'Money laundering risk assessment documented'
+        text: 'Since we last carried out work for the client, consider whether: The client has undergone significant change; or there have been changes in the nature and / or extent of the services we provide to them.'
+      },
+      {
+        id: 'ml-3',
+        text: 'Confirm correct ID is held on file'
+      },
+      {
+        id: 'ml-4',
+        text: 'Establish whether there are any reasons why we should not conduct this assignment (eg. insufficient expertise)'
+      },
+      {
+        id: 'ml-5',
+        text: 'Confirm that the company is eligible for audit exemption. Complete the eligibility checklist if there is any doubt, or if a member of a group'
+      },
+      {
+        id: 'ml-6',
+        text: 'Carry out an analytical review of the final figures, if analysis needed in accordance with firms policy, file on A71'
+      },
+      {
+        id: 'ml-7',
+        text: 'Has going concern been considered? Is there a going concern note in accounts if net liabilities?'
+      },
+      {
+        id: 'ml-8',
+        text: 'Consider need for disclosure checklist (ie major changes or first year)'
+      },
+      {
+        id: 'ml-9',
+        text: 'Ensure correct accountant’s report is included with accounts'
+      },
+      {
+        id: 'ml-10',
+        text: 'Schedule any outstanding points/significant matters for the reviewer’s attention on A25'
+      },
+      {
+        id: 'ml-11',
+        text: 'Consider whether a letter of representation is required, if so file on A51'
       }
     ]
   },
@@ -67,13 +107,57 @@ export const B_DOCS: PlanningDocDef[] = [
   {
     code: 'B14-2(a)',
     title: 'Ownership and control',
-    type: 'TEXT',
+    type: 'RICH_TEXT',
     order: 1421,
-    defaultText: '...',
+    defaultContentJson: {
+      type: 'doc',
+      content: [
+        {
+          type: 'heading',
+          attrs: { level: 1 },
+          content: [{ type: 'text', text: 'Ownership structure' }]
+        },
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'The company is owned as follows:' }]
+        },
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    { type: 'text', text: 'Mr A — 50% ordinary share capital' }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    { type: 'text', text: 'Mr B — 50% ordinary share capital' }
+                  ]
+                }
+              ]
+            },
+            // ✅ add this for any template that ends with a list
+            { type: 'paragraph', content: [] }
+          ]
+        }
+      ]
+    },
+
     visibleWhen: cfg =>
       cfgBool(cfg.ownershipComplex) ||
       cfgRisk(cfg.moneyLaunderingRiskLevel) !== 'normal'
   },
+
   {
     code: 'B21',
     title: 'Notes from discussions with client',

@@ -30,7 +30,7 @@ export const createAccountingPeriodSchema = z.object({
 export const closeAccountingPeriodSchema = z.object({
   clientId: z.uuid(),
   periodId: z.uuid(),
-
+  force: z.boolean().optional(),
   nextPeriod: z
     .object({
       periodName: z.string().min(1),

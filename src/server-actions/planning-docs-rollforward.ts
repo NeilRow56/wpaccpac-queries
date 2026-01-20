@@ -4,9 +4,11 @@ import { db } from '@/db'
 import { accountingPeriods, planningDocs } from '@/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+
+import { upgradeTitleHeadingToH1 } from '@/lib/planning/richtext-upgrades' // from earlier snippet
 import {
-  resetChecklistResponses,
-  isChecklistDocJson
+  isChecklistDocJson,
+  resetChecklistResponses
 } from '@/lib/planning/checklist-types'
 
 export async function rollForwardPlanningDocsAction(input: {
@@ -15,13 +17,16 @@ export async function rollForwardPlanningDocsAction(input: {
   toPeriodId: string
   overwrite?: boolean
   resetComplete?: boolean
+  /** upgrades legacy rich-text title headings (H2 -> H1) on rollforward */
+  upgradeHeadings?: boolean
 }) {
   const {
     clientId,
     fromPeriodId,
     toPeriodId,
     overwrite = false,
-    resetComplete = true
+    resetComplete = true,
+    upgradeHeadings = true
   } = input
 
   if (fromPeriodId === toPeriodId) {
@@ -87,12 +92,19 @@ export async function rollForwardPlanningDocsAction(input: {
     for (const doc of sourceDocs) {
       const nextIsComplete = resetComplete ? false : doc.isComplete
 
-      const nextJson =
-        resetComplete && isChecklistDocJson(doc.contentJson)
-          ? resetChecklistResponses(doc.contentJson)
-          : doc.contentJson
+      let nextJson: unknown = doc.contentJson
 
-      const values = {
+      // Reset checklist responses on rollforward (but keep the checklist itself)
+      if (resetComplete && isChecklistDocJson(nextJson)) {
+        nextJson = resetChecklistResponses(nextJson)
+      }
+
+      // Optional: upgrade legacy rich-text title headings (H2->H1)
+      if (upgradeHeadings) {
+        nextJson = upgradeTitleHeadingToH1(nextJson)
+      }
+
+      const values: typeof planningDocs.$inferInsert = {
         clientId,
         periodId: toPeriodId,
         code: doc.code,
@@ -107,14 +119,24 @@ export async function rollForwardPlanningDocsAction(input: {
           .insert(planningDocs)
           .values(values)
           .onConflictDoNothing({
-            target: [planningDocs.periodId, planningDocs.code]
+            // IMPORTANT: must match your unique index
+            target: [
+              planningDocs.clientId,
+              planningDocs.periodId,
+              planningDocs.code
+            ]
           })
       } else {
         await tx
           .insert(planningDocs)
           .values(values)
           .onConflictDoUpdate({
-            target: [planningDocs.periodId, planningDocs.code],
+            // IMPORTANT: must match your unique index
+            target: [
+              planningDocs.clientId,
+              planningDocs.periodId,
+              planningDocs.code
+            ],
             set: {
               content: values.content,
               contentJson: values.contentJson,
@@ -131,6 +153,7 @@ export async function rollForwardPlanningDocsAction(input: {
       `/organisation/clients/${clientId}/accounting-periods/${toPeriodId}/planning`
     )
 
+    // Revalidate each doc page too
     for (const doc of sourceDocs) {
       const encoded = encodeURIComponent(doc.code)
       revalidatePath(

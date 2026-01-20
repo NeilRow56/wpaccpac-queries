@@ -226,3 +226,48 @@ select:-webkit-autofill:focus {
   background-color: transparent !important;
   -webkit-text-fill-color: currentColor !important;
 }
+
+/* TipTap inside Tailwind Typography */
+.ProseMirror.prose h1 {
+  font-weight: 600;
+  font-size: 1.4rem;
+  line-height: 1.25;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.ProseMirror.prose h2 {
+  font-weight: 500;
+  font-size: 1.2rem;
+  line-height: 1.3;
+  margin: 0.65rem 0 0.45rem;
+}
+
+.ProseMirror.prose h3 {
+  font-weight: 500;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  margin: 0.5rem 0 0.4rem;
+}
+
+/* Optional: slightly calmer paragraph spacing */
+.ProseMirror.prose p {
+  margin: 0.4rem 0;
+  line-height: 1.6;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+
+.ProseMirror li {
+  margin: 0.2rem 0;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid hsl(var(--border));
+  padding-left: 0.75rem;
+  margin: 0.75rem 0;
+  color: hsl(var(--muted-foreground));
+}
