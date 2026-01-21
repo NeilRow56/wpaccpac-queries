@@ -5,6 +5,17 @@ import * as React from 'react'
 import { Button } from '@/components/ui/button'
 import type { AssetScheduleRow } from '@/lib/fixed-assets/fixed-assets-period-schedule'
 
+function MoneyHeader({ label }: { label: string }) {
+  return (
+    <div className='grid'>
+      <span className='text-right'>{label}</span>
+      <span className='text-muted-foreground justify-self-center text-[12px] leading-none'>
+        £
+      </span>
+    </div>
+  )
+}
+
 function formatMoneyNoSymbol(n: number) {
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
@@ -57,7 +68,6 @@ export default function CategoryScheduleTable(props: {
   const safePage = Math.min(page, pageCount - 1)
 
   React.useEffect(() => {
-    // keep page in range if rows change
     setPage(p => Math.min(p, pageCount - 1))
   }, [pageCount])
 
@@ -110,19 +120,41 @@ export default function CategoryScheduleTable(props: {
             <tr className='text-left'>
               <th className='px-3 py-2'>Asset</th>
 
-              <th className='px-3 py-2 text-right'>Cost b/f</th>
-              <th className='px-3 py-2 text-right'>Additions</th>
-              <th className='px-3 py-2 text-right'>Disposals</th>
-              <th className='px-3 py-2 text-right'>Adj</th>
-              <th className='px-3 py-2 text-right'>Cost c/f</th>
+              <th className='px-3 py-2 text-right'>
+                <MoneyHeader label='Cost b/f' />
+              </th>
+              <th className='px-3 py-2 text-right'>
+                <MoneyHeader label='Additions' />
+              </th>
+              <th className='px-3 py-2 text-right'>
+                <MoneyHeader label='Disposals' />
+              </th>
+              <th className='px-3 py-2 text-right'>
+                <MoneyHeader label='Adj' />
+              </th>
+              <th className='px-3 py-2 text-right'>
+                <MoneyHeader label='Cost c/f' />
+              </th>
 
-              <th className='px-3 py-2 text-right'>Depn b/f</th>
-              <th className='px-3 py-2 text-right'>Charge</th>
-              <th className='px-3 py-2 text-right'>On disp.</th>
-              <th className='px-3 py-2 text-right'>Adj</th>
-              <th className='px-3 py-2 text-right'>Depn c/f</th>
+              <th className='px-3 py-2 text-right'>
+                <MoneyHeader label='Depn b/f' />
+              </th>
+              <th className='px-3 py-2 text-right'>
+                <MoneyHeader label='Charge' />
+              </th>
+              <th className='px-3 py-2 text-right'>
+                <MoneyHeader label='On disp.' />
+              </th>
+              <th className='px-3 py-2 text-right'>
+                <MoneyHeader label='Adj' />
+              </th>
+              <th className='px-3 py-2 text-right'>
+                <MoneyHeader label='Depn c/f' />
+              </th>
 
-              <th className='px-3 py-2 text-right'>NBV c/f</th>
+              <th className='px-3 py-2 text-right'>
+                <MoneyHeader label='NBV c/f' />
+              </th>
             </tr>
           </thead>
 

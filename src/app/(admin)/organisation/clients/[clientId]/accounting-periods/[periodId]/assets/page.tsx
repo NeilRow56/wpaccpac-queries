@@ -9,15 +9,20 @@ import { buildPeriodLeafBreadcrumbs } from '@/lib/period-breadcrumbs'
 import ScheduleActions from './_components/schedule-action-buttons'
 import { getFixedAssetPeriodSchedule } from '@/lib/fixed-assets/fixed-assets-period-schedule'
 
+import CategorySectionsWithModal from './_components/category-sections-with-modal'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import CategoryScheduleTable from './_components/category-schedule-table'
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 
-/* ----------------------------------
- * Formatting
- * ---------------------------------- */
+export function formatMoney(n: number) {
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+    maximumFractionDigits: 0
+  }).format(n)
+}
 
 function formatMoneyNoSymbol(n: number) {
-  // £ sign removed, still GB formatting (grouping, negatives etc)
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
     currency: 'GBP',
@@ -30,10 +35,20 @@ function formatMoneyNoSymbol(n: number) {
 }
 
 function formatMoneyRedBrackets(n: number) {
-  // show disposals in red and in brackets (always as a positive magnitude)
   const abs = Math.abs(n)
   const txt = formatMoneyNoSymbol(abs)
   return `(${txt})`
+}
+
+function MoneyHeader({ label }: { label: string }) {
+  return (
+    <div className='grid'>
+      <span className='text-right'>{label}</span>
+      <span className='text-muted-foreground justify-self-center text-[12px] leading-none'>
+        £
+      </span>
+    </div>
+  )
 }
 
 const formatYMD = (d: string | Date) =>
@@ -43,88 +58,10 @@ const formatYMD = (d: string | Date) =>
     year: 'numeric'
   }).format(new Date(d))
 
-// function nearlyEqual(a: number, b: number, tolerance = 0.01) {
-//   return Math.abs(a - b) <= tolerance
-// }
-
-/* ----------------------------------
- * Types
- * ---------------------------------- */
-
 type FixedAssetScheduleData = Awaited<
   ReturnType<typeof getFixedAssetPeriodSchedule>
 >
-
 type ScheduleRow = NonNullable<FixedAssetScheduleData>['scheduleRows'][number]
-
-type CategoryDetailTotals = {
-  costBfwd: number
-  additions: number
-  disposalsCost: number
-  costAdjustment: number
-  costCfwd: number
-
-  depreciationBfwd: number
-  depreciationCharge: number
-  depreciationOnDisposals: number
-  depreciationAdjustment: number
-  depreciationCfwd: number
-
-  nbvBfwd: number
-  nbvCfwd: number
-}
-
-function sumCategory(
-  rows: Array<{
-    costBfwd: number
-    additions: number
-    disposalsCost: number
-    costAdjustment: number
-    costCfwd: number
-    depreciationBfwd: number
-    depreciationCharge: number
-    depreciationOnDisposals: number
-    depreciationAdjustment: number
-    depreciationCfwd: number
-    nbvBfwd: number
-    nbvCfwd: number
-  }>
-): CategoryDetailTotals {
-  return rows.reduce(
-    (acc, r) => ({
-      costBfwd: acc.costBfwd + r.costBfwd,
-      additions: acc.additions + r.additions,
-      disposalsCost: acc.disposalsCost + r.disposalsCost,
-      costAdjustment: acc.costAdjustment + r.costAdjustment,
-      costCfwd: acc.costCfwd + r.costCfwd,
-
-      depreciationBfwd: acc.depreciationBfwd + r.depreciationBfwd,
-      depreciationCharge: acc.depreciationCharge + r.depreciationCharge,
-      depreciationOnDisposals:
-        acc.depreciationOnDisposals + r.depreciationOnDisposals,
-      depreciationAdjustment:
-        acc.depreciationAdjustment + r.depreciationAdjustment,
-      depreciationCfwd: acc.depreciationCfwd + r.depreciationCfwd,
-
-      nbvBfwd: acc.nbvBfwd + r.nbvBfwd,
-      nbvCfwd: acc.nbvCfwd + r.nbvCfwd
-    }),
-    {
-      costBfwd: 0,
-      additions: 0,
-      disposalsCost: 0,
-      costAdjustment: 0,
-      costCfwd: 0,
-      depreciationBfwd: 0,
-      depreciationCharge: 0,
-      depreciationOnDisposals: 0,
-      depreciationAdjustment: 0,
-      depreciationCfwd: 0,
-      nbvBfwd: 0,
-      nbvCfwd: 0
-    }
-  )
-}
 
 /* ----------------------------------
  * Disposal P&L helpers
@@ -146,35 +83,37 @@ type DisposalLine = {
 }
 
 function computeDisposalLines(rows: ScheduleRow[]): DisposalLine[] {
-  return (
-    rows
-      .map(r => {
-        const costDisposed = r.disposalsCost ?? 0
-        const depreciationOnDisposal = r.depreciationOnDisposals ?? 0
-        const proceeds = r.disposalProceeds ?? 0
+  return rows
+    .map(r => {
+      const costDisposed = Number(r.disposalsCost ?? 0)
+      const depreciationOnDisposal = Number(r.depreciationOnDisposals ?? 0)
 
-        const nbvDisposed = costDisposed - depreciationOnDisposal
-        const profitLoss = proceeds - nbvDisposed
+      // Only works if schedule rows include disposalProceeds; otherwise 0
+      const proceeds =
+        'disposalProceeds' in r
+          ? Number((r as { disposalProceeds?: unknown }).disposalProceeds ?? 0)
+          : 0
 
-        return {
-          assetId: r.assetId,
-          assetCode: r.assetCode ?? null,
-          assetName: r.assetName,
-          categoryId: r.categoryId,
-          categoryName: r.categoryName,
+      const nbvDisposed = costDisposed - depreciationOnDisposal
+      const profitLoss = proceeds - nbvDisposed
 
-          costDisposed,
-          depreciationOnDisposal,
-          proceeds,
+      return {
+        assetId: r.assetId,
+        assetCode: r.assetCode ?? null,
+        assetName: r.assetName,
+        categoryId: r.categoryId,
+        categoryName: r.categoryName,
 
-          nbvDisposed,
-          profitLoss
-        }
-      })
-      // show only where something actually happened
-      .filter(l => l.costDisposed !== 0 || l.proceeds !== 0)
-      .sort((a, b) => Math.abs(b.costDisposed) - Math.abs(a.costDisposed))
-  )
+        costDisposed,
+        depreciationOnDisposal,
+        proceeds,
+
+        nbvDisposed,
+        profitLoss
+      }
+    })
+    .filter(l => l.costDisposed !== 0 || l.proceeds !== 0)
+    .sort((a, b) => Math.abs(b.costDisposed) - Math.abs(a.costDisposed))
 }
 
 function sumDisposal(lines: DisposalLine[]) {
@@ -197,10 +136,6 @@ function sumDisposal(lines: DisposalLine[]) {
   )
 }
 
-/* ----------------------------------
- * Page
- * ---------------------------------- */
-
 export default async function FixedAssetsCurrentPeriodPage({
   params
 }: {
@@ -209,6 +144,7 @@ export default async function FixedAssetsCurrentPeriodPage({
   const { clientId, periodId } = await params
 
   const client = await getClientById(clientId)
+
   const data = await getFixedAssetPeriodSchedule({ clientId, periodId })
   if (!data) notFound()
 
@@ -260,7 +196,7 @@ export default async function FixedAssetsCurrentPeriodPage({
   )
 
   // Group rows by category for supporting schedules
-  const rowsByCategory = new Map<string, ScheduleRow[]>()
+  const rowsByCategory = new Map<string, typeof scheduleRows>()
   for (const r of scheduleRows) {
     const arr = rowsByCategory.get(r.categoryId) ?? []
     arr.push(r)
@@ -290,123 +226,69 @@ export default async function FixedAssetsCurrentPeriodPage({
       <div className='flex items-start justify-between gap-4'>
         <div className='space-y-1'>
           <h1 className='text-xl font-semibold'>Fixed assets</h1>
-
-          {/* Match asset register header styling */}
           <div className='text-muted-foreground text-sm'>
             Current period · {formatYMD(period.startDate)} →{' '}
             {formatYMD(period.endDate)}
           </div>
         </div>
-
+        <Button asChild variant='outline' size='sm'>
+          <Link
+            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/B61-fixed_assets`}
+          >
+            B61 — Fixed assets work programme
+          </Link>
+        </Button>
         <ScheduleActions clientId={clientId} periodId={periodId} />
       </div>
 
       {/* Category summary (Lead schedule) */}
       <section className='space-y-2'>
         <h2 className='text-primary text-lg font-medium'>Category summary</h2>
+
         <div className='rounded-md border'>
           <div className='overflow-x-auto'>
             <table className='w-full text-sm'>
               <thead className='bg-muted/50'>
                 <tr className='text-left'>
                   <th className='px-3 py-2'>Category</th>
+
                   <th className='px-3 py-2 text-right'>
-                    <div className='grid'>
-                      <span className='text-right'>Cost b/f</span>
-                      <span className='text-muted-foreground justify-self-end text-[12px] leading-none'>
-                        £
-                      </span>
-                    </div>
+                    <MoneyHeader label='Cost b/f' />
                   </th>
                   <th className='px-3 py-2 text-right'>
-                    <div className='grid'>
-                      <span className='text-right'>Additions</span>
-                      <span className='text-muted-foreground justify-self-end text-[12px] leading-none'>
-                        £
-                      </span>
-                    </div>
+                    <MoneyHeader label='Additions' />
                   </th>
                   <th className='px-3 py-2 text-right'>
-                    <div className='grid'>
-                      <span className='text-right'>Disposals</span>
-                      <span className='text-muted-foreground justify-self-end text-[12px] leading-none'>
-                        £
-                      </span>
-                    </div>
+                    <MoneyHeader label='Disposals' />
                   </th>
                   <th className='px-3 py-2 text-right'>
-                    <div className='grid'>
-                      <span className='text-right'>Adj</span>
-                      <span className='text-muted-foreground justify-self-end text-[12px] leading-none'>
-                        £
-                      </span>
-                    </div>
+                    <MoneyHeader label='Adj' />
                   </th>
                   <th className='px-3 py-2 text-right'>
-                    <div className='grid'>
-                      <span className='text-right'>Cost c/f</span>
-                      <span className='text-muted-foreground justify-self-end text-[12px] leading-none'>
-                        £
-                      </span>
-                    </div>
+                    <MoneyHeader label='Cost c/f' />
                   </th>
 
                   <th className='px-3 py-2 text-right'>
-                    <div className='grid'>
-                      <span className='text-right'>Depn b/f</span>
-                      <span className='text-muted-foreground justify-self-end text-[12px] leading-none'>
-                        £
-                      </span>
-                    </div>
+                    <MoneyHeader label='Depn b/f' />
                   </th>
                   <th className='px-3 py-2 text-right'>
-                    <div className='grid'>
-                      <span className='text-right'>Charge</span>
-                      <span className='text-muted-foreground justify-self-end text-[12px] leading-none'>
-                        £
-                      </span>
-                    </div>
+                    <MoneyHeader label='Charge' />
                   </th>
                   <th className='px-3 py-2 text-right'>
-                    <div className='grid'>
-                      <span className='text-right'>On disp.</span>
-                      <span className='text-muted-foreground justify-self-end text-[12px] leading-none'>
-                        £
-                      </span>
-                    </div>
+                    <MoneyHeader label='On disp.' />
                   </th>
                   <th className='px-3 py-2 text-right'>
-                    <div className='grid'>
-                      <span className='text-right'>Adj</span>
-                      <span className='text-muted-foreground justify-self-end text-[12px] leading-none'>
-                        £
-                      </span>
-                    </div>
+                    <MoneyHeader label='Adj' />
                   </th>
                   <th className='px-3 py-2 text-right'>
-                    <div className='grid'>
-                      <span className='text-right'>Depn c/f</span>
-                      <span className='text-muted-foreground justify-self-end text-[12px] leading-none'>
-                        £
-                      </span>
-                    </div>
+                    <MoneyHeader label='Depn c/f' />
                   </th>
 
                   <th className='px-3 py-2 text-right'>
-                    <div className='grid'>
-                      <span className='text-right'>NBV b/f</span>
-                      <span className='text-muted-foreground justify-self-end text-[12px] leading-none'>
-                        £
-                      </span>
-                    </div>
+                    <MoneyHeader label='NBV b/f' />
                   </th>
                   <th className='px-3 py-2 text-right'>
-                    <div className='grid'>
-                      <span className='text-right'>NBV c/f</span>
-                      <span className='text-muted-foreground justify-self-end text-[12px] leading-none'>
-                        £
-                      </span>
-                    </div>
+                    <MoneyHeader label='NBV c/f' />
                   </th>
                 </tr>
               </thead>
@@ -696,257 +578,17 @@ export default async function FixedAssetsCurrentPeriodPage({
         </section>
       ) : null}
 
-      {/* Supporting schedules (by category) */}
+      {/* Supporting schedules (now rendered via client component with modal support) */}
       <section className='space-y-2'>
         <h2 className='text-primary text-lg font-medium'>
           Supporting schedules
         </h2>
         <p className='text-muted-foreground text-xs'>
-          The lead schedule above is the category summary. Expand a category
-          below to view the supporting register for that class of asset.
+          Click a category to view the supporting register - click “Open” to
+          view it in a modal without scrolling.
         </p>
 
-        <div className='space-y-3'>
-          {categorySections.map(section => {
-            const rows = section.rows
-            const totals = sumCategory(rows)
-
-            return (
-              <details key={section.categoryId} className='rounded-md border'>
-                <summary className='flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2'>
-                  <div className='min-w-0'>
-                    <div className='flex items-center gap-2'>
-                      <span className='text-muted-foreground'>
-                        <ChevronRight className='details-closed:inline hidden h-4 w-4' />
-                        <ChevronDown className='details-open:inline hidden h-4 w-4' />
-                      </span>
-
-                      <span className='font-medium'>
-                        {section.categoryName}
-                      </span>
-
-                      <span className='text-muted-foreground text-xs'>
-                        ({rows.length} asset{rows.length === 1 ? '' : 's'})
-                      </span>
-                    </div>
-
-                    <div className='text-muted-foreground mt-0.5 text-xs'>
-                      Cost c/f {formatMoneyNoSymbol(section.summary.costCfwd)} ·
-                      Depn c/f{' '}
-                      {formatMoneyNoSymbol(section.summary.depreciationCfwd)} ·
-                      NBV c/f {formatMoneyNoSymbol(section.summary.nbvCfwd)}
-                    </div>
-                  </div>
-
-                  <span className='text-muted-foreground text-xs'>
-                    Display schedule
-                  </span>
-                </summary>
-                <div className='border-t'>
-                  <CategoryScheduleTable
-                    rows={rows}
-                    totals={totals}
-                    pageSize={10}
-                  />
-                </div>
-
-                {/* <div className='border-t'>
-                  <div className='overflow-x-auto'>
-                    <table className='w-full text-sm'>
-                      <thead className='bg-muted/50'>
-                        <tr className='text-left'>
-                          <th className='px-3 py-2'>Asset</th>
-
-                          <th className='px-3 py-2 text-right'>Cost b/f</th>
-                          <th className='px-3 py-2 text-right'>Additions</th>
-                          <th className='px-3 py-2 text-right'>Disposals</th>
-                          <th className='px-3 py-2 text-right'>Adj</th>
-                          <th className='px-3 py-2 text-right'>Cost c/f</th>
-
-                          <th className='px-3 py-2 text-right'>Depn b/f</th>
-                          <th className='px-3 py-2 text-right'>Charge</th>
-                          <th className='px-3 py-2 text-right'>On disp.</th>
-                          <th className='px-3 py-2 text-right'>Adj</th>
-                          <th className='px-3 py-2 text-right'>Depn c/f</th>
-
-                          <th className='px-3 py-2 text-right'>NBV c/f</th>
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        {rows.map(r => {
-                          const hasEntry = r.depreciationEntriesCount > 0
-                          const mismatch =
-                            hasEntry &&
-                            !nearlyEqual(
-                              r.depreciationEntriesTotal,
-                              r.depreciationCharge
-                            )
-
-                          const hasDispCost =
-                            Math.abs(r.disposalsCost) > 0.00001
-                          const hasDispDep =
-                            Math.abs(r.depreciationOnDisposals) > 0.00001
-
-                          return (
-                            <tr key={r.assetId} className='border-t'>
-                              <td className='px-3 py-2'>
-                                <div className='font-medium'>
-                                  {r.assetCode ? `${r.assetCode} — ` : ''}
-                                  {r.assetName}
-                                </div>
-
-                                <div className='text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs'>
-                                  <span>
-                                    {r.depreciationMethod} @{' '}
-                                    {r.depreciationRate}%
-                                  </span>
-
-                                  {hasEntry && (
-                                    <span className='rounded-full border px-2 py-0.5'>
-                                      depn entry
-                                    </span>
-                                  )}
-
-                                  {mismatch && (
-                                    <span className='rounded-full border px-2 py-0.5'>
-                                      check: entry{' '}
-                                      {formatMoneyNoSymbol(
-                                        r.depreciationEntriesTotal
-                                      )}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-
-                              <td className='px-3 py-2 text-right tabular-nums'>
-                                {formatMoneyNoSymbol(r.costBfwd)}
-                              </td>
-                              <td className='px-3 py-2 text-right tabular-nums'>
-                                {formatMoneyNoSymbol(r.additions)}
-                              </td>
-
-                              <td className='px-3 py-2 text-right tabular-nums'>
-                                {hasDispCost ? (
-                                  <span className='text-red-600'>
-                                    {formatMoneyRedBrackets(r.disposalsCost)}
-                                  </span>
-                                ) : (
-                                  formatMoneyNoSymbol(r.disposalsCost)
-                                )}
-                              </td>
-
-                              <td className='px-3 py-2 text-right tabular-nums'>
-                                {formatMoneyNoSymbol(r.costAdjustment)}
-                              </td>
-                              <td className='px-3 py-2 text-right font-medium tabular-nums'>
-                                {formatMoneyNoSymbol(r.costCfwd)}
-                              </td>
-
-                              <td className='px-3 py-2 text-right tabular-nums'>
-                                {formatMoneyNoSymbol(r.depreciationBfwd)}
-                              </td>
-                              <td className='px-3 py-2 text-right tabular-nums'>
-                                {formatMoneyNoSymbol(r.depreciationCharge)}
-                              </td>
-
-                              <td className='px-3 py-2 text-right tabular-nums'>
-                                {hasDispDep ? (
-                                  <span className='text-red-600'>
-                                    {formatMoneyRedBrackets(
-                                      r.depreciationOnDisposals
-                                    )}
-                                  </span>
-                                ) : (
-                                  formatMoneyNoSymbol(r.depreciationOnDisposals)
-                                )}
-                              </td>
-
-                              <td className='px-3 py-2 text-right tabular-nums'>
-                                {formatMoneyNoSymbol(r.depreciationAdjustment)}
-                              </td>
-                              <td className='px-3 py-2 text-right font-medium tabular-nums'>
-                                {formatMoneyNoSymbol(r.depreciationCfwd)}
-                              </td>
-
-                              <td className='px-3 py-2 text-right font-medium tabular-nums'>
-                                {formatMoneyNoSymbol(r.nbvCfwd)}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-
-                      <tfoot className='bg-muted/30'>
-                        <tr className='border-t font-medium'>
-                          <td className='px-3 py-2'>Subtotal</td>
-
-                          <td className='px-3 py-2 text-right tabular-nums'>
-                            {formatMoneyNoSymbol(totals.costBfwd)}
-                          </td>
-                          <td className='px-3 py-2 text-right tabular-nums'>
-                            {formatMoneyNoSymbol(totals.additions)}
-                          </td>
-                          <td className='px-3 py-2 text-right tabular-nums'>
-                            {Math.abs(totals.disposalsCost) > 0.00001 ? (
-                              <span className='text-red-600'>
-                                {formatMoneyRedBrackets(totals.disposalsCost)}
-                              </span>
-                            ) : (
-                              formatMoneyNoSymbol(totals.disposalsCost)
-                            )}
-                          </td>
-                          <td className='px-3 py-2 text-right tabular-nums'>
-                            {formatMoneyNoSymbol(totals.costAdjustment)}
-                          </td>
-                          <td className='px-3 py-2 text-right tabular-nums'>
-                            {formatMoneyNoSymbol(totals.costCfwd)}
-                          </td>
-
-                          <td className='px-3 py-2 text-right tabular-nums'>
-                            {formatMoneyNoSymbol(totals.depreciationBfwd)}
-                          </td>
-                          <td className='px-3 py-2 text-right tabular-nums'>
-                            {formatMoneyNoSymbol(totals.depreciationCharge)}
-                          </td>
-                          <td className='px-3 py-2 text-right tabular-nums'>
-                            {Math.abs(totals.depreciationOnDisposals) >
-                            0.00001 ? (
-                              <span className='text-red-600'>
-                                {formatMoneyRedBrackets(
-                                  totals.depreciationOnDisposals
-                                )}
-                              </span>
-                            ) : (
-                              formatMoneyNoSymbol(
-                                totals.depreciationOnDisposals
-                              )
-                            )}
-                          </td>
-                          <td className='px-3 py-2 text-right tabular-nums'>
-                            {formatMoneyNoSymbol(totals.depreciationAdjustment)}
-                          </td>
-                          <td className='px-3 py-2 text-right tabular-nums'>
-                            {formatMoneyNoSymbol(totals.depreciationCfwd)}
-                          </td>
-
-                          <td className='px-3 py-2 text-right tabular-nums'>
-                            {formatMoneyNoSymbol(totals.nbvCfwd)}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-
-                  <div className='text-muted-foreground px-3 py-2 text-xs'>
-                    Note: Period balances are the source of truth. Depreciation
-                    entries are shown for audit trail only.
-                  </div>
-                </div> */}
-              </details>
-            )
-          })}
-        </div>
+        <CategorySectionsWithModal sections={categorySections} pageSize={10} />
       </section>
     </div>
   )

@@ -171,5 +171,99 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
     order: 41,
     defaultText: '...',
     visibleWhen: cfg => cfgBool(cfg.materialityRequired)
+  },
+  {
+    code: 'B61-fixed_assets',
+    title: 'Fixed assets & investments — work programme',
+    type: 'RICH_TEXT',
+    // pick an order that sits in Section B near the other B6x docs
+    order: 6161,
+    defaultContentJson: {
+      type: 'doc',
+      content: [
+        {
+          type: 'heading',
+          attrs: { level: 1 },
+          content: [{ type: 'text', text: 'FIXED ASSETS & INVESTMENTS' }]
+        },
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    { type: 'text', text: 'Agree lead schedule to accounts' }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Schedule fixed asset additions and disposals. Ensure all are dated'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Review depreciation calculations and consider if any asset writedowns are needed'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Review repairs for any capital expenditure if necessary'
+                    }
+                  ]
+                }
+              ]
+            },
+
+            // ✅ keep this for any template that ends with a list
+            { type: 'paragraph', content: [] }
+          ]
+        },
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Notes / conclusions (add more work steps or findings below):'
+            }
+          ]
+        },
+        {
+          type: 'paragraph',
+          content: []
+        }
+      ]
+    },
+
+    // show it for everyone by default (or add your own cfg logic)
+    visibleWhen: () => true
   }
 ]
