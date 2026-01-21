@@ -1,4 +1,3 @@
-// src/server-actions/fixed-assets-period-schedule.ts
 'use server'
 
 import { db } from '@/db'
@@ -13,8 +12,13 @@ import { revalidatePath } from 'next/cache'
 
 import {
   calculateDaysInPeriod,
-  calculatePeriodDepreciationFromBalances
+  calculatePeriodDepreciationFromBalances,
+  type DepreciationMethod
 } from '@/lib/asset-calculations'
+
+/* -----------------------------
+ * Local helpers
+ * ----------------------------- */
 
 function toNum(v: unknown): number {
   if (v == null) return 0
@@ -30,6 +34,22 @@ function round2(n: number): number {
 function toDecStr(n: number): string {
   return round2(n).toFixed(2)
 }
+
+function assertDepreciationMethod(v: unknown): asserts v is DepreciationMethod {
+  if (v !== 'straight_line' && v !== 'reducing_balance') {
+    throw new Error(`Invalid depreciation method: ${String(v)}`)
+  }
+}
+
+/**
+ * tx type for Drizzle transaction callback.
+ * Works with your `export const db = drizzle(pool, { schema })`.
+ */
+type Tx = Parameters<(typeof db)['transaction']>[0] extends (
+  tx: infer T
+) => Promise<unknown>
+  ? T
+  : never
 
 function computeCostCfwd(b: {
   costBfwd: unknown
@@ -85,12 +105,91 @@ async function getCurrentAndPreviousPeriod(params: {
 }
 
 /**
- * Seed asset_period_balances rows for a period.
- * - Inserts rows for ALL fixed assets for the client (if missing)
- * - Rolls forward opening balances from previous period (if any)
- * - Leaves existing rows untouched
+ * Seed ONLY missing asset_period_balances rows for this period.
+ * - BFWD from previous period's CFWD if prevPeriodId provided (otherwise 0)
+ * - Movements start at 0
+ * - Does not overwrite existing rows
  */
-export async function seedAssetPeriodBalancesAction(input: {
+async function seedAssetPeriodBalancesTx(
+  tx: Tx,
+  input: { clientId: string; periodId: string; prevPeriodId: string | null }
+) {
+  const { clientId, periodId, prevPeriodId } = input
+
+  const assets = await tx
+    .select({ assetId: fixedAssets.id })
+    .from(fixedAssets)
+    .where(eq(fixedAssets.clientId, clientId))
+
+  if (assets.length === 0) {
+    return { seeded: 0 }
+  }
+
+  const bfwdByAsset = new Map<string, { costBfwd: string; depnBfwd: string }>()
+
+  if (prevPeriodId) {
+    const prevRows = await tx
+      .select({
+        assetId: assetPeriodBalances.assetId,
+
+        costBfwd: assetPeriodBalances.costBfwd,
+        additions: assetPeriodBalances.additions,
+        disposalsCost: assetPeriodBalances.disposalsCost,
+        costAdjustment: assetPeriodBalances.costAdjustment,
+
+        depreciationBfwd: assetPeriodBalances.depreciationBfwd,
+        depreciationCharge: assetPeriodBalances.depreciationCharge,
+        depreciationOnDisposals: assetPeriodBalances.depreciationOnDisposals,
+        depreciationAdjustment: assetPeriodBalances.depreciationAdjustment
+      })
+      .from(assetPeriodBalances)
+      .where(eq(assetPeriodBalances.periodId, prevPeriodId))
+
+    for (const r of prevRows) {
+      bfwdByAsset.set(r.assetId, {
+        costBfwd: toDecStr(computeCostCfwd(r)),
+        depnBfwd: toDecStr(computeDepnCfwd(r))
+      })
+    }
+  }
+
+  const values = assets.map(a => {
+    const bfwd = bfwdByAsset.get(a.assetId)
+    return {
+      assetId: a.assetId,
+      periodId,
+
+      costBfwd: bfwd?.costBfwd ?? '0',
+      additions: '0',
+      disposalsCost: '0',
+      costAdjustment: '0',
+
+      depreciationBfwd: bfwd?.depnBfwd ?? '0',
+      depreciationCharge: '0',
+      depreciationOnDisposals: '0',
+      depreciationAdjustment: '0',
+
+      disposalProceeds: '0'
+    }
+  })
+
+  await tx
+    .insert(assetPeriodBalances)
+    .values(values)
+    .onConflictDoNothing({
+      target: [assetPeriodBalances.assetId, assetPeriodBalances.periodId]
+    })
+
+  // We can’t reliably know how many were inserted without RETURNING or a second query.
+  // For UX, “done” is enough; for debugging, you can return assets.length.
+  return { seeded: values.length }
+}
+
+/* -----------------------------
+ * Action
+ * ----------------------------- */
+
+export async function recalculateDepreciationForPeriodAction(input: {
   clientId: string
   periodId: string
 }) {
@@ -104,126 +203,6 @@ export async function seedAssetPeriodBalancesAction(input: {
   if (current.status !== 'OPEN') {
     return {
       success: false as const,
-      error: `Period is ${current.status}. Generate schedule is disabled.`
-    }
-  }
-
-  return await db.transaction(async tx => {
-    const assets = await tx
-      .select({ assetId: fixedAssets.id })
-      .from(fixedAssets)
-      .where(eq(fixedAssets.clientId, clientId))
-
-    if (assets.length === 0) {
-      revalidatePath(
-        `/organisation/clients/${clientId}/accounting-periods/${periodId}/assets`
-      )
-      return {
-        success: true as const,
-        seeded: 0,
-        prevPeriodId: prev?.id ?? null
-      }
-    }
-
-    // Build BFWD map from previous period close
-    const bfwdByAsset = new Map<
-      string,
-      { costBfwd: string; depnBfwd: string }
-    >()
-
-    if (prev) {
-      const prevRows = await tx
-        .select({
-          assetId: assetPeriodBalances.assetId,
-
-          costBfwd: assetPeriodBalances.costBfwd,
-          additions: assetPeriodBalances.additions,
-          disposalsCost: assetPeriodBalances.disposalsCost,
-          costAdjustment: assetPeriodBalances.costAdjustment,
-
-          depreciationBfwd: assetPeriodBalances.depreciationBfwd,
-          depreciationCharge: assetPeriodBalances.depreciationCharge,
-          depreciationOnDisposals: assetPeriodBalances.depreciationOnDisposals,
-          depreciationAdjustment: assetPeriodBalances.depreciationAdjustment
-        })
-        .from(assetPeriodBalances)
-        .where(eq(assetPeriodBalances.periodId, prev.id))
-
-      for (const r of prevRows) {
-        const costCfwd = computeCostCfwd(r)
-        const depnCfwd = computeDepnCfwd(r)
-
-        bfwdByAsset.set(r.assetId, {
-          costBfwd: toDecStr(costCfwd),
-          depnBfwd: toDecStr(depnCfwd)
-        })
-      }
-    }
-
-    const values = assets.map(a => {
-      const bfwd = bfwdByAsset.get(a.assetId)
-      return {
-        assetId: a.assetId,
-        periodId,
-
-        // BFWD from previous close (or 0)
-        costBfwd: bfwd?.costBfwd ?? '0',
-        depreciationBfwd: bfwd?.depnBfwd ?? '0',
-
-        // in-period movements start at 0
-        additions: '0',
-        disposalsCost: '0',
-        costAdjustment: '0',
-
-        depreciationCharge: '0',
-        depreciationOnDisposals: '0',
-        depreciationAdjustment: '0',
-        disposalProceeds: '0'
-      }
-    })
-
-    // Insert missing rows only
-    await tx
-      .insert(assetPeriodBalances)
-      .values(values)
-      .onConflictDoNothing({
-        target: [assetPeriodBalances.assetId, assetPeriodBalances.periodId]
-      })
-
-    revalidatePath(
-      `/organisation/clients/${clientId}/accounting-periods/${periodId}/assets`
-    )
-
-    return {
-      success: true as const,
-      seeded: values.length,
-      prevPeriodId: prev?.id ?? null
-    }
-  })
-}
-
-/**
- * Recalculate depreciation for a period (canonical rules):
- * - Uses calculatePeriodDepreciationFromBalances from lib/asset-calculations.ts
- * - Upserts depreciation_entries (1 row per asset per period)
- * - Updates asset_period_balances.depreciation_charge
- *
- * Pre-req: balances must exist (seed first).
- */
-export async function recalculateDepreciationForPeriodAction(input: {
-  clientId: string
-  periodId: string
-}) {
-  const { clientId, periodId } = input
-
-  const periods = await getCurrentAndPreviousPeriod({ clientId, periodId })
-  if (!periods) return { success: false as const, error: 'Period not found' }
-
-  const { current } = periods
-
-  if (current.status !== 'OPEN') {
-    return {
-      success: false as const,
       error: `Period is ${current.status}. Recalc is disabled.`
     }
   }
@@ -231,7 +210,15 @@ export async function recalculateDepreciationForPeriodAction(input: {
   const periodStartDate = new Date(String(current.startDate))
   const periodEndDate = new Date(String(current.endDate))
 
-  return await db.transaction(async tx => {
+  const result = await db.transaction(async tx => {
+    // ✅ Always seed missing rows first (safe + idempotent)
+    await seedAssetPeriodBalancesTx(tx, {
+      clientId,
+      periodId,
+      prevPeriodId: prev?.id ?? null
+    })
+
+    // Now balances should exist for all assets (if any assets exist)
     const rows = await tx
       .select({
         assetId: fixedAssets.id,
@@ -257,10 +244,8 @@ export async function recalculateDepreciationForPeriodAction(input: {
       .where(eq(fixedAssets.clientId, clientId))
 
     if (rows.length === 0) {
-      return {
-        success: false as const,
-        error: 'No period balances found. Click "Generate schedule" first.'
-      }
+      // no assets for this client
+      return { updated: 0 }
     }
 
     let updated = 0
@@ -282,6 +267,8 @@ export async function recalculateDepreciationForPeriodAction(input: {
         acquisitionDate
       )
 
+      assertDepreciationMethod(r.method)
+
       const charge = round2(
         calculatePeriodDepreciationFromBalances({
           openingCost,
@@ -297,7 +284,7 @@ export async function recalculateDepreciationForPeriodAction(input: {
         })
       )
 
-      // Audit trail: upsert single entry per asset/period
+      // 1) Audit trail: upsert one row per asset/period
       await tx
         .insert(depreciationEntries)
         .values({
@@ -312,12 +299,12 @@ export async function recalculateDepreciationForPeriodAction(input: {
           set: {
             depreciationAmount: toDecStr(charge),
             daysInPeriod,
-            rateUsed: toDecStr(depreciationRate),
-            createdAt: new Date()
+            rateUsed: toDecStr(depreciationRate)
+            // don’t touch createdAt here unless you truly mean “updatedAt”
           }
         })
 
-      // Schedule line: update depreciation charge
+      // 2) Schedule: write charge to balances (source of truth for the page)
       await tx
         .update(assetPeriodBalances)
         .set({
@@ -333,10 +320,12 @@ export async function recalculateDepreciationForPeriodAction(input: {
       updated += 1
     }
 
-    revalidatePath(
-      `/organisation/clients/${clientId}/accounting-periods/${periodId}/assets`
-    )
-
-    return { success: true as const, updated }
+    return { updated }
   })
+
+  revalidatePath(
+    `/organisation/clients/${clientId}/accounting-periods/${periodId}/assets`
+  )
+
+  return { success: true as const, updated: result.updated }
 }

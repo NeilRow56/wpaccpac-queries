@@ -27,7 +27,7 @@ export type AssetScheduleRow = {
 
   acquisitionDate: string // ISO date or yyyy-mm-dd
   depreciationMethod: string
-  depreciationRate: string // keep as string for display, or convert to number
+  depreciationRate: string // keep as string for display
 
   // schedule fields (numbers)
   costBfwd: number
@@ -44,6 +44,9 @@ export type AssetScheduleRow = {
 
   nbvBfwd: number
   nbvCfwd: number
+
+  // ✅ disposal proceeds for P&L on sale
+  disposalProceeds: number
 
   // audit trail info
   depreciationEntriesCount: number
@@ -107,7 +110,10 @@ export async function getFixedAssetPeriodSchedule(params: {
       depreciationBfwd: assetPeriodBalances.depreciationBfwd,
       depreciationCharge: assetPeriodBalances.depreciationCharge,
       depreciationOnDisposals: assetPeriodBalances.depreciationOnDisposals,
-      depreciationAdjustment: assetPeriodBalances.depreciationAdjustment
+      depreciationAdjustment: assetPeriodBalances.depreciationAdjustment,
+
+      // ✅ proceeds (for P&L schedule)
+      disposalProceeds: assetPeriodBalances.disposalProceeds
     })
     .from(fixedAssets)
     .innerJoin(assetCategories, eq(assetCategories.id, fixedAssets.categoryId))
@@ -121,7 +127,6 @@ export async function getFixedAssetPeriodSchedule(params: {
     .where(eq(fixedAssets.clientId, clientId))
     .orderBy(assetCategories.name, fixedAssets.name)
 
-  // Depreciation audit totals per asset for this period
   // Depreciation audit totals per asset for this period
   const depnAgg = await db
     .select({
@@ -163,6 +168,8 @@ export async function getFixedAssetPeriodSchedule(params: {
     const depreciationOnDisposals = d(r.depreciationOnDisposals)
     const depreciationAdjustment = d(r.depreciationAdjustment)
 
+    const disposalProceeds = d(r.disposalProceeds)
+
     const costCfwd = costBfwd + additions - disposalsCost + costAdjustment
     const depreciationCfwd =
       depreciationBfwd +
@@ -200,6 +207,8 @@ export async function getFixedAssetPeriodSchedule(params: {
 
       nbvBfwd,
       nbvCfwd,
+
+      disposalProceeds,
 
       depreciationEntriesCount: depn.cnt,
       depreciationEntriesTotal: depn.total

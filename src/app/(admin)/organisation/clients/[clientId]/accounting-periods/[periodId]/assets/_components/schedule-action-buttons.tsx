@@ -4,10 +4,13 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { recalculateDepreciationForPeriodAction } from '@/server-actions/fixed-assets-period-schedule'
 import {
-  recalculateDepreciationForPeriodAction,
-  seedAssetPeriodBalancesAction
-} from '@/server-actions/fixed-assets-period-schedule'
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 
 export default function ScheduleActions(props: {
   clientId: string
@@ -19,48 +22,43 @@ export default function ScheduleActions(props: {
 
   return (
     <div className='flex items-center gap-2'>
-      <Button
-        type='button'
-        variant='outline'
-        disabled={pending}
-        onClick={() =>
-          startTransition(async () => {
-            const res = await seedAssetPeriodBalancesAction({
-              clientId,
-              periodId
-            })
-            if (!res.success) {
-              toast.error(res.error ?? 'Failed to generate schedule')
-              return
-            }
-            toast.success('Schedule generated')
-            router.refresh()
-          })
-        }
-      >
-        {pending ? 'Working…' : 'Generate schedule'}
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type='button'
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  const res = await recalculateDepreciationForPeriodAction({
+                    clientId,
+                    periodId
+                  })
 
-      <Button
-        type='button'
-        disabled={pending}
-        onClick={() =>
-          startTransition(async () => {
-            const res = await recalculateDepreciationForPeriodAction({
-              clientId,
-              periodId
-            })
-            if (!res.success) {
-              toast.error(res.error ?? 'Failed to recalculate depreciation')
-              return
-            }
-            toast.success('Depreciation recalculated')
-            router.refresh()
-          })
-        }
-      >
-        {pending ? 'Working…' : 'Recalculate depreciation'}
-      </Button>
+                  if (!res.success) {
+                    toast.error(
+                      res.error ?? 'Failed to recalculate depreciation'
+                    )
+                    return
+                  }
+
+                  toast.success('Depreciation recalculated')
+                  router.refresh()
+                })
+              }
+            >
+              {pending ? 'Working…' : 'Recalculate depreciation'}
+            </Button>
+          </TooltipTrigger>
+
+          <TooltipContent side='bottom' className='max-w-xs'>
+            <p className='text-xs leading-relaxed'>
+              Calculates depreciation for this period and writes the charge to
+              the period balances (and creates/updates the audit entry).
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   )
 }
