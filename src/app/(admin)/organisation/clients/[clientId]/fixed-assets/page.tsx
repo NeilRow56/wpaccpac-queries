@@ -200,7 +200,6 @@ export default async function FixedAssetsPage({
         clientId={client.id}
         categories={categories}
       />
-      <div className='text-muted-foreground mt-6 flex-col space-x-4 pl-8'></div>
     </div>
   )
 }
