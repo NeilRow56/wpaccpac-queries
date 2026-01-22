@@ -5,6 +5,8 @@ import { B_DOCS } from '@/planning/registry'
 import PlanningIndexClient from './_components/planning-index-client'
 import { notFound } from 'next/navigation'
 import { PlanningClient } from './_components/planning-client'
+import PeriodSetupForm from '../_components/period-setup-form'
+import { getPeriodSetupAction } from '@/server-actions/period-setup'
 
 export default async function PlanningIndexPage({
   params
@@ -20,6 +22,9 @@ export default async function PlanningIndexPage({
     )
   })
   if (!period) notFound()
+
+  const setupRes = await getPeriodSetupAction({ clientId, periodId })
+  if (!setupRes.success) notFound()
 
   const prev = await db
     .select({
@@ -90,6 +95,12 @@ export default async function PlanningIndexPage({
         clientId={clientId}
         periodId={periodId}
         status={period.status}
+      />
+
+      <PeriodSetupForm
+        clientId={clientId}
+        periodId={periodId}
+        initial={setupRes.data}
       />
 
       {period.status === 'OPEN' && (

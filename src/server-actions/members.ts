@@ -1,8 +1,8 @@
 'use server'
 
-import { and, eq } from 'drizzle-orm'
+import { and, asc, eq, isNull } from 'drizzle-orm'
 import { getUISession } from '@/lib/get-ui-session'
-import { member as memberTable } from '@/db/schema'
+import { member as memberTable, user as userTable } from '@/db/schema'
 
 import { isAdmin } from './permissions'
 import { db } from '@/db'
@@ -92,4 +92,30 @@ export async function updateMemberRole(memberId: string, role: MemberRole) {
   }
 
   await db.update(memberTable).set({ role }).where(eq(memberTable.id, memberId))
+}
+
+export type MemberOption = { id: string; name: string }
+
+export async function getActiveOrgMembers(
+  orgId: string
+): Promise<MemberOption[]> {
+  const rows = await db
+    .select({
+      id: memberTable.id,
+      // pick whichever user field you actually have:
+      // name: user.name,
+      name: userTable.name
+    })
+    .from(memberTable)
+    .innerJoin(userTable, eq(userTable.id, memberTable.userId))
+    .where(
+      and(eq(memberTable.organizationId, orgId), isNull(memberTable.archivedAt))
+    )
+    .orderBy(asc(userTable.name))
+
+  // fallback for missing names (optional)
+  return rows.map(r => ({
+    id: r.id,
+    name: (r.name ?? '').trim() || 'Unnamed user'
+  }))
 }

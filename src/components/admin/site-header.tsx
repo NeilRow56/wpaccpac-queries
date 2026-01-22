@@ -41,8 +41,8 @@ export async function SiteHeader() {
             }`}
           >
             {organization
-              ? `Active organization: ${organization?.name}`
-              : 'Administrator needs to create organization'}
+              ? `Active organisation: ${organization?.name}`
+              : 'Administrator needs to create organisation'}
           </h3>
         </div>
         <div className='ml-auto flex items-center gap-2'>

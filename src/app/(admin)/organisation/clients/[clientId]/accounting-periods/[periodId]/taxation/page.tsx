@@ -80,7 +80,7 @@ export default async function TaxationPage({
       <Breadcrumbs crumbs={crumbs} />
       <div className='flex justify-between'>
         <h2 className='text-primary text-lg font-bold'>Taxation</h2>
-        <p className='mt-1 text-sm text-blue-600'>
+        <p className='mt-1 px-2 text-sm text-blue-600'>
           Enter current-year taxation figures. Prior-year comparatives are shown
           for reference.
         </p>
