@@ -3,10 +3,26 @@ import type { SimpleScheduleDocV1 } from '@/lib/schedules/simpleScheduleTypes'
 export const taxationDefault: SimpleScheduleDocV1 = {
   kind: 'SIMPLE_SCHEDULE',
   version: 1,
+
+  // ✅ document-level attachments
+  attachments: [
+    {
+      id: 'tax-comp',
+      name: 'Tax computation',
+      url: ''
+    },
+    {
+      id: 'tax-proof',
+      name: 'Proof of tax charge',
+      url: ''
+    }
+  ],
+
   sections: [
     {
       id: 'charge-for-year',
       title: 'Charge for year',
+      ui: { tone: 'primary', emphasis: 'strong' },
       lines: [
         {
           kind: 'INPUT',
@@ -30,7 +46,8 @@ export const taxationDefault: SimpleScheduleDocV1 = {
           kind: 'TOTAL',
           id: 'charge-total',
           label: 'Charge for year total',
-          sumOf: ['ct-current', 'ct-overunder', 'dt-charge']
+          sumOf: ['ct-current', 'ct-overunder', 'dt-charge'],
+          ui: { emphasis: 'strong', tone: 'info' }
         }
       ],
       notes: ''
@@ -38,18 +55,21 @@ export const taxationDefault: SimpleScheduleDocV1 = {
     {
       id: 'balances',
       title: 'Balances',
+      ui: { tone: 'primary', emphasis: 'strong' },
       lines: [
         {
           kind: 'INPUT',
           id: 'ct-payable',
           label: 'Corporation tax payable/(repayable)',
-          amount: null
+          amount: null,
+          ui: { emphasis: 'strong', tone: 'info' }
         },
         {
           kind: 'INPUT',
           id: 'dt-balance',
           label: 'Deferred tax balance',
-          amount: null
+          amount: null,
+          ui: { emphasis: 'strong', tone: 'info' }
         }
       ],
       notes: ''

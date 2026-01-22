@@ -12,6 +12,8 @@ import { Calendar } from 'lucide-react'
 import { accountingPeriods } from '@/db/schema'
 import { db } from '@/db'
 import { and, desc, eq, lt } from 'drizzle-orm'
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 
 export default async function TaxationPage({
   params
@@ -76,12 +78,19 @@ export default async function TaxationPage({
   return (
     <div className='container mx-auto space-y-6 py-10'>
       <Breadcrumbs crumbs={crumbs} />
-      <div>
+      <div className='flex justify-between'>
         <h2 className='text-primary text-lg font-bold'>Taxation</h2>
-        <p className='text-muted-foreground mt-1 text-sm'>
+        <p className='mt-1 text-sm text-blue-600'>
           Enter current-year taxation figures. Prior-year comparatives are shown
           for reference.
         </p>
+        <Button asChild variant='outline' size='sm'>
+          <Link
+            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/B61-taxation_wp`}
+          >
+            B61 — Taxation work programme
+          </Link>
+        </Button>
       </div>
 
       <SimpleScheduleForm

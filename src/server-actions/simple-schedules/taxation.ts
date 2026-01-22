@@ -8,7 +8,9 @@ import { accountingPeriods, planningDocs } from '@/db/schema'
 import { taxationDefault } from '@/lib/schedules/templates/taxation'
 import type {
   SimpleScheduleDocV1,
-  ScheduleLine
+  ScheduleLine,
+  ScheduleLineUi,
+  ScheduleSectionUi
 } from '@/lib/schedules/simpleScheduleTypes'
 
 const CODE = 'B61-taxation'
@@ -21,6 +23,71 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null
 }
 
+function readSectionUi(v: unknown): ScheduleSectionUi | undefined {
+  if (v === undefined) return undefined
+  if (!isRecord(v)) return undefined
+
+  const emphasis = v.emphasis
+  const tone = v.tone
+
+  const okEmphasis =
+    emphasis === undefined ||
+    emphasis === 'none' ||
+    emphasis === 'soft' ||
+    emphasis === 'strong'
+
+  const okTone =
+    tone === undefined ||
+    tone === 'default' ||
+    tone === 'muted' ||
+    tone === 'primary' ||
+    tone === 'info' ||
+    tone === 'warn'
+
+  if (!okEmphasis || !okTone) return undefined
+
+  return {
+    emphasis: emphasis as ScheduleSectionUi['emphasis'],
+    tone: tone as ScheduleSectionUi['tone']
+  }
+}
+
+/** Sanitize/validate line.ui when present */
+function readLineUi(v: unknown): ScheduleLineUi | undefined {
+  if (v === undefined) return undefined
+  if (!isRecord(v)) return undefined
+
+  const emphasis = v.emphasis
+  const tone = v.tone
+
+  const okEmphasis =
+    emphasis === undefined ||
+    emphasis === 'none' ||
+    emphasis === 'soft' ||
+    emphasis === 'strong'
+
+  const okTone =
+    tone === undefined ||
+    tone === 'default' ||
+    tone === 'muted' ||
+    tone === 'info' ||
+    tone === 'warn'
+
+  if (!okEmphasis || !okTone) return undefined
+
+  return {
+    emphasis: emphasis as ScheduleLineUi['emphasis'],
+    tone: tone as ScheduleLineUi['tone']
+  }
+}
+
+/**
+ * Normalise older schedule JSON into SimpleScheduleDocV1:
+ * - Ensures sections array
+ * - Ensures lines are typed with kind: INPUT | TOTAL
+ * - Preserves (and sanitises) attachments if present
+ * - ✅ Preserves (and sanitises) ui if present
+ */
 function normalizeToV1WithKinds(raw: unknown): SimpleScheduleDocV1 | null {
   if (!isRecord(raw)) return null
   if (raw.kind !== 'SIMPLE_SCHEDULE' || raw.version !== 1) return null
@@ -30,49 +97,39 @@ function normalizeToV1WithKinds(raw: unknown): SimpleScheduleDocV1 | null {
     .filter(isRecord)
     .map(s => {
       const id = typeof s.id === 'string' ? s.id : crypto.randomUUID()
-      const title =
-        typeof s.title === 'string'
-          ? s.title
-          : typeof s.title === 'undefined' && typeof s['title'] !== 'string'
-            ? typeof s['title'] === 'string'
-              ? (s['title'] as string)
-              : typeof s['title'] === 'undefined'
-                ? typeof s['title'] === 'string'
-                  ? (s['title'] as string)
-                  : 'Section'
-                : 'Section'
-            : 'Section'
-
+      const title = typeof s.title === 'string' ? s.title : 'Section'
       const notes = typeof s.notes === 'string' ? s.notes : undefined
+      const ui = readSectionUi(s.ui)
 
       const linesRaw = Array.isArray(s.lines) ? s.lines : []
       const lines: ScheduleLine[] = linesRaw.filter(isRecord).map(l => {
-        const id = typeof l.id === 'string' ? l.id : crypto.randomUUID()
+        const lineId = typeof l.id === 'string' ? l.id : crypto.randomUUID()
         const label = typeof l.label === 'string' ? l.label : 'Line'
+        const ui = readLineUi(l.ui)
 
-        // New-shape INPUT
         if (l.kind === 'INPUT') {
           const amt =
             l.amount === null || typeof l.amount === 'number' ? l.amount : null
           return {
             kind: 'INPUT',
-            id,
+            id: lineId,
             label,
             amount: amt,
-            notes: typeof l.notes === 'string' ? l.notes : undefined
+            notes: typeof l.notes === 'string' ? l.notes : undefined,
+            ...(ui ? { ui } : {})
           }
         }
 
-        // New-shape TOTAL
         if (l.kind === 'TOTAL') {
           const sumOf = Array.isArray(l.sumOf)
             ? l.sumOf.filter(x => typeof x === 'string')
             : []
           return {
             kind: 'TOTAL',
-            id,
+            id: lineId,
             label,
-            sumOf
+            sumOf,
+            ...(ui ? { ui } : {})
           }
         }
 
@@ -81,17 +138,31 @@ function normalizeToV1WithKinds(raw: unknown): SimpleScheduleDocV1 | null {
           l.amount === null || typeof l.amount === 'number' ? l.amount : null
         return {
           kind: 'INPUT',
-          id,
+          id: lineId,
           label,
           amount: oldAmt,
-          notes: typeof l.notes === 'string' ? l.notes : undefined
+          notes: typeof l.notes === 'string' ? l.notes : undefined,
+          ...(ui ? { ui } : {})
         }
       })
 
-      return { id, title, lines, notes }
+      return { id, title, lines, notes, ...(ui ? { ui } : {}) }
     })
 
-  return { kind: 'SIMPLE_SCHEDULE', version: 1, sections }
+  const attachmentsRaw = Array.isArray(
+    (raw as { attachments?: unknown }).attachments
+  )
+    ? ((raw as { attachments?: unknown }).attachments as unknown[])
+    : undefined
+
+  const attachments =
+    attachmentsRaw?.filter(isRecord).map(a => ({
+      id: typeof a.id === 'string' ? a.id : crypto.randomUUID(),
+      name: typeof a.name === 'string' ? a.name : 'Attachment',
+      url: typeof a.url === 'string' ? a.url : ''
+    })) ?? undefined
+
+  return { kind: 'SIMPLE_SCHEDULE', version: 1, sections, attachments }
 }
 
 function ensureTaxationTotals(doc: SimpleScheduleDocV1): {
@@ -100,7 +171,6 @@ function ensureTaxationTotals(doc: SimpleScheduleDocV1): {
 } {
   let changed = false
 
-  // shallow clone sections/lines so we can mutate safely
   const next: SimpleScheduleDocV1 = {
     ...doc,
     sections: doc.sections.map(s => ({ ...s, lines: [...s.lines] }))
@@ -112,22 +182,48 @@ function ensureTaxationTotals(doc: SimpleScheduleDocV1): {
   const hasTotal = charge.lines.some(
     l => l.kind === 'TOTAL' && l.id === 'charge-total'
   )
-  if (hasTotal) return { doc, changed }
+  if (hasTotal) return { doc: next, changed }
 
   const templateTotal = taxationDefault.sections
     .find(s => s.id === 'charge-for-year')
     ?.lines.find(l => l.kind === 'TOTAL' && l.id === 'charge-total')
 
   if (!templateTotal || templateTotal.kind !== 'TOTAL') {
-    return { doc, changed }
+    return { doc: next, changed }
   }
 
-  // Insert after deferred tax line if present, else append
+  // ✅ clone so we don't share references
+  const totalToInsert: ScheduleLine =
+    templateTotal.kind === 'TOTAL'
+      ? { ...templateTotal, sumOf: [...templateTotal.sumOf] }
+      : templateTotal
+
   const insertAfter = charge.lines.findIndex(l => l.id === 'dt-charge')
-  if (insertAfter >= 0) charge.lines.splice(insertAfter + 1, 0, templateTotal)
-  else charge.lines.push(templateTotal)
+  if (insertAfter >= 0) charge.lines.splice(insertAfter + 1, 0, totalToInsert)
+  else charge.lines.push(totalToInsert)
 
   changed = true
+  return { doc: next, changed }
+}
+
+function ensureTaxationAttachments(doc: SimpleScheduleDocV1): {
+  doc: SimpleScheduleDocV1
+  changed: boolean
+} {
+  let changed = false
+  const next: SimpleScheduleDocV1 = { ...doc }
+  const existing = [...(next.attachments ?? [])]
+
+  const ensure = (id: string, name: string) => {
+    if (existing.some(a => a.id === id)) return
+    existing.push({ id, name, url: '' })
+    changed = true
+  }
+
+  ensure('tax-comp', 'Tax computation')
+  ensure('tax-proof', 'Proof of tax charge')
+
+  if (changed) next.attachments = existing
   return { doc: next, changed }
 }
 
@@ -147,10 +243,11 @@ async function getPriorPeriod(clientId: string, currentPeriodId: string) {
     )
     .then(r => r[0] ?? null)
 
-  if (!current)
+  if (!current) {
     return {
       prior: null as null | { id: string; startDate: string; endDate: string }
     }
+  }
 
   const prior = await db
     .select({
@@ -201,25 +298,27 @@ export async function getTaxationScheduleAction(input: {
       .limit(1)
       .then(r => r[0] ?? null)
 
-    // current doc
     const normalized = existing?.contentJson
       ? normalizeToV1WithKinds(existing.contentJson)
       : null
 
     let current: SimpleScheduleDocV1 = normalized ?? taxationDefault
 
-    const ensured = ensureTaxationTotals(current)
-    current = ensured.doc
+    const ensuredTotals = ensureTaxationTotals(current)
+    current = ensuredTotals.doc
 
-    // Persist patch once (only when there is an existing doc missing totals)
-    if (ensured.changed && existing) {
+    const ensuredAttachments = ensureTaxationAttachments(current)
+    current = ensuredAttachments.doc
+
+    // Persist patch when we actually changed something and there is an existing row
+    if (existing && (ensuredTotals.changed || ensuredAttachments.changed)) {
       await db
         .update(planningDocs)
         .set({ contentJson: current })
         .where(eq(planningDocs.id, existing.id))
     }
 
-    // If no doc exists yet, seed it so subsequent loads are stable
+    // Seed if missing (stable subsequent loads)
     if (!existing) {
       await db
         .insert(planningDocs)
@@ -240,7 +339,6 @@ export async function getTaxationScheduleAction(input: {
         })
     }
 
-    // prior period + prior doc (optional)
     const { prior } = await getPriorPeriod(clientId, periodId)
 
     let priorDoc: SimpleScheduleDocV1 | null = null
@@ -263,8 +361,8 @@ export async function getTaxationScheduleAction(input: {
         : null
 
       if (priorDoc) {
-        // ensure totals exist in prior too, so prior total column works
         priorDoc = ensureTaxationTotals(priorDoc).doc
+        priorDoc = ensureTaxationAttachments(priorDoc).doc
       }
     }
 
@@ -295,9 +393,11 @@ export async function saveTaxationScheduleAction(input: {
   try {
     const { clientId, periodId } = input
 
-    // Ensure totals are present before saving (guards against older client state)
-    const ensured = ensureTaxationTotals(input.doc)
-    const docToSave = ensured.doc
+    const ensuredTotals = ensureTaxationTotals(input.doc)
+    let docToSave = ensuredTotals.doc
+
+    const ensuredAttachments = ensureTaxationAttachments(docToSave)
+    docToSave = ensuredAttachments.doc
 
     await db
       .insert(planningDocs)

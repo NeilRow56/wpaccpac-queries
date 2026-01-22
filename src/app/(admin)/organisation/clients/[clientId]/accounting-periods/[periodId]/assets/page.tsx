@@ -233,7 +233,7 @@ export default async function FixedAssetsCurrentPeriodPage({
         </div>
         <Button asChild variant='outline' size='sm'>
           <Link
-            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/B61-fixed_assets`}
+            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/B61-fixed_assets_wp`}
           >
             B61 — Fixed assets work programme
           </Link>

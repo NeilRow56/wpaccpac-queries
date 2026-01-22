@@ -1,3 +1,4 @@
+// src/server-actions/_helpers/rollforward-planning-docs.ts
 'use server'
 
 import { db } from '@/db'
@@ -9,6 +10,9 @@ import {
   resetChecklistResponses
 } from '@/lib/planning/checklist-types'
 import { upgradeTitleHeadingToH1 } from '@/lib/planning/richtext-upgrades'
+
+import { isSimpleScheduleDocV1 } from '@/lib/schedules/simpleScheduleTypes'
+import { resetSimpleScheduleForNewPeriod } from '@/lib/schedules/reset-simple-schedule'
 
 /**
  * Transaction type for Drizzle.
@@ -31,12 +35,22 @@ export type RollForwardPlanningDocsInput = {
 }
 
 /**
+ * Codes where we copy structure but reset the *data entry* fields.
+ * (We do NOT want last year's inputs in the new period.)
+ */
+const SIMPLE_SCHEDULE_CODES_TO_RESET = new Set<string>([
+  'B61-taxation'
+  // add more SIMPLE_SCHEDULE codes here as you implement them
+])
+
+/**
  * Roll planning documents forward inside an existing transaction.
  *
  * - Copies all planning docs from fromPeriod → toPeriod
  * - Optionally resets completion flags
  * - Optionally resets checklist responses
  * - Optionally upgrades legacy rich-text headings
+ * - ✅ For whitelisted SIMPLE_SCHEDULE codes, clears INPUT amounts + notes + attachment urls
  *
  * This function is:
  * ✅ transaction-safe
@@ -120,6 +134,15 @@ export async function rollForwardPlanningDocsTx(
     // Reset checklist responses but keep structure
     if (resetComplete && isChecklistDocJson(nextJson)) {
       nextJson = resetChecklistResponses(nextJson)
+    }
+
+    // ✅ Reset SIMPLE_SCHEDULE values for the new period (whitelist)
+    if (
+      resetComplete &&
+      SIMPLE_SCHEDULE_CODES_TO_RESET.has(doc.code) &&
+      isSimpleScheduleDocV1(nextJson)
+    ) {
+      nextJson = resetSimpleScheduleForNewPeriod(nextJson)
     }
 
     // Upgrade legacy rich-text headings if requested

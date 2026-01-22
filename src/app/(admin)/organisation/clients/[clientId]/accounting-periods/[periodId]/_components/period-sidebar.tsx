@@ -214,7 +214,7 @@ export default function PeriodSidebar(props: {
               className={cn(
                 'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
                 isActive
-                  ? 'bg-muted text-foreground font-medium'
+                  ? 'bg-muted text-foreground font-medium dark:text-gray-800'
                   : 'text-muted-foreground hover:bg-muted'
               )}
             >

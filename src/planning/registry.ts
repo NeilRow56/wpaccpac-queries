@@ -106,7 +106,7 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
   },
   {
     code: 'B14-2(a)',
-    title: 'Ownership and control',
+    title: 'Directors Remuneration and Related Parties',
     type: 'RICH_TEXT',
     order: 1421,
     defaultContentJson: {
@@ -146,6 +146,34 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
                 }
               ]
             },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Prepare schedule of Directors remuneration and related party transactions'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Obtain details of directors’ guarantees'
+                    }
+                  ]
+                }
+              ]
+            },
             // ✅ add this for any template that ends with a list
             { type: 'paragraph', content: [] }
           ]
@@ -173,7 +201,7 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
     visibleWhen: cfg => cfgBool(cfg.materialityRequired)
   },
   {
-    code: 'B61-fixed_assets',
+    code: 'B61-fixed_assets_wp',
     title: 'Fixed assets & investments — work programme',
     type: 'RICH_TEXT',
     // pick an order that sits in Section B near the other B6x docs
@@ -237,6 +265,128 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
                     {
                       type: 'text',
                       text: 'Review repairs for any capital expenditure if necessary'
+                    }
+                  ]
+                }
+              ]
+            },
+
+            // ✅ keep this for any template that ends with a list
+            { type: 'paragraph', content: [] }
+          ]
+        },
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Notes / conclusions (add more work steps or findings below):'
+            }
+          ]
+        },
+        {
+          type: 'paragraph',
+          content: []
+        }
+      ]
+    },
+
+    // show it for everyone by default (or add your own cfg logic)
+    visibleWhen: () => true
+  },
+  {
+    code: 'B61-taxation_wp',
+    title: 'Taxation — work programme',
+    type: 'RICH_TEXT',
+    // pick an order that sits in Section B near the other B6x docs
+    order: 6161,
+    defaultContentJson: {
+      type: 'doc',
+      content: [
+        {
+          type: 'heading',
+          attrs: { level: 1 },
+          content: [{ type: 'text', text: 'TAXATION' }]
+        },
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    { type: 'text', text: 'Agree lead schedule to accounts' }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Prepare tax computations and proof of tax charge.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Ensure any non-allowable expenditure is identified'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Ensure last years CT provision is cleared by payment, or agreed as outstanding'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Reconcile VAT year end balance and Outputs to sales.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Reconcile payroll charge in accounts with payroll records'
                     }
                   ]
                 }
