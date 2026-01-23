@@ -1,6 +1,10 @@
 import { db } from '@/db'
 import { and, desc, eq, lt } from 'drizzle-orm'
-import { accountingPeriods, planningDocs } from '@/db/schema'
+import {
+  accountingPeriods,
+  planningDocs,
+  planningDocSignoffs
+} from '@/db/schema'
 import { B_DOCS } from '@/planning/registry'
 import PlanningIndexClient from './_components/planning-index-client'
 import { notFound } from 'next/navigation'
@@ -78,16 +82,42 @@ export default async function PlanningIndexPage({
     if (prevSet.has(d.code)) availableFromPrevCount += 1
   }
 
+  const signoffRows = await db
+    .select({
+      code: planningDocSignoffs.code,
+      reviewedAt: planningDocSignoffs.reviewedAt,
+      reviewedByMemberId: planningDocSignoffs.reviewedByMemberId,
+      completedAt: planningDocSignoffs.completedAt,
+      completedByMemberId: planningDocSignoffs.completedByMemberId
+    })
+    .from(planningDocSignoffs)
+    .where(
+      and(
+        eq(planningDocSignoffs.clientId, clientId),
+        eq(planningDocSignoffs.periodId, periodId)
+      )
+    )
+
+  const signoffsByCode = new Map(signoffRows.map(r => [r.code, r] as const))
+
   const docsForIndex = [...B_DOCS]
     .sort((a, b) => a.order - b.order)
     .map(d => {
       const row = currentByCode.get(d.code)
+      const signoff = signoffsByCode.get(d.code)
+
       return {
         code: d.code,
         title: d.title,
         order: d.order,
         enabled: true,
-        isComplete: row?.isComplete ?? false
+        isComplete: row?.isComplete ?? false,
+
+        // NEW (optional but recommended)
+        reviewedAt: signoff?.reviewedAt ?? null,
+        reviewedByMemberId: signoff?.reviewedByMemberId ?? null,
+        completedAt: signoff?.completedAt ?? null,
+        completedByMemberId: signoff?.completedByMemberId ?? null
       }
     })
 
@@ -115,6 +145,10 @@ export default async function PlanningIndexPage({
               ? { count: availableFromPrevCount, prevPeriodId: prev.id }
               : null
           }
+          defaults={{
+            reviewerId: setupRes.data.assignments.reviewerId,
+            completedById: setupRes.data.assignments.completedById
+          }}
         />
       )}
     </div>

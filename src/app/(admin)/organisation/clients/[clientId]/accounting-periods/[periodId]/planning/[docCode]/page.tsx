@@ -6,6 +6,9 @@ import PlanningDocClient from '../_components/planning-doc-client'
 import type { ChecklistDoc } from '@/lib/planning/checklist-types'
 import { buildChecklistDocFromDefaults } from '@/lib/planning/checklist-types'
 import type { JSONContent } from '@tiptap/core'
+import { getPeriodSetupAction } from '@/server-actions/period-setup'
+import DocSignoffStrip from '../_components/doc-signoff-strip'
+import { getDocSignoffSummary } from '@/lib/planning/doc-signoff-read'
 
 function isChecklistDocJson(v: unknown): v is ChecklistDoc {
   if (!v || typeof v !== 'object') return false
@@ -55,6 +58,12 @@ export default async function PlanningDocPage({
     ? new Date(existing.updatedAt).toISOString()
     : null
 
+  const signoff = await getDocSignoffSummary({ clientId, periodId, code })
+
+  const setupRes = await getPeriodSetupAction({ clientId, periodId })
+  if (!setupRes.success) notFound()
+  const defaultReviewerId = setupRes.data.assignments.reviewerId
+
   // ----------------------------
   // CHECKLIST lazy defaults
   // ----------------------------
@@ -68,7 +77,7 @@ export default async function PlanningDocPage({
       ? (savedChecklist ??
         buildChecklistDocFromDefaults(docDef.defaultChecklist))
       : null
-
+  const shortCode = docDef.code.split('-')[0]
   // ----------------------------
   // RICH_TEXT lazy defaults
   // ----------------------------
@@ -81,9 +90,24 @@ export default async function PlanningDocPage({
 
   return (
     <div className='space-y-4'>
-      <h1 className='text-xl font-semibold'>
-        {docDef.code} — {docDef.title}
-      </h1>
+      <div className='flex items-start justify-between gap-3'>
+        <div className='min-w-0'>
+          <h1 className='text-primary truncate text-xl font-semibold'>
+            {shortCode} {docDef.title}
+          </h1>
+        </div>
+
+        <div className='flex flex-none items-center gap-2 pr-4'>
+          <DocSignoffStrip
+            clientId={clientId}
+            periodId={periodId}
+            code={code}
+            reviewedAt={signoff?.reviewedAt ?? null}
+            reviewedByMemberId={signoff?.reviewedByMemberId ?? null}
+            defaultReviewerId={defaultReviewerId}
+          />
+        </div>
+      </div>
 
       {docDef.type === 'CHECKLIST' ? (
         <PlanningDocClient

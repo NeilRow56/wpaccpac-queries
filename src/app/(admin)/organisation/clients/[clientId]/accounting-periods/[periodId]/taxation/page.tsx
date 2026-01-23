@@ -14,6 +14,9 @@ import { db } from '@/db'
 import { and, desc, eq, lt } from 'drizzle-orm'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import DocSignoffStrip from '../planning/_components/doc-signoff-strip'
+import { getDocSignoffSummary } from '@/lib/planning/doc-signoff-read'
+import { getPeriodSetupAction } from '@/server-actions/period-setup'
 
 export default async function TaxationPage({
   params
@@ -26,6 +29,14 @@ export default async function TaxationPage({
   const period = await getAccountingPeriodById(periodId)
 
   if (!client || !period) notFound()
+
+  const code = 'B61-taxation'
+
+  const signoff = await getDocSignoffSummary({ clientId, periodId, code })
+
+  const setupRes = await getPeriodSetupAction({ clientId, periodId })
+  if (!setupRes.success) notFound()
+  const defaultReviewerId = setupRes.data.assignments.reviewerId
 
   const crumbs = buildPeriodLeafBreadcrumbs({
     clientId,
@@ -78,19 +89,27 @@ export default async function TaxationPage({
   return (
     <div className='container mx-auto space-y-6 py-10'>
       <Breadcrumbs crumbs={crumbs} />
-      <div className='flex justify-between'>
-        <h2 className='text-primary text-lg font-bold'>Taxation</h2>
-        <p className='mt-1 px-2 text-sm text-blue-600'>
-          Enter current-year taxation figures. Prior-year comparatives are shown
-          for reference.
-        </p>
-        <Button asChild variant='outline' size='sm'>
-          <Link
-            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/B61-taxation_wp`}
-          >
-            B61 — Taxation work programme
-          </Link>
-        </Button>
+      <div className='flex items-center justify-between gap-3'>
+        <h1 className='text-primary text-lg font-semibold'>Taxation</h1>
+
+        <div className='flex items-center gap-2 pr-2'>
+          {/* whatever you already have on the right */}
+          <Button asChild variant='outline' size='sm' className='text-blue-600'>
+            <Link
+              href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/B61-taxation_wp`}
+            >
+              B61 — Taxation work programme
+            </Link>
+          </Button>
+          <DocSignoffStrip
+            clientId={clientId}
+            periodId={periodId}
+            code={code}
+            reviewedAt={signoff?.reviewedAt ?? null}
+            reviewedByMemberId={signoff?.reviewedByMemberId ?? null}
+            defaultReviewerId={defaultReviewerId}
+          />
+        </div>
       </div>
 
       <SimpleScheduleForm

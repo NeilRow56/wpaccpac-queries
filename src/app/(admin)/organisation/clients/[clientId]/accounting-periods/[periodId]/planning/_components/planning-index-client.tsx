@@ -2,22 +2,36 @@
 
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
+import ReviewedSignoffControl from './reviewed-signoff-control'
 
-export default function PlanningIndexClient(props: {
+type PlanningIndexClientProps = {
   clientId: string
   periodId: string
-  docs: Array<{
+  docs: {
     code: string
     title: string
     order: number
     enabled: boolean
     isComplete: boolean
-  }>
-  hint: null | { count: number; prevPeriodId: string }
-}) {
-  const { clientId, periodId, docs, hint } = props
+    reviewedAt?: Date | null
+    reviewedByMemberId?: string | null
+    completedAt?: Date | null
+    completedByMemberId?: string | null
+  }[]
+  hint: { count: number; prevPeriodId: string } | null
+  defaults: {
+    reviewerId: string | null
+    completedById: string | null
+  }
+}
 
+export default function PlanningIndexClient({
+  clientId,
+  periodId,
+  docs,
+  hint,
+  defaults
+}: PlanningIndexClientProps) {
   return (
     <div className='space-y-3'>
       {hint ? (
@@ -40,27 +54,33 @@ export default function PlanningIndexClient(props: {
             const href = `/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/${encoded}`
 
             return (
-              <Link
+              <div
                 key={d.code}
-                href={href}
-                className={cn(
-                  'hover:bg-muted/50 flex items-center justify-between px-4 py-3 text-sm'
-                )}
+                className='hover:bg-muted/50 flex items-center justify-between px-4 py-3 text-sm'
               >
-                <div className='min-w-0'>
+                <Link href={href} className='min-w-0 flex-1'>
                   <div className='truncate font-medium'>
                     {d.code} — {d.title}
                   </div>
-                </div>
+                </Link>
 
-                <div className='flex items-center gap-2'>
+                <div className='ml-4 flex flex-none items-center gap-2'>
+                  <ReviewedSignoffControl
+                    clientId={clientId}
+                    periodId={periodId}
+                    code={d.code}
+                    reviewedAt={d.reviewedAt ?? null}
+                    reviewedByMemberId={d.reviewedByMemberId ?? null}
+                    defaultReviewerId={defaults.reviewerId}
+                  />
+
                   {d.isComplete ? (
                     <Badge className='bg-green-600'>Complete</Badge>
                   ) : (
                     <Badge variant='secondary'>In progress</Badge>
                   )}
                 </div>
-              </Link>
+              </div>
             )
           })}
         </div>
