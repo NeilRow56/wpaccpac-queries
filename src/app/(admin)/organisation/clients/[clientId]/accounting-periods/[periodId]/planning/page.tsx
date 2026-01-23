@@ -8,6 +8,8 @@ import { PlanningClient } from './_components/planning-client'
 import PeriodSetupForm from '../_components/period-setup-form'
 import { getPeriodSetupAction } from '@/server-actions/period-setup'
 
+export const dynamic = 'force-dynamic'
+
 export default async function PlanningIndexPage({
   params
 }: {

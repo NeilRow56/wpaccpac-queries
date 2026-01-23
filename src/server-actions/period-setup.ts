@@ -126,7 +126,8 @@ export async function savePeriodSetupAction(input: {
       })
 
     revalidatePath(
-      `/organisation/clients/${input.clientId}/accounting-periods/${input.periodId}/planning`
+      `/organisation/clients/${input.clientId}/accounting-periods/${input.periodId}/planning`,
+      'page'
     )
 
     return { success: true, data: null }
