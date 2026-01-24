@@ -29,23 +29,23 @@ type Props = {
   code: string
 
   // Current state (from DB)
-  reviewedAt: Date | null
-  reviewedByMemberId: string | null
+  completedAt: Date | null
+  completedByMemberId: string | null
 
   // Default memberId to preselect (from Period Setup assignments)
-  defaultReviewerId: string | null
+  defaultCompletedById: string | null
 
   // Compact mode for index rows: show ✓/— with tooltip details
   compact?: boolean
 }
 
-export default function ReviewedSignoffControl({
+export default function CompletedSignoffControl({
   clientId,
   periodId,
   code,
-  reviewedAt,
-  reviewedByMemberId,
-  defaultReviewerId,
+  completedAt,
+  completedByMemberId,
+  defaultCompletedById,
   compact
 }: Props) {
   const router = useRouter()
@@ -70,43 +70,44 @@ export default function ReviewedSignoffControl({
     return map
   }, [members])
 
-  const isReviewed = Boolean(reviewedAt && reviewedByMemberId)
+  const isCompleted = Boolean(completedAt && completedByMemberId)
 
   const [selectedMemberId, setSelectedMemberId] = React.useState<string>(
-    defaultReviewerId ?? ''
+    defaultCompletedById ?? ''
   )
 
   // If defaults change (or members load late), keep the selection sensible when opening.
   React.useEffect(() => {
     if (!open) return
-    if (isReviewed) return
-    if (!selectedMemberId && defaultReviewerId) {
-      setSelectedMemberId(defaultReviewerId)
+    if (isCompleted) return
+    if (!selectedMemberId && defaultCompletedById) {
+      setSelectedMemberId(defaultCompletedById)
     }
-  }, [open, isReviewed, selectedMemberId, defaultReviewerId])
+  }, [open, isCompleted, selectedMemberId, defaultCompletedById])
 
   const currentInitials =
-    reviewedByMemberId && memberNameById.get(reviewedByMemberId)
-      ? nameToInitials(memberNameById.get(reviewedByMemberId)!)
-      : reviewedByMemberId
+    completedByMemberId && memberNameById.get(completedByMemberId)
+      ? nameToInitials(memberNameById.get(completedByMemberId)!)
+      : completedByMemberId
         ? '✓'
         : ''
 
   const detailedDisplay =
-    isReviewed && reviewedAt
-      ? `${currentInitials} · ${formatShortDate(reviewedAt)}`
+    isCompleted && completedAt
+      ? `${currentInitials} · ${formatShortDate(completedAt)}`
       : '—'
 
-  // Compact display for index rows
-  const compactDisplay = isReviewed ? '✓' : 'x'
+  const compactDisplay = isCompleted ? '✓' : 'x'
 
   // ✅ Always show full label; compact only changes the value display
-  const label = 'Reviewed'
+  const label = 'Completed'
 
   const tooltip =
-    isReviewed && reviewedAt ? `Reviewed ${detailedDisplay}` : 'Not reviewed'
+    isCompleted && completedAt
+      ? `Completed ${detailedDisplay}`
+      : 'Not completed'
 
-  async function clearReviewed(e: React.MouseEvent) {
+  async function clearCompleted(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
     if (saving) return
@@ -117,7 +118,7 @@ export default function ReviewedSignoffControl({
         clientId,
         periodId,
         code,
-        kind: 'REVIEWED',
+        kind: 'COMPLETED',
         checked: false,
         memberId: null
       })
@@ -125,20 +126,20 @@ export default function ReviewedSignoffControl({
         toast.error(res.message)
         return
       }
-      toast.success('Review cleared')
+      toast.success('Completion cleared')
       router.refresh()
     } finally {
       setSaving(false)
     }
   }
 
-  async function confirmReviewed(e: React.MouseEvent) {
+  async function confirmCompleted(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
     if (saving) return
 
     if (!selectedMemberId) {
-      toast.error('Select a reviewer')
+      toast.error('Select who completed this')
       return
     }
 
@@ -148,7 +149,7 @@ export default function ReviewedSignoffControl({
         clientId,
         periodId,
         code,
-        kind: 'REVIEWED',
+        kind: 'COMPLETED',
         checked: true,
         memberId: selectedMemberId
       })
@@ -156,7 +157,7 @@ export default function ReviewedSignoffControl({
         toast.error(res.message)
         return
       }
-      toast.success('Marked as reviewed')
+      toast.success('Marked as completed')
       setOpen(false)
       router.refresh()
     } finally {
@@ -164,17 +165,16 @@ export default function ReviewedSignoffControl({
     }
   }
 
-  if (isReviewed) {
-    // When already reviewed, click clears immediately (simple + fast UX)
+  if (isCompleted) {
     return (
       <Button
         type='button'
         variant='ghost'
         size='sm'
         className='h-7 px-2 text-xs whitespace-nowrap'
-        onClick={clearReviewed}
+        onClick={clearCompleted}
         disabled={saving}
-        title={compact ? tooltip : 'Click to clear review'}
+        title={compact ? tooltip : 'Click to clear completion'}
       >
         <span
           className={
@@ -191,7 +191,6 @@ export default function ReviewedSignoffControl({
     )
   }
 
-  // When not reviewed, clicking opens popover to choose reviewer (defaulted)
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -206,7 +205,7 @@ export default function ReviewedSignoffControl({
             setOpen(true)
           }}
           disabled={saving}
-          title={compact ? tooltip : 'Mark as reviewed'}
+          title={compact ? tooltip : 'Mark as completed'}
         >
           <span
             className={
@@ -228,10 +227,10 @@ export default function ReviewedSignoffControl({
         onClick={e => e.stopPropagation()}
       >
         <div className='space-y-3 text-sm'>
-          <div className='font-medium'>Mark as reviewed</div>
+          <div className='font-medium'>Mark as completed</div>
 
           <div className='space-y-1'>
-            <div className='text-muted-foreground text-xs'>Reviewer</div>
+            <div className='text-muted-foreground text-xs'>Completed by</div>
             <select
               className='bg-background h-9 w-full rounded-md border px-3 text-sm'
               value={selectedMemberId}
@@ -264,7 +263,7 @@ export default function ReviewedSignoffControl({
             <Button
               type='button'
               size='sm'
-              onClick={confirmReviewed}
+              onClick={confirmCompleted}
               disabled={saving}
             >
               Confirm

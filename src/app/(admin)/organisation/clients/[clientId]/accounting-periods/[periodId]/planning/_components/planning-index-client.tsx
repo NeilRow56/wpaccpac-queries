@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
-import ReviewedSignoffControl from './reviewed-signoff-control'
+import DocSignoffStrip from './doc-signoff-strip'
 
 type PlanningIndexClientProps = {
   clientId: string
@@ -65,14 +65,20 @@ export default function PlanningIndexClient({
                 </Link>
 
                 <div className='ml-4 flex flex-none items-center gap-2'>
-                  <ReviewedSignoffControl
-                    clientId={clientId}
-                    periodId={periodId}
-                    code={d.code}
-                    reviewedAt={d.reviewedAt ?? null}
-                    reviewedByMemberId={d.reviewedByMemberId ?? null}
-                    defaultReviewerId={defaults.reviewerId}
-                  />
+                  <div className='hidden lg:flex'>
+                    <DocSignoffStrip
+                      clientId={clientId}
+                      periodId={periodId}
+                      code={d.code}
+                      reviewedAt={d.reviewedAt ?? null}
+                      reviewedByMemberId={d.reviewedByMemberId ?? null}
+                      defaultReviewerId={defaults.reviewerId}
+                      completedAt={d.completedAt ?? null}
+                      completedByMemberId={d.completedByMemberId ?? null}
+                      defaultCompletedById={defaults.completedById}
+                      compact
+                    />
+                  </div>
 
                   {d.isComplete ? (
                     <Badge className='bg-green-600'>Complete</Badge>

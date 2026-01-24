@@ -1,15 +1,15 @@
-import { db } from '@/db'
-import { planningDocSignoffs } from '@/db/schema'
 import { and, eq } from 'drizzle-orm'
+import { db } from '@/db'
+import { planningDocSignoffs } from '@/db/schema/planningDocSignoffs'
 
-// src/server-actions/doc-signoff-read.ts (or lib)
-export async function getDocSignoffSummary(input: {
+export async function getDocSignoffHistory(input: {
   clientId: string
   periodId: string
   code: string
 }) {
-  return db
+  const row = await db
     .select({
+      history: planningDocSignoffs.history,
       reviewedAt: planningDocSignoffs.reviewedAt,
       reviewedByMemberId: planningDocSignoffs.reviewedByMemberId,
       completedAt: planningDocSignoffs.completedAt,
@@ -25,4 +25,7 @@ export async function getDocSignoffSummary(input: {
     )
     .limit(1)
     .then(r => r[0] ?? null)
+
+  const history = row?.history ?? [] // already SignoffEvent[]
+  return { row, history }
 }

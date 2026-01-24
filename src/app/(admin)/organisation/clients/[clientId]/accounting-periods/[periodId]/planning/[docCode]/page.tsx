@@ -8,7 +8,7 @@ import { buildChecklistDocFromDefaults } from '@/lib/planning/checklist-types'
 import type { JSONContent } from '@tiptap/core'
 import { getPeriodSetupAction } from '@/server-actions/period-setup'
 import DocSignoffStrip from '../_components/doc-signoff-strip'
-import { getDocSignoffSummary } from '@/lib/planning/doc-signoff-read'
+import { getDocSignoffHistory } from '@/lib/planning/doc-signoff-read'
 
 function isChecklistDocJson(v: unknown): v is ChecklistDoc {
   if (!v || typeof v !== 'object') return false
@@ -58,11 +58,14 @@ export default async function PlanningDocPage({
     ? new Date(existing.updatedAt).toISOString()
     : null
 
-  const signoff = await getDocSignoffSummary({ clientId, periodId, code })
+  const signoff = await getDocSignoffHistory({ clientId, periodId, code })
+  const row = signoff.row
 
   const setupRes = await getPeriodSetupAction({ clientId, periodId })
   if (!setupRes.success) notFound()
   const defaultReviewerId = setupRes.data.assignments.reviewerId
+
+  const defaultCompletedById = setupRes.data.assignments.completedById
 
   // ----------------------------
   // CHECKLIST lazy defaults
@@ -102,9 +105,12 @@ export default async function PlanningDocPage({
             clientId={clientId}
             periodId={periodId}
             code={code}
-            reviewedAt={signoff?.reviewedAt ?? null}
-            reviewedByMemberId={signoff?.reviewedByMemberId ?? null}
+            reviewedAt={row?.reviewedAt ?? null}
+            reviewedByMemberId={row?.reviewedByMemberId ?? null}
             defaultReviewerId={defaultReviewerId}
+            completedAt={row?.completedAt ?? null}
+            completedByMemberId={row?.completedByMemberId ?? null}
+            defaultCompletedById={defaultCompletedById}
           />
         </div>
       </div>

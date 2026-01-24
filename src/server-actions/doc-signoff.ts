@@ -101,6 +101,13 @@ export async function toggleDocSignoffAction(input: {
     revalidatePath(
       `/organisation/clients/${input.clientId}/accounting-periods/${input.periodId}/planning`
     )
+    revalidatePath(
+      `/organisation/clients/${input.clientId}/accounting-periods/${input.periodId}/taxation`
+    )
+
+    revalidatePath(
+      `/organisation/clients/${input.clientId}/accounting-periods/${input.periodId}/planning/${encodeURIComponent(input.code)}`
+    )
 
     return { success: true, data: null }
   } catch (e) {

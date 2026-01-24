@@ -15,8 +15,10 @@ import { and, desc, eq, lt } from 'drizzle-orm'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import DocSignoffStrip from '../planning/_components/doc-signoff-strip'
-import { getDocSignoffSummary } from '@/lib/planning/doc-signoff-read'
+import { getDocSignoffHistory } from '@/lib/planning/doc-signoff-read'
 import { getPeriodSetupAction } from '@/server-actions/period-setup'
+
+import SignoffHistoryPopover from '../planning/_components/signoff-history-popover'
 
 export default async function TaxationPage({
   params
@@ -32,11 +34,15 @@ export default async function TaxationPage({
 
   const code = 'B61-taxation'
 
-  const signoff = await getDocSignoffSummary({ clientId, periodId, code })
+  const signoff = await getDocSignoffHistory({ clientId, periodId, code })
+  const row = signoff.row
+  // const history = signoff.history
 
   const setupRes = await getPeriodSetupAction({ clientId, periodId })
   if (!setupRes.success) notFound()
   const defaultReviewerId = setupRes.data.assignments.reviewerId
+
+  const defaultCompletedById = setupRes.data.assignments.completedById
 
   const crumbs = buildPeriodLeafBreadcrumbs({
     clientId,
@@ -90,25 +96,33 @@ export default async function TaxationPage({
     <div className='container mx-auto space-y-6 py-10'>
       <Breadcrumbs crumbs={crumbs} />
       <div className='flex items-center justify-between gap-3'>
-        <h1 className='text-primary text-lg font-semibold'>Taxation</h1>
+        <span>
+          <h1 className='text-primary text-lg font-semibold'>Taxation</h1>
+        </span>
 
-        <div className='flex items-center gap-2 pr-2'>
+        <div className='flex flex-col items-start gap-2 pr-2 xl:flex-row'>
           {/* whatever you already have on the right */}
-          <Button asChild variant='outline' size='sm' className='text-blue-600'>
-            <Link
-              href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/B61-taxation_wp`}
-            >
-              B61 — Taxation work programme
-            </Link>
-          </Button>
+
           <DocSignoffStrip
             clientId={clientId}
             periodId={periodId}
             code={code}
-            reviewedAt={signoff?.reviewedAt ?? null}
-            reviewedByMemberId={signoff?.reviewedByMemberId ?? null}
+            reviewedAt={row?.reviewedAt ?? null}
+            reviewedByMemberId={row?.reviewedByMemberId ?? null}
             defaultReviewerId={defaultReviewerId}
+            completedAt={row?.completedAt ?? null}
+            completedByMemberId={row?.completedByMemberId ?? null}
+            defaultCompletedById={defaultCompletedById}
           />
+
+          <SignoffHistoryPopover events={signoff?.history ?? []} />
+          <Button asChild variant='outline' size='sm' className='text-blue-600'>
+            <Link
+              href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/B61-taxation_wp`}
+            >
+              B61 Taxation work programme
+            </Link>
+          </Button>
         </div>
       </div>
 
