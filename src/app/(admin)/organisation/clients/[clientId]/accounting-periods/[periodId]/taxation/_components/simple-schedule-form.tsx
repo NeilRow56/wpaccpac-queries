@@ -5,7 +5,13 @@ import { useForm, useWatch } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { saveTaxationScheduleAction } from '@/server-actions/simple-schedules/taxation'
+import { ChevronDown } from 'lucide-react'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from '@/components/ui/collapsible'
+
 import type { SimpleScheduleDocV1 } from '@/lib/schedules/simpleScheduleTypes'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -99,6 +105,12 @@ function isLikelyUrl(v: string) {
   return s.startsWith('http://') || s.startsWith('https://')
 }
 
+type SaveFn = (args: {
+  clientId: string
+  periodId: string
+  doc: SimpleScheduleDocV1
+}) => Promise<{ success: boolean; message?: string }>
+
 type Props = {
   title: string
   code: string
@@ -110,14 +122,21 @@ type Props = {
     startDate: string
     endDate: string
   } | null
+  onSave: SaveFn
+  derivedLineIds?: string[]
+  derivedHelpByLineId?: Record<string, string>
 }
 
 export default function SimpleScheduleForm({
+  title,
   clientId,
   periodId,
   initial,
   prior,
-  priorPeriod
+  priorPeriod,
+  onSave,
+  derivedLineIds,
+  derivedHelpByLineId
 }: Props) {
   const form = useForm<SimpleScheduleDocV1>({
     defaultValues: initial
@@ -162,79 +181,98 @@ export default function SimpleScheduleForm({
   }, [sections])
 
   async function onSubmit(values: SimpleScheduleDocV1) {
-    const res = await saveTaxationScheduleAction({
-      clientId,
-      periodId,
-      doc: values
-    })
+    const res = await onSave({ clientId, periodId, doc: values })
 
-    if (res.success) toast.success('Taxation saved')
-    else toast.error(res.message)
+    if (res.success) toast.success(`${title} saved`)
+    else toast.error(res.message ?? `Failed to save ${title}`)
   }
 
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit)}
-      className='space-y-6 rounded-lg border p-4'
+      className='space-y-4 rounded-lg border p-4'
     >
       {/* Attachments panel */}
+      {/* Attachments panel */}
       {attachments.length > 0 ? (
-        <div className='bg-muted/10 space-y-3 rounded-md border p-3'>
-          <div>
-            <div className='text-primary font-medium'>Supporting documents</div>
-            <div className='text-muted-foreground text-xs'>
-              Paste links to supporting files (e.g. Excel on SharePoint/Drive).
-            </div>
-          </div>
-
-          <div className='space-y-2'>
-            {attachments.map((a, idx) => {
-              const urlField = `attachments.${idx}.url` as const
-              const urlValue = (a?.url ?? '').trim()
-              const canOpen = isLikelyUrl(urlValue)
-
-              return (
-                <div
-                  key={a.id}
-                  className='grid grid-cols-[220px_1fr_44px] items-center gap-3'
-                >
-                  <div className='text-sm'>{a.name}</div>
-
-                  <Input
-                    placeholder='https://...'
-                    className='border-muted-foreground/30 focus-visible:ring-primary/30 bg-white shadow-sm focus-visible:ring-2'
-                    {...form.register(urlField)}
-                  />
-
-                  <div className='flex justify-end'>
-                    {canOpen ? (
-                      <Link href={urlValue} target='_blank' rel='noreferrer'>
-                        <Button type='button' variant='outline' size='icon'>
-                          <ExternalLink className='h-4 w-4' />
-                        </Button>
-                      </Link>
-                    ) : (
-                      <Button
-                        type='button'
-                        variant='outline'
-                        size='icon'
-                        disabled
-                        title='Enter a full https:// link to enable'
-                      >
-                        <ExternalLink className='h-4 w-4' />
-                      </Button>
-                    )}
-                  </div>
+        <Collapsible defaultOpen>
+          <div className='bg-muted/10 rounded-md border'>
+            <div className='flex items-start justify-between gap-3 p-3'>
+              <div>
+                <div className='text-primary font-medium'>
+                  Supporting documents
                 </div>
-              )
-            })}
+                <div className='text-muted-foreground text-xs'>
+                  Paste links to supporting files (e.g. Excel on
+                  SharePoint/Drive).
+                </div>
+              </div>
+
+              <CollapsibleTrigger asChild>
+                <Button variant='ghost' size='sm' className='gap-2'>
+                  <span className='text-muted-foreground text-xs'>
+                    {attachments.length}
+                  </span>
+                  <ChevronDown className='h-4 w-4' />
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+
+            <CollapsibleContent>
+              <div className='space-y-2 px-3 pb-3'>
+                {attachments.map((a, idx) => {
+                  const urlField = `attachments.${idx}.url` as const
+                  const urlValue = (a?.url ?? '').trim()
+                  const canOpen = isLikelyUrl(urlValue)
+
+                  return (
+                    <div
+                      key={a.id}
+                      className='grid grid-cols-[220px_1fr_44px] items-center gap-3'
+                    >
+                      <div className='text-sm'>{a.name}</div>
+
+                      <Input
+                        placeholder='https://...'
+                        className='border-muted-foreground/30 focus-visible:ring-primary/30 bg-white shadow-sm focus-visible:ring-2'
+                        {...form.register(urlField)}
+                      />
+
+                      <div className='flex justify-end'>
+                        {canOpen ? (
+                          <Link
+                            href={urlValue}
+                            target='_blank'
+                            rel='noreferrer'
+                          >
+                            <Button type='button' variant='outline' size='icon'>
+                              <ExternalLink className='h-4 w-4' />
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Button
+                            type='button'
+                            variant='outline'
+                            size='icon'
+                            disabled
+                            title='Enter a full https:// link to enable'
+                          >
+                            <ExternalLink className='h-4 w-4' />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </CollapsibleContent>
           </div>
-        </div>
+        </Collapsible>
       ) : null}
 
       {/* Sections */}
       {sections.map((section, sIdx) => (
-        <div key={section.id} className='space-y-3'>
+        <div key={section.id} className='space-y-2'>
           <h3 className={sectionTitleClass(section.ui)}>{section.title}</h3>
 
           {/* Column headers */}
@@ -298,11 +336,13 @@ export default function SimpleScheduleForm({
               // INPUT
               const field = `sections.${sIdx}.lines.${lIdx}.amount` as const
               const priorAmount = priorMap.get(line.id)
+              const isDerived = derivedLineIds?.includes(line.id) ?? false
+              const help = derivedHelpByLineId?.[line.id]
 
               return (
                 <div
                   key={line.id}
-                  className={`grid grid-cols-4 items-center gap-3 rounded-md px-2 py-1 ${uiRowClass(line.ui)}`}
+                  className={`grid grid-cols-4 items-center gap-3 rounded-md px-2 py-0.5 ${uiRowClass(line.ui)}`}
                 >
                   <div className={`text-sm ${uiLabelClass(line.ui)}`}>
                     {line.label}
@@ -311,11 +351,18 @@ export default function SimpleScheduleForm({
                   <div className='col-span-2'>
                     <Input
                       type='number'
-                      className={`border-muted-foreground/30 focus-visible:ring-primary/30 w-full border bg-white text-right tabular-nums shadow-sm focus-visible:ring-2 ${uiInputClass(line.ui)}`}
+                      disabled={isDerived}
+                      className={`border-muted-foreground/30 focus-visible:ring-primary/30 w-full border bg-white text-right tabular-nums shadow-sm focus-visible:ring-2 ${uiInputClass(line.ui)} ${isDerived ? 'bg-muted/30 text-muted-foreground' : ''}`}
                       {...form.register(field, {
                         setValueAs: v => (v === '' ? null : Number(v))
                       })}
                     />
+
+                    {help ? (
+                      <div className='text-muted-foreground mt-1 text-xs'>
+                        {help}
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className='bg-muted/40 text-muted-foreground w-full rounded-md px-3 py-2 text-right text-sm tabular-nums'>
@@ -345,8 +392,10 @@ export default function SimpleScheduleForm({
         </div>
       ))}
 
-      <div className='flex justify-end'>
-        <Button type='submit'>Save</Button>
+      <div className='sticky bottom-0 z-10 -mx-4 border-t bg-white/95 px-4 py-3 backdrop-blur'>
+        <div className='flex items-center justify-end'>
+          <Button type='submit'>Save</Button>
+        </div>
       </div>
     </form>
   )

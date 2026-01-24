@@ -415,5 +415,91 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
 
     // show it for everyone by default (or add your own cfg logic)
     visibleWhen: () => true
+  },
+  {
+    code: 'B61-debtors_wp',
+    title: 'Debtors — work programme',
+    type: 'RICH_TEXT',
+    order: 6162, // pick something that sits near taxation/fixed assets WPs
+    defaultContentJson: {
+      type: 'doc',
+      content: [
+        {
+          type: 'heading',
+          attrs: { level: 1 },
+          content: [{ type: 'text', text: 'DEBTORS' }]
+        },
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    { type: 'text', text: 'Agree lead schedule to accounts.' }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Obtain / review aged receivables listing; assess recoverability.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Test post year-end receipts for material balances.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Review bad debts written off and assess adequacy of any provision.'
+                    }
+                  ]
+                }
+              ]
+            },
+            { type: 'paragraph', content: [] }
+          ]
+        },
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Notes / conclusions (add more work steps or findings below):'
+            }
+          ]
+        },
+        { type: 'paragraph', content: [] }
+      ]
+    },
+    visibleWhen: () => true
   }
 ]

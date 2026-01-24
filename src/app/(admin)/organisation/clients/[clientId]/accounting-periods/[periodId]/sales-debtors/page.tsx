@@ -1,29 +1,33 @@
-// app/organisation/clients/[clientId]/accounting-periods/[periodId]/taxation/page.tsx
+// app/organisation/clients/[clientId]/accounting-periods/[periodId]/sales-debtors/page.tsx
 
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import { and, desc, eq, lt } from 'drizzle-orm'
+import { Calendar } from 'lucide-react'
+
 import { Breadcrumbs } from '@/components/navigation/breadcrumb'
+import { Button } from '@/components/ui/button'
+
+import { db } from '@/db'
+import { accountingPeriods } from '@/db/schema'
 
 import { getClientById } from '@/server-actions/clients'
 import { getAccountingPeriodById } from '@/server-actions/accounting-periods'
 import { buildPeriodLeafBreadcrumbs } from '@/lib/period-breadcrumbs'
-import SimpleScheduleForm from './_components/simple-schedule-form'
-import {
-  getTaxationScheduleAction,
-  saveTaxationScheduleAction
-} from '@/server-actions/simple-schedules/taxation'
-import { Calendar } from 'lucide-react'
-import { accountingPeriods } from '@/db/schema'
-import { db } from '@/db'
-import { and, desc, eq, lt } from 'drizzle-orm'
-import { Button } from '@/components/ui/button'
-import Link from 'next/link'
-import DocSignoffStrip from '../planning/_components/doc-signoff-strip'
-import { getDocSignoffHistory } from '@/lib/planning/doc-signoff-read'
 import { getPeriodSetupAction } from '@/server-actions/period-setup'
 
+import { getDocSignoffHistory } from '@/lib/planning/doc-signoff-read'
+import DocSignoffStrip from '../planning/_components/doc-signoff-strip'
 import SignoffHistoryPopover from '../planning/_components/signoff-history-popover'
 
-export default async function TaxationPage({
+import SimpleScheduleForm from '../taxation/_components/simple-schedule-form'
+import {
+  getDebtorsScheduleAction,
+  saveDebtorsScheduleAction
+} from '@/server-actions/simple-schedules/debtors'
+import { getDebtorsPrepaymentsScheduleAction } from '@/server-actions/schedules/debtors-prepayments'
+
+export default async function DebtorsPage({
   params
 }: {
   params: Promise<{ clientId: string; periodId: string }>
@@ -35,16 +39,14 @@ export default async function TaxationPage({
 
   if (!client || !period) notFound()
 
-  const code = 'B61-taxation'
+  const code = 'B61-debtors'
 
   const signoff = await getDocSignoffHistory({ clientId, periodId, code })
   const row = signoff.row
-  // const history = signoff.history
 
   const setupRes = await getPeriodSetupAction({ clientId, periodId })
   if (!setupRes.success) notFound()
   const defaultReviewerId = setupRes.data.assignments.reviewerId
-
   const defaultCompletedById = setupRes.data.assignments.completedById
 
   const crumbs = buildPeriodLeafBreadcrumbs({
@@ -52,8 +54,8 @@ export default async function TaxationPage({
     clientName: client.name,
     periodId,
     periodName: period.periodName,
-    leafLabel: 'Taxation',
-    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/taxation`
+    leafLabel: 'Debtors',
+    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors`
   })
 
   const priorPeriod = await db
@@ -80,8 +82,8 @@ export default async function TaxationPage({
               No open accounting period
             </p>
             <p className='text-muted-foreground text-sm'>
-              You must have the selected accounting period open to edit
-              taxation.
+              You must have the selected accounting period open to edit sales
+              and debtors.
             </p>
           </div>
         </div>
@@ -89,23 +91,44 @@ export default async function TaxationPage({
     )
   }
 
-  const res = await getTaxationScheduleAction({ clientId, periodId })
+  const res = await getDebtorsScheduleAction({ clientId, periodId })
+  if (!res.success) notFound()
 
-  if (!res.success) {
-    notFound()
+  const prepayRes = await getDebtorsPrepaymentsScheduleAction({
+    clientId,
+    periodId
+  })
+  const prepaymentsTotal = prepayRes.success
+    ? prepayRes.data.totals.current
+    : null
+
+  const currentDoc = res.data.current
+
+  const patchedCurrent = {
+    ...currentDoc,
+    sections: currentDoc.sections.map(s => {
+      if (s.id !== 'summary') return s
+      return {
+        ...s,
+        lines: s.lines.map(l => {
+          if (l.kind !== 'INPUT') return l
+          if (l.id !== 'prepayments') return l
+          return { ...l, amount: prepaymentsTotal }
+        })
+      }
+    })
   }
 
   return (
     <div className='container mx-auto space-y-6 py-10'>
       <Breadcrumbs crumbs={crumbs} />
+
       <div className='flex items-center justify-between gap-3'>
         <span>
-          <h1 className='text-primary text-lg font-semibold'>Taxation</h1>
+          <h1 className='text-primary text-lg font-semibold'>Debtors</h1>
         </span>
 
         <div className='flex flex-col items-start gap-2 pr-2 xl:flex-row'>
-          {/* whatever you already have on the right */}
-
           <DocSignoffStrip
             clientId={clientId}
             periodId={periodId}
@@ -118,26 +141,39 @@ export default async function TaxationPage({
             defaultCompletedById={defaultCompletedById}
           />
 
-          <SignoffHistoryPopover events={signoff?.history ?? []} />
+          <SignoffHistoryPopover events={signoff.history ?? []} />
+
           <Button asChild variant='outline' size='sm' className='text-blue-600'>
             <Link
-              href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/B61-taxation_wp`}
+              href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/planning/B61-debtors_wp`}
             >
-              B61 Taxation work programme
+              B61 Debtors and sales work programme
             </Link>
           </Button>
         </div>
       </div>
 
+      <Button asChild variant='outline' size='sm'>
+        <Link
+          href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors/prepayments`}
+        >
+          Prepayments schedule
+        </Link>
+      </Button>
+
       <SimpleScheduleForm
-        title='Taxation'
-        code='B61-taxation'
+        title='Debtors'
+        code={code}
         clientId={clientId}
         periodId={periodId}
-        initial={res.data.current}
+        initial={patchedCurrent}
         prior={res.data.prior}
         priorPeriod={priorPeriod}
-        onSave={saveTaxationScheduleAction}
+        onSave={saveDebtorsScheduleAction}
+        derivedLineIds={['prepayments']}
+        derivedHelpByLineId={{
+          prepayments: 'Derived from the Prepayments schedule.'
+        }}
       />
     </div>
   )

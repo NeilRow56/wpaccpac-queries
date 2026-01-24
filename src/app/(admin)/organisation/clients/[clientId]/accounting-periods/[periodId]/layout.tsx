@@ -29,7 +29,7 @@ export default async function PeriodLayout({
   })
 
   return (
-    <div className='flex gap-6'>
+    <div className='flex gap-4 xl:gap-6'>
       {/* ✅ SIDEBAR LIVES HERE */}
       <PeriodSidebar
         clientId={clientId}

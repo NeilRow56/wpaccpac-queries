@@ -5,6 +5,14 @@ import { db } from '@/db'
 import { accountingPeriods, planningDocs } from '@/db/schema'
 import { and, eq } from 'drizzle-orm'
 
+import { resetLineItemScheduleForNewPeriod } from '@/lib/schedules/reset-line-item-schedule'
+import type { LineItemScheduleDocV1 } from '@/lib/schedules/lineItemScheduleTypes'
+
+import {
+  tryReadPeriodSetup,
+  resetPeriodSetupForNewPeriod
+} from '@/lib/periods/reset-period-setup'
+
 import {
   isChecklistDocJson,
   resetChecklistResponses
@@ -13,6 +21,14 @@ import { upgradeTitleHeadingToH1 } from '@/lib/planning/richtext-upgrades'
 
 import { isSimpleScheduleDocV1 } from '@/lib/schedules/simpleScheduleTypes'
 import { resetSimpleScheduleForNewPeriod } from '@/lib/schedules/reset-simple-schedule'
+
+function isLineItemScheduleDocV1(v: unknown): v is LineItemScheduleDocV1 {
+  if (!v || typeof v !== 'object') return false
+  const r = v as Record<string, unknown>
+  return (
+    r.kind === 'LINE_ITEM_SCHEDULE' && r.version === 1 && Array.isArray(r.rows)
+  )
+}
 
 /**
  * Transaction type for Drizzle.
@@ -33,13 +49,20 @@ export type RollForwardPlanningDocsInput = {
   /** Upgrade legacy rich-text title headings (H2 -> H1) */
   upgradeHeadings?: boolean
 }
+const PERIOD_SETUP_CODE = 'B00-period_setup'
+
+const LINE_ITEM_SCHEDULE_CODES_TO_RESET = new Set<string>([
+  'B61-debtors_prepayments'
+  // add trade debtors schedule code later
+])
 
 /**
  * Codes where we copy structure but reset the *data entry* fields.
  * (We do NOT want last year's inputs in the new period.)
  */
 const SIMPLE_SCHEDULE_CODES_TO_RESET = new Set<string>([
-  'B61-taxation'
+  'B61-taxation',
+  'B61-debtors'
   // add more SIMPLE_SCHEDULE codes here as you implement them
 ])
 
@@ -136,6 +159,14 @@ export async function rollForwardPlanningDocsTx(
       nextJson = resetChecklistResponses(nextJson)
     }
 
+    // ✅ Reset Period Setup values for the new period
+    if (resetComplete && doc.code === PERIOD_SETUP_CODE) {
+      const parsed = tryReadPeriodSetup(nextJson)
+      if (parsed.ok) {
+        nextJson = resetPeriodSetupForNewPeriod(parsed.doc)
+      }
+    }
+
     // ✅ Reset SIMPLE_SCHEDULE values for the new period (whitelist)
     if (
       resetComplete &&
@@ -143,6 +174,14 @@ export async function rollForwardPlanningDocsTx(
       isSimpleScheduleDocV1(nextJson)
     ) {
       nextJson = resetSimpleScheduleForNewPeriod(nextJson)
+    }
+
+    if (
+      resetComplete &&
+      LINE_ITEM_SCHEDULE_CODES_TO_RESET.has(doc.code) &&
+      isLineItemScheduleDocV1(nextJson)
+    ) {
+      nextJson = resetLineItemScheduleForNewPeriod(nextJson)
     }
 
     // Upgrade legacy rich-text headings if requested

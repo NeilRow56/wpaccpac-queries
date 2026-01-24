@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import type { PeriodStatus } from '@/db/schema'
 import {
   FileText,
-  Layers,
   BarChart,
   PoundSterling,
   ScanBarcode,
@@ -12,10 +13,11 @@ import {
   User2Icon,
   ScaleIcon,
   CreditCardIcon,
-  DockIcon
+  DockIcon,
+  PackageOpen,
+  Van,
+  Landmark
 } from 'lucide-react'
-import type { PeriodStatus } from '@/db/schema'
-import { usePathname } from 'next/navigation'
 
 type Section = {
   key: string
@@ -38,9 +40,7 @@ export default function PeriodSidebar(props: {
     total: number
   }
 }) {
-  //   const { clientId, periodId, periodName, startDate, endDate, status } = props
   const { clientId, periodId, status } = props
-
   const pathname = usePathname()
 
   const sections: Section[] = [
@@ -65,12 +65,12 @@ export default function PeriodSidebar(props: {
       label: 'Taxation',
       href: 'taxation',
       match: '/taxation',
-      icon: <FileText className='h-4 w-4' />,
+      icon: <Landmark className='h-4 w-4' />,
       enabled: true
     },
     {
       key: 'related-parties',
-      label: 'Related Parties ',
+      label: 'Related Parties',
       href: 'related-parties',
       match: '/related-parties',
       icon: <FileText className='h-4 w-4' />,
@@ -81,7 +81,7 @@ export default function PeriodSidebar(props: {
       label: 'Fixed Assets',
       href: 'assets',
       match: '/assets',
-      icon: <Layers className='h-4 w-4' />,
+      icon: <Van className='h-4 w-4' />,
       enabled: true
     },
     {
@@ -89,7 +89,7 @@ export default function PeriodSidebar(props: {
       label: 'Stocks',
       href: 'stocks',
       match: '/stocks',
-      icon: <Layers className='h-4 w-4' />,
+      icon: <PackageOpen className='h-4 w-4' />,
       enabled: true
     },
     {
@@ -167,14 +167,12 @@ export default function PeriodSidebar(props: {
   ]
 
   return (
-    <aside className='mr-12 w-64 shrink-0 space-y-4'>
-      <div className='rounded-md border p-3'>
-        {/* <div className='text-sm font-medium'>{periodName}</div> */}
-        {/* <div className='text-muted-foreground text-xs'>
-          {startDate} → {endDate}
-        </div> */}
-        <div className='mt-1 text-xs'>
-          Status:{' '}
+    // ✅ Collapses to icon-rail under xl, expands on xl+
+    <aside className='w-14 shrink-0 space-y-4 xl:w-56 2xl:w-64'>
+      {/* Status card: hidden when collapsed */}
+      <div className='hidden rounded-md border px-3 py-2 xl:block'>
+        <div className='text-xs'>
+          <span className='text-muted-foreground'>Status:</span>{' '}
           <span
             className={
               status === 'OPEN' ? 'text-green-700' : 'text-muted-foreground'
@@ -185,12 +183,23 @@ export default function PeriodSidebar(props: {
         </div>
       </div>
 
+      {/* Collapsed status indicator (icon-rail) */}
+      <div className='flex justify-center xl:hidden'>
+        <div
+          className={cn(
+            'h-2 w-2 rounded-full',
+            status === 'OPEN' ? 'bg-green-600' : 'bg-muted-foreground/40'
+          )}
+          title={`Status: ${status}`}
+        />
+      </div>
+
       <nav className='space-y-1'>
         {sections.map(section => {
           const base = `/organisation/clients/${clientId}/accounting-periods/${periodId}`
 
-          const href = `${base}/${section.href}` // ✅ navigation target
-          const full = `${base}${section.match}` // ✅ active-match base
+          const href = `${base}/${section.href}`
+          const full = `${base}${section.match}`
 
           const isActive = pathname === full || pathname.startsWith(`${full}/`)
 
@@ -198,11 +207,12 @@ export default function PeriodSidebar(props: {
             return (
               <div
                 key={section.key}
-                className='text-muted-foreground flex items-center gap-2 rounded-md px-3 py-2 text-sm'
+                className='text-muted-foreground flex items-center justify-center rounded-md px-2 py-2 text-sm xl:justify-start xl:gap-2 xl:px-3'
+                title={section.label}
               >
-                {section.icon}
-                {section.label}
-                <span className='ml-auto text-xs'>(???)</span>
+                <span className='inline-flex'>{section.icon}</span>
+                <span className='hidden xl:inline'>{section.label}</span>
+                <span className='ml-auto hidden text-xs xl:inline'>(???)</span>
               </div>
             )
           }
@@ -211,18 +221,26 @@ export default function PeriodSidebar(props: {
             <Link
               key={section.key}
               href={href}
+              title={section.label}
               className={cn(
-                'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
+                // collapsed: centered icon button
+                'flex items-center justify-center rounded-md py-2 text-sm transition-colors',
+                'px-2',
+                // expanded: normal row
+                'xl:justify-start xl:gap-2 xl:px-3',
                 isActive
                   ? 'bg-muted text-foreground font-medium dark:text-gray-800'
                   : 'text-muted-foreground hover:bg-muted'
               )}
             >
-              {section.icon}
-              <span className='min-w-0 truncate'>{section.label}</span>
+              <span className='inline-flex'>{section.icon}</span>
+
+              <span className='hidden min-w-0 truncate xl:block'>
+                {section.label}
+              </span>
 
               {section.key === 'planning' && (
-                <span className='text-muted-foreground ml-auto text-xs tabular-nums'>
+                <span className='text-muted-foreground ml-auto hidden text-xs tabular-nums xl:inline'>
                   {props.planningCompletion.completed} /{' '}
                   {props.planningCompletion.total}
                 </span>
