@@ -131,7 +131,6 @@ export default async function TaxationPage({
 
       <SimpleScheduleForm
         title='Taxation'
-        code='B61-taxation'
         clientId={clientId}
         periodId={periodId}
         initial={res.data.current}
