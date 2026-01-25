@@ -12,8 +12,18 @@ import type {
   ScheduleLineUi,
   ScheduleSectionUi
 } from '@/lib/schedules/simpleScheduleTypes'
+import type {
+  LineItemScheduleDocV1,
+  LineItemScheduleRowV1
+} from '@/lib/schedules/lineItemScheduleTypes'
 
-const CODE = 'B61-debtors'
+const DEBTORS_CODE = 'B61-debtors'
+const PREPAYMENTS_CODE = 'B61-debtors_prepayments'
+const PREPAYMENTS_LINE_ID_IN_DEBTORS = 'prepayments'
+
+// ✅ NEW: Trade Debtors
+const TRADE_DEBTORS_CODE = 'B61-trade_debtors'
+const TRADE_DEBTORS_LINE_ID_IN_DEBTORS = 'trade-debtors'
 
 type ActionResult<T> =
   | { success: true; data: T }
@@ -21,6 +31,60 @@ type ActionResult<T> =
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null
+}
+
+function isLineItemScheduleDocV1(v: unknown): v is LineItemScheduleDocV1 {
+  if (!isRecord(v)) return false
+  return (
+    v.kind === 'LINE_ITEM_SCHEDULE' &&
+    v.version === 1 &&
+    typeof v.title === 'string' &&
+    Array.isArray(v.rows)
+  )
+}
+
+function normalizeLineItemSchedule(raw: unknown): LineItemScheduleDocV1 | null {
+  if (!isLineItemScheduleDocV1(raw)) return null
+
+  const rows: LineItemScheduleRowV1[] = raw.rows.filter(isRecord).map(r => ({
+    id: typeof r.id === 'string' ? r.id : crypto.randomUUID(),
+    name: typeof r.name === 'string' ? r.name : 'Line',
+    description: typeof r.description === 'string' ? r.description : '',
+    current:
+      r.current === null || typeof r.current === 'number' ? r.current : null,
+    prior: r.prior === null || typeof r.prior === 'number' ? r.prior : null
+  }))
+
+  return { kind: 'LINE_ITEM_SCHEDULE', version: 1, title: raw.title, rows }
+}
+
+function sumLineItem(rows: LineItemScheduleRowV1[], key: 'current' | 'prior') {
+  return rows.reduce((acc, r) => acc + (r[key] ?? 0), 0)
+}
+
+function injectDerivedAmount(
+  doc: SimpleScheduleDocV1,
+  lineId: string,
+  amount: number
+): { doc: SimpleScheduleDocV1; changed: boolean } {
+  let changed = false
+
+  const next: SimpleScheduleDocV1 = {
+    ...doc,
+    sections: doc.sections.map(s => ({ ...s, lines: [...s.lines] }))
+  }
+
+  const safeAmt = Number.isFinite(amount) ? amount : 0
+
+  for (const section of next.sections) {
+    section.lines = section.lines.map(l => {
+      if (l.kind !== 'INPUT' || l.id !== lineId) return l
+      if ((l.amount ?? null) !== safeAmt) changed = true
+      return { ...l, amount: safeAmt }
+    })
+  }
+
+  return { doc: next, changed }
 }
 
 function readSectionUi(v: unknown): ScheduleSectionUi | undefined {
@@ -228,6 +292,57 @@ async function getPriorPeriod(clientId: string, currentPeriodId: string) {
   return { prior }
 }
 
+async function readPrepaymentsTotalCurrent(params: {
+  clientId: string
+  periodId: string
+}): Promise<number> {
+  const { clientId, periodId } = params
+
+  const row = await db
+    .select({ contentJson: planningDocs.contentJson })
+    .from(planningDocs)
+    .where(
+      and(
+        eq(planningDocs.clientId, clientId),
+        eq(planningDocs.periodId, periodId),
+        eq(planningDocs.code, PREPAYMENTS_CODE)
+      )
+    )
+    .limit(1)
+    .then(r => r[0] ?? null)
+
+  const doc = row?.contentJson
+    ? normalizeLineItemSchedule(row.contentJson)
+    : null
+  return doc ? sumLineItem(doc.rows, 'current') : 0
+}
+
+// ✅ NEW: Trade Debtors total reader (same as Prepayments)
+async function readTradeDebtorsTotalCurrent(params: {
+  clientId: string
+  periodId: string
+}): Promise<number> {
+  const { clientId, periodId } = params
+
+  const row = await db
+    .select({ contentJson: planningDocs.contentJson })
+    .from(planningDocs)
+    .where(
+      and(
+        eq(planningDocs.clientId, clientId),
+        eq(planningDocs.periodId, periodId),
+        eq(planningDocs.code, TRADE_DEBTORS_CODE)
+      )
+    )
+    .limit(1)
+    .then(r => r[0] ?? null)
+
+  const doc = row?.contentJson
+    ? normalizeLineItemSchedule(row.contentJson)
+    : null
+  return doc ? sumLineItem(doc.rows, 'current') : 0
+}
+
 export async function getDebtorsScheduleAction(input: {
   clientId: string
   periodId: string
@@ -251,7 +366,7 @@ export async function getDebtorsScheduleAction(input: {
         and(
           eq(planningDocs.clientId, clientId),
           eq(planningDocs.periodId, periodId),
-          eq(planningDocs.code, CODE)
+          eq(planningDocs.code, DEBTORS_CODE)
         )
       )
       .limit(1)
@@ -269,20 +384,52 @@ export async function getDebtorsScheduleAction(input: {
     const ensuredAttachments = ensureDebtorsAttachments(current)
     current = ensuredAttachments.doc
 
-    if (existing && (ensuredTotals.changed || ensuredAttachments.changed)) {
+    // ✅ Inject derived Prepayments total into CURRENT doc
+    const prepayTotalCurrent = await readPrepaymentsTotalCurrent({
+      clientId,
+      periodId
+    })
+    const injectedCurrentPrepay = injectDerivedAmount(
+      current,
+      PREPAYMENTS_LINE_ID_IN_DEBTORS,
+      prepayTotalCurrent
+    )
+    current = injectedCurrentPrepay.doc
+
+    // ✅ Inject derived Trade Debtors total into CURRENT doc
+    const tradeDebtorsTotalCurrent = await readTradeDebtorsTotalCurrent({
+      clientId,
+      periodId
+    })
+    const injectedCurrentTrade = injectDerivedAmount(
+      current,
+      TRADE_DEBTORS_LINE_ID_IN_DEBTORS,
+      tradeDebtorsTotalCurrent
+    )
+    current = injectedCurrentTrade.doc
+
+    // Persist patches when we actually changed something and there is an existing row
+    if (
+      existing &&
+      (ensuredTotals.changed ||
+        ensuredAttachments.changed ||
+        injectedCurrentPrepay.changed ||
+        injectedCurrentTrade.changed)
+    ) {
       await db
         .update(planningDocs)
         .set({ contentJson: current })
         .where(eq(planningDocs.id, existing.id))
     }
 
+    // Seed if missing (stable subsequent loads)
     if (!existing) {
       await db
         .insert(planningDocs)
         .values({
           clientId,
           periodId,
-          code: CODE,
+          code: DEBTORS_CODE,
           content: '',
           contentJson: current,
           isComplete: false
@@ -307,7 +454,7 @@ export async function getDebtorsScheduleAction(input: {
           and(
             eq(planningDocs.clientId, clientId),
             eq(planningDocs.periodId, prior.id),
-            eq(planningDocs.code, CODE)
+            eq(planningDocs.code, DEBTORS_CODE)
           )
         )
         .limit(1)
@@ -320,6 +467,32 @@ export async function getDebtorsScheduleAction(input: {
       if (priorDoc) {
         priorDoc = ensureDebtorsTotals(priorDoc).doc
         priorDoc = ensureDebtorsAttachments(priorDoc).doc
+
+        // ✅ Inject derived totals into PRIOR doc
+        // Prior column shows last year’s CURRENT values
+
+        const prepayPriorTotalAsPriorColumn = await readPrepaymentsTotalCurrent(
+          {
+            clientId,
+            periodId: prior.id
+          }
+        )
+        priorDoc = injectDerivedAmount(
+          priorDoc,
+          PREPAYMENTS_LINE_ID_IN_DEBTORS,
+          prepayPriorTotalAsPriorColumn
+        ).doc
+
+        const tradeDebtorsPriorTotalAsPriorColumn =
+          await readTradeDebtorsTotalCurrent({
+            clientId,
+            periodId: prior.id
+          })
+        priorDoc = injectDerivedAmount(
+          priorDoc,
+          TRADE_DEBTORS_LINE_ID_IN_DEBTORS,
+          tradeDebtorsPriorTotalAsPriorColumn
+        ).doc
       }
     }
 
@@ -356,12 +529,34 @@ export async function saveDebtorsScheduleAction(input: {
     const ensuredAttachments = ensureDebtorsAttachments(docToSave)
     docToSave = ensuredAttachments.doc
 
+    // ✅ Force derived values on save (single source of truth)
+
+    const prepayTotalCurrent = await readPrepaymentsTotalCurrent({
+      clientId,
+      periodId
+    })
+    docToSave = injectDerivedAmount(
+      docToSave,
+      PREPAYMENTS_LINE_ID_IN_DEBTORS,
+      prepayTotalCurrent
+    ).doc
+
+    const tradeDebtorsTotalCurrent = await readTradeDebtorsTotalCurrent({
+      clientId,
+      periodId
+    })
+    docToSave = injectDerivedAmount(
+      docToSave,
+      TRADE_DEBTORS_LINE_ID_IN_DEBTORS,
+      tradeDebtorsTotalCurrent
+    ).doc
+
     await db
       .insert(planningDocs)
       .values({
         clientId,
         periodId,
-        code: CODE,
+        code: DEBTORS_CODE,
         content: '',
         contentJson: docToSave,
         isComplete: false

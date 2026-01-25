@@ -7,9 +7,17 @@ export function buildPeriodLeafBreadcrumbs(params: {
   periodName: string
   leafLabel: string
   leafHref: string
+  parents?: Breadcrumb[] // optional intermediate crumbs
 }): Breadcrumb[] {
-  const { clientId, clientName, periodId, periodName, leafLabel, leafHref } =
-    params
+  const {
+    clientId,
+    clientName,
+    periodId,
+    periodName,
+    leafLabel,
+    leafHref,
+    parents = []
+  } = params
 
   return [
     { label: 'Clients', href: '/organisation/clients' },
@@ -25,6 +33,7 @@ export function buildPeriodLeafBreadcrumbs(params: {
       label: periodName,
       href: `/organisation/clients/${clientId}/accounting-periods/${periodId}`
     },
+    ...parents,
     {
       label: leafLabel,
       href: leafHref

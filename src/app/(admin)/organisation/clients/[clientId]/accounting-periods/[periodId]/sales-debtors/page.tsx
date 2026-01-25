@@ -1,5 +1,3 @@
-// app/organisation/clients/[clientId]/accounting-periods/[periodId]/sales-debtors/page.tsx
-
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { and, desc, eq, lt } from 'drizzle-orm'
@@ -25,7 +23,30 @@ import {
   getDebtorsScheduleAction,
   saveDebtorsScheduleAction
 } from '@/server-actions/simple-schedules/debtors'
-import { getDebtorsPrepaymentsScheduleAction } from '@/server-actions/schedules/debtors-prepayments'
+
+// -----------------------------
+// Constants to avoid “magic strings”
+// -----------------------------
+const CODE = 'B61-debtors'
+
+const PREPAYMENTS_LINE_ID = 'prepayments' as const
+const TRADE_DEBTORS_LINE_ID = 'trade-debtors' as const
+
+const DERIVED_LINE_IDS = [PREPAYMENTS_LINE_ID, TRADE_DEBTORS_LINE_ID] as const
+
+const DERIVED_HELP_BY_LINE_ID: Record<
+  (typeof DERIVED_LINE_IDS)[number],
+  string
+> = {
+  [PREPAYMENTS_LINE_ID]: 'Derived from the Prepayments schedule.',
+  [TRADE_DEBTORS_LINE_ID]: 'Derived from the Trade Debtors schedule.'
+}
+
+const TEMPLATE_ATTACHMENT_IDS = [
+  'ar-ledger',
+  'post-year-end',
+  'bad-debt'
+] as const
 
 export default async function DebtorsPage({
   params
@@ -39,9 +60,7 @@ export default async function DebtorsPage({
 
   if (!client || !period) notFound()
 
-  const code = 'B61-debtors'
-
-  const signoff = await getDocSignoffHistory({ clientId, periodId, code })
+  const signoff = await getDocSignoffHistory({ clientId, periodId, code: CODE })
   const row = signoff.row
 
   const setupRes = await getPeriodSetupAction({ clientId, periodId })
@@ -94,31 +113,6 @@ export default async function DebtorsPage({
   const res = await getDebtorsScheduleAction({ clientId, periodId })
   if (!res.success) notFound()
 
-  const prepayRes = await getDebtorsPrepaymentsScheduleAction({
-    clientId,
-    periodId
-  })
-  const prepaymentsTotal = prepayRes.success
-    ? prepayRes.data.totals.current
-    : null
-
-  const currentDoc = res.data.current
-
-  const patchedCurrent = {
-    ...currentDoc,
-    sections: currentDoc.sections.map(s => {
-      if (s.id !== 'summary') return s
-      return {
-        ...s,
-        lines: s.lines.map(l => {
-          if (l.kind !== 'INPUT') return l
-          if (l.id !== 'prepayments') return l
-          return { ...l, amount: prepaymentsTotal }
-        })
-      }
-    })
-  }
-
   return (
     <div className='container mx-auto space-y-6 py-10'>
       <Breadcrumbs crumbs={crumbs} />
@@ -132,7 +126,7 @@ export default async function DebtorsPage({
           <DocSignoffStrip
             clientId={clientId}
             periodId={periodId}
-            code={code}
+            code={CODE}
             reviewedAt={row?.reviewedAt ?? null}
             reviewedByMemberId={row?.reviewedByMemberId ?? null}
             defaultReviewerId={defaultReviewerId}
@@ -152,28 +146,35 @@ export default async function DebtorsPage({
           </Button>
         </div>
       </div>
+      <div className='flex flex-col gap-2 sm:flex-row'>
+        <Button asChild variant='outline' size='sm'>
+          <Link
+            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors/prepayments`}
+          >
+            Prepayments schedule
+          </Link>
+        </Button>
 
-      <Button asChild variant='outline' size='sm'>
-        <Link
-          href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors/prepayments`}
-        >
-          Prepayments schedule
-        </Link>
-      </Button>
+        <Button asChild variant='outline' size='sm'>
+          <Link
+            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors/trade-debtors`}
+          >
+            Trade debtors schedule
+          </Link>
+        </Button>
+      </div>
 
       <SimpleScheduleForm
         title='Debtors'
-        code={code}
         clientId={clientId}
         periodId={periodId}
-        initial={patchedCurrent}
+        initial={res.data.current}
         prior={res.data.prior}
         priorPeriod={priorPeriod}
         onSave={saveDebtorsScheduleAction}
-        derivedLineIds={['prepayments']}
-        derivedHelpByLineId={{
-          prepayments: 'Derived from the Prepayments schedule.'
-        }}
+        derivedLineIds={[...DERIVED_LINE_IDS]}
+        derivedHelpByLineId={DERIVED_HELP_BY_LINE_ID}
+        templateAttachmentIds={[...TEMPLATE_ATTACHMENT_IDS]}
       />
     </div>
   )

@@ -138,6 +138,7 @@ export default async function TaxationPage({
         prior={res.data.prior}
         priorPeriod={priorPeriod}
         onSave={saveTaxationScheduleAction}
+        templateAttachmentIds={['tax-comp', 'tax-proof']}
       />
     </div>
   )

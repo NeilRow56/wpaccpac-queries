@@ -1,11 +1,14 @@
 'use client'
 
 import * as React from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { useFieldArray, useForm, useWatch } from 'react-hook-form'
+import Link from 'next/link'
+import { toast } from 'sonner'
+import { ChevronDown, ExternalLink, Plus, Trash2 } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { ChevronDown } from 'lucide-react'
 import {
   Collapsible,
   CollapsibleContent,
@@ -13,14 +16,7 @@ import {
 } from '@/components/ui/collapsible'
 
 import type { SimpleScheduleDocV1 } from '@/lib/schedules/simpleScheduleTypes'
-import { toast } from 'sonner'
-import Link from 'next/link'
-import { ExternalLink } from 'lucide-react'
-
-// function formatMoney(n: number | null | undefined) {
-//   if (n == null) return '—'
-//   return new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 }).format(n)
-// }
+import { useUnsavedChangesWarning } from '@/hooks/use-unsaved-changes-warning'
 
 type SectionUi = {
   emphasis?: 'none' | 'soft' | 'strong'
@@ -113,7 +109,6 @@ type SaveFn = (args: {
 
 type Props = {
   title: string
-  code: string
   clientId: string
   periodId: string
   initial: SimpleScheduleDocV1
@@ -125,6 +120,7 @@ type Props = {
   onSave: SaveFn
   derivedLineIds?: string[]
   derivedHelpByLineId?: Record<string, string>
+  templateAttachmentIds?: string[]
 }
 
 export default function SimpleScheduleForm({
@@ -136,11 +132,15 @@ export default function SimpleScheduleForm({
   priorPeriod,
   onSave,
   derivedLineIds,
-  derivedHelpByLineId
+  derivedHelpByLineId,
+  templateAttachmentIds
 }: Props) {
   const form = useForm<SimpleScheduleDocV1>({
     defaultValues: initial
   })
+
+  useUnsavedChangesWarning(form.formState.isDirty)
+  const { watch } = form
 
   const initialSig = React.useMemo(() => JSON.stringify(initial), [initial])
 
@@ -149,10 +149,24 @@ export default function SimpleScheduleForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSig])
 
+  const templateIds = React.useMemo(
+    () => new Set(templateAttachmentIds ?? []),
+    [templateAttachmentIds]
+  )
+
+  // Watched sections for totals
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const sections = useWatch({ control: form.control, name: 'sections' }) ?? []
-  const attachments =
-    useWatch({ control: form.control, name: 'attachments' }) ?? []
+
+  // Attachments as field array (supports add/remove/rename)
+  const {
+    fields: attachmentFields,
+    append: appendAttachment,
+    remove: removeAttachment
+  } = useFieldArray({
+    control: form.control,
+    name: 'attachments'
+  })
 
   // Build prior amounts by INPUT line id (TOTAL lines have no amount)
   const priorMap = React.useMemo(() => {
@@ -183,9 +197,14 @@ export default function SimpleScheduleForm({
   async function onSubmit(values: SimpleScheduleDocV1) {
     const res = await onSave({ clientId, periodId, doc: values })
 
-    if (res.success) toast.success(`${title} saved`)
+    if (res.success) {
+      toast.success(`${title} saved`)
+      form.reset(values)
+    } // ✅ marks clean
     else toast.error(res.message ?? `Failed to save ${title}`)
   }
+
+  const hasAttachments = (attachmentFields?.length ?? 0) > 0
 
   return (
     <form
@@ -193,8 +212,7 @@ export default function SimpleScheduleForm({
       className='space-y-4 rounded-lg border p-4'
     >
       {/* Attachments panel */}
-      {/* Attachments panel */}
-      {attachments.length > 0 ? (
+      {hasAttachments ? (
         <Collapsible defaultOpen>
           <div className='bg-muted/10 rounded-md border'>
             <div className='flex items-start justify-between gap-3 p-3'>
@@ -208,29 +226,59 @@ export default function SimpleScheduleForm({
                 </div>
               </div>
 
-              <CollapsibleTrigger asChild>
-                <Button variant='ghost' size='sm' className='gap-2'>
-                  <span className='text-muted-foreground text-xs'>
-                    {attachments.length}
-                  </span>
-                  <ChevronDown className='h-4 w-4' />
+              <div className='flex items-center gap-2'>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={() =>
+                    appendAttachment(
+                      {
+                        id: crypto.randomUUID(),
+                        name: '',
+                        url: ''
+                      },
+                      { shouldFocus: true } // ✅ auto-focus first input in the appended row
+                    )
+                  }
+                >
+                  <Plus className='mr-2 h-4 w-4' />
+                  Add
                 </Button>
-              </CollapsibleTrigger>
+
+                <CollapsibleTrigger asChild>
+                  <Button variant='ghost' size='sm' className='gap-2'>
+                    <span className='text-muted-foreground text-xs'>
+                      {attachmentFields.length}
+                    </span>
+                    <ChevronDown className='h-4 w-4' />
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
             </div>
 
             <CollapsibleContent>
               <div className='space-y-2 px-3 pb-3'>
-                {attachments.map((a, idx) => {
+                {attachmentFields.map((a, idx) => {
+                  const isTemplate = templateIds.has(a.id)
+
+                  const nameField = `attachments.${idx}.name` as const
                   const urlField = `attachments.${idx}.url` as const
-                  const urlValue = (a?.url ?? '').trim()
+
+                  // ✅ use watch so open button updates immediately as user types (no stale getValues)
+                  const urlValue = (watch(urlField) ?? '').trim()
                   const canOpen = isLikelyUrl(urlValue)
 
                   return (
                     <div
                       key={a.id}
-                      className='grid grid-cols-[220px_1fr_44px] items-center gap-3'
+                      className='grid grid-cols-[220px_1fr_44px_44px] items-center gap-3'
                     >
-                      <div className='text-sm'>{a.name}</div>
+                      <Input
+                        placeholder='Attachment name' // ✅ placeholder instead of hard-coded default
+                        className='border-muted-foreground/30 focus-visible:ring-primary/30 bg-white shadow-sm focus-visible:ring-2'
+                        {...form.register(nameField)}
+                      />
 
                       <Input
                         placeholder='https://...'
@@ -261,6 +309,23 @@ export default function SimpleScheduleForm({
                           </Button>
                         )}
                       </div>
+
+                      <div className='flex justify-end'>
+                        <Button
+                          type='button'
+                          variant='outline'
+                          size='icon'
+                          onClick={() => removeAttachment(idx)}
+                          disabled={isTemplate}
+                          title={
+                            isTemplate
+                              ? 'Template attachments cannot be deleted'
+                              : 'Remove attachment row'
+                          }
+                        >
+                          <Trash2 className='h-4 w-4' />
+                        </Button>
+                      </div>
                     </div>
                   )
                 })}
@@ -268,7 +333,8 @@ export default function SimpleScheduleForm({
             </CollapsibleContent>
           </div>
         </Collapsible>
-      ) : null}
+      ) : // If you ever want “Add attachment” even when empty, swap this null for a small panel.
+      null}
 
       {/* Sections */}
       {sections.map((section, sIdx) => (
@@ -320,8 +386,7 @@ export default function SimpleScheduleForm({
                   >
                     <div className='text-sm font-bold'>{line.label}</div>
 
-                    <div className='bofocus-visible:ring-primary/30 bg-muted/20 col-span-2 flex h-10 w-full items-center justify-end rounded-md border border-gray-700 px-3 font-medium tabular-nums shadow-sm'>
-                      {/* {formatMoney(total)} */}
+                    <div className='focus-visible:ring-primary/30 bg-muted/20 col-span-2 flex h-10 w-full items-center justify-end rounded-md border border-gray-700 px-3 font-medium tabular-nums shadow-sm'>
                       {total}
                       <div className='w-3' />
                     </div>
@@ -352,7 +417,9 @@ export default function SimpleScheduleForm({
                     <Input
                       type='number'
                       disabled={isDerived}
-                      className={`border-muted-foreground/30 focus-visible:ring-primary/30 w-full border bg-white text-right tabular-nums shadow-sm focus-visible:ring-2 ${uiInputClass(line.ui)} ${isDerived ? 'bg-muted/30 text-muted-foreground' : ''}`}
+                      className={`border-muted-foreground/30 focus-visible:ring-primary/30 w-full border bg-white text-right tabular-nums shadow-sm focus-visible:ring-2 ${uiInputClass(line.ui)} ${
+                        isDerived ? 'bg-muted/30 text-muted-foreground' : ''
+                      }`}
                       {...form.register(field, {
                         setValueAs: v => (v === '' ? null : Number(v))
                       })}
@@ -385,7 +452,6 @@ export default function SimpleScheduleForm({
                 />
               </div>
 
-              {/* Prior column placeholder (keeps the grid aligned) */}
               <div />
             </div>
           )}

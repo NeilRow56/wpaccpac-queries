@@ -62,7 +62,8 @@ const LINE_ITEM_SCHEDULE_CODES_TO_RESET = new Set<string>([
  */
 const SIMPLE_SCHEDULE_CODES_TO_RESET = new Set<string>([
   'B61-taxation',
-  'B61-debtors'
+  'B61-debtors',
+  'B61-trade_debtors'
   // add more SIMPLE_SCHEDULE codes here as you implement them
 ])
 

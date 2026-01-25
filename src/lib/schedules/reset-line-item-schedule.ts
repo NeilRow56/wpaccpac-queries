@@ -7,9 +7,9 @@ export function resetLineItemScheduleForNewPeriod(
     ...doc,
     rows: doc.rows.map(r => ({
       ...r,
-      description: '', // ✅ start new period clean
-      current: null,
-      prior: null
+      description: '',
+      current: null
+      // do not overwrite prior
     }))
   }
 }

@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/popover'
 
 import type { LineItemScheduleDocV1 } from '@/lib/schedules/lineItemScheduleTypes'
-import { saveDebtorsPrepaymentsScheduleAction } from '@/server-actions/schedules/debtors-prepayments'
+import { saveTradeDebtorsScheduleAction } from '@/server-actions/schedules/trade-debtors'
 import { useUnsavedChangesWarning } from '@/hooks/use-unsaved-changes-warning'
 
 type Props = {
@@ -26,7 +26,7 @@ type Props = {
   priorPeriodLabel?: string
 }
 
-export default function PrepaymentsScheduleForm({
+export default function TradeDebtorsScheduleForm({
   clientId,
   periodId,
   initial,
@@ -71,16 +71,17 @@ export default function PrepaymentsScheduleForm({
   }, [prior])
 
   async function onSubmit(values: LineItemScheduleDocV1) {
-    const res = await saveDebtorsPrepaymentsScheduleAction({
+    const res = await saveTradeDebtorsScheduleAction({
       clientId,
       periodId,
       doc: values
     })
+
     if (res.success) {
-      toast.success('Prepayments saved')
+      toast.success('Trade debtors saved')
       form.reset(values) // ✅ marks clean
     } else {
-      toast.error(res.message ?? 'Failed to save prepayments')
+      toast.error(res.message ?? 'Failed to save trade debtors')
     }
   }
 
@@ -127,13 +128,13 @@ export default function PrepaymentsScheduleForm({
               className='grid grid-cols-[180px_1fr_160px_220px_40px] items-start gap-3 rounded-md px-2 py-1 2xl:grid-cols-[200px_1.5fr_160px_260px_40px]'
             >
               <Input
-                placeholder='e.g. Rates'
+                placeholder='e.g. Customer A'
                 className='border-muted-foreground/30 focus-visible:ring-primary/30 bg-white shadow-sm focus-visible:ring-2'
                 {...register(`rows.${idx}.name` as const)}
               />
 
               <Textarea
-                placeholder='Notes / calculation...'
+                placeholder='Notes / detail...'
                 className='border-muted-foreground/30 focus-visible:ring-primary/30 min-h-10 bg-white shadow-sm focus-visible:ring-2'
                 {...register(`rows.${idx}.description` as const)}
               />

@@ -5,8 +5,8 @@ import { getClientById } from '@/server-actions/clients'
 import { getAccountingPeriodById } from '@/server-actions/accounting-periods'
 import { buildPeriodLeafBreadcrumbs } from '@/lib/period-breadcrumbs'
 
-import { getDebtorsPrepaymentsScheduleAction } from '@/server-actions/schedules/debtors-prepayments'
-import PrepaymentsScheduleForm from './_components/prepayments-schedule-form'
+import { getTradeDebtorsScheduleAction } from '@/server-actions/schedules/trade-debtors'
+import TradeDebtorsScheduleForm from './_components/trade-debtors-schedule-form'
 import Link from 'next/link'
 
 function formatPeriodLabel(start: string, end: string) {
@@ -17,7 +17,7 @@ function formatPeriodLabel(start: string, end: string) {
   return `${fmt.format(new Date(start))} – ${fmt.format(new Date(end))}`
 }
 
-export default async function PrepaymentsPage({
+export default async function TradeDebtorsPage({
   params
 }: {
   params: Promise<{ clientId: string; periodId: string }>
@@ -39,11 +39,11 @@ export default async function PrepaymentsPage({
         href: `/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors`
       }
     ],
-    leafLabel: 'Prepayments',
-    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors/prepayments`
+    leafLabel: 'Trade Debtors',
+    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors/trade-debtors`
   })
 
-  const res = await getDebtorsPrepaymentsScheduleAction({ clientId, periodId })
+  const res = await getTradeDebtorsScheduleAction({ clientId, periodId })
   if (!res.success) notFound()
 
   const priorLabel = res.data.priorPeriod
@@ -58,9 +58,9 @@ export default async function PrepaymentsPage({
       <Breadcrumbs crumbs={crumbs} />
 
       <div>
-        <h1 className='text-primary text-lg font-semibold'>Prepayments</h1>
+        <h1 className='text-primary text-lg font-semibold'>Trade Debtors</h1>
         <p className='text-muted-foreground text-sm'>
-          Supporting schedules for prepayments.
+          Supporting schedule for Trade debtors.
         </p>
         <div className='text-muted-foreground mt-2 text-sm'>
           Supporting evidence is attached on the{' '}
@@ -74,7 +74,7 @@ export default async function PrepaymentsPage({
         </div>
       </div>
 
-      <PrepaymentsScheduleForm
+      <TradeDebtorsScheduleForm
         clientId={clientId}
         periodId={periodId}
         initial={res.data.current}
