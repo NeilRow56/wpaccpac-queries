@@ -27,19 +27,28 @@ import {
 // -----------------------------
 // Constants to avoid “magic strings”
 // -----------------------------
+// -----------------------------
+// Constants to avoid “magic strings”
+// -----------------------------
 const CODE = 'B61-debtors'
 
 const PREPAYMENTS_LINE_ID = 'prepayments' as const
 const TRADE_DEBTORS_LINE_ID = 'trade-debtors' as const
+const OTHER_DEBTORS_LINE_ID = 'other-debtors' as const
 
-const DERIVED_LINE_IDS = [PREPAYMENTS_LINE_ID, TRADE_DEBTORS_LINE_ID] as const
+const DERIVED_LINE_IDS = [
+  PREPAYMENTS_LINE_ID,
+  TRADE_DEBTORS_LINE_ID,
+  OTHER_DEBTORS_LINE_ID
+] as const
 
 const DERIVED_HELP_BY_LINE_ID: Record<
   (typeof DERIVED_LINE_IDS)[number],
   string
 > = {
   [PREPAYMENTS_LINE_ID]: 'Derived from the Prepayments schedule.',
-  [TRADE_DEBTORS_LINE_ID]: 'Derived from the Trade Debtors schedule.'
+  [TRADE_DEBTORS_LINE_ID]: 'Derived from the Trade Debtors schedule.',
+  [OTHER_DEBTORS_LINE_ID]: 'Derived from the Other Debtors schedule.'
 }
 
 const TEMPLATE_ATTACHMENT_IDS = [
@@ -149,17 +158,23 @@ export default async function DebtorsPage({
       <div className='flex flex-col gap-2 sm:flex-row'>
         <Button asChild variant='outline' size='sm'>
           <Link
-            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors/prepayments`}
-          >
-            Prepayments schedule
-          </Link>
-        </Button>
-
-        <Button asChild variant='outline' size='sm'>
-          <Link
             href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors/trade-debtors`}
           >
             Trade debtors schedule
+          </Link>
+        </Button>
+        <Button asChild variant='outline' size='sm'>
+          <Link
+            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors/other-debtors`}
+          >
+            Other debtors schedule
+          </Link>
+        </Button>
+        <Button asChild variant='outline' size='sm'>
+          <Link
+            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors/prepayments`}
+          >
+            Prepayments schedule
           </Link>
         </Button>
       </div>

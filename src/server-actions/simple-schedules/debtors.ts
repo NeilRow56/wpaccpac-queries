@@ -25,6 +25,10 @@ const PREPAYMENTS_LINE_ID_IN_DEBTORS = 'prepayments'
 const TRADE_DEBTORS_CODE = 'B61-trade_debtors'
 const TRADE_DEBTORS_LINE_ID_IN_DEBTORS = 'trade-debtors'
 
+// ✅ NEW: Other Debtors
+const OTHER_DEBTORS_CODE = 'B61-other_debtors'
+const OTHER_DEBTORS_LINE_ID_IN_DEBTORS = 'other-debtors'
+
 type ActionResult<T> =
   | { success: true; data: T }
   | { success: false; message: string }
@@ -437,6 +441,32 @@ async function readTradeDebtorsTotalCurrent(params: {
   return doc ? sumLineItem(doc.rows, 'current') : 0
 }
 
+// ✅ NEW: Other Debtors total reader (same as Prepayments)
+async function readOtherDebtorsTotalCurrent(params: {
+  clientId: string
+  periodId: string
+}): Promise<number> {
+  const { clientId, periodId } = params
+
+  const row = await db
+    .select({ contentJson: planningDocs.contentJson })
+    .from(planningDocs)
+    .where(
+      and(
+        eq(planningDocs.clientId, clientId),
+        eq(planningDocs.periodId, periodId),
+        eq(planningDocs.code, OTHER_DEBTORS_CODE)
+      )
+    )
+    .limit(1)
+    .then(r => r[0] ?? null)
+
+  const doc = row?.contentJson
+    ? normalizeLineItemSchedule(row.contentJson)
+    : null
+  return doc ? sumLineItem(doc.rows, 'current') : 0
+}
+
 export async function getDebtorsScheduleAction(input: {
   clientId: string
   periodId: string
@@ -501,6 +531,17 @@ export async function getDebtorsScheduleAction(input: {
       tradeDebtorsTotalCurrent
     )
     current = injectedCurrentTrade.doc
+    // ✅ Inject derived Other Debtors total into CURRENT doc
+    const otherDebtorsTotalCurrent = await readOtherDebtorsTotalCurrent({
+      clientId,
+      periodId
+    })
+    const injectedCurrentOtherDebtors = injectDerivedAmount(
+      current,
+      OTHER_DEBTORS_LINE_ID_IN_DEBTORS,
+      otherDebtorsTotalCurrent
+    )
+    current = injectedCurrentOtherDebtors.doc
 
     // Persist patches when we actually changed something and there is an existing row
     if (
@@ -508,7 +549,8 @@ export async function getDebtorsScheduleAction(input: {
       (ensuredTotals.changed ||
         ensuredAttachments.changed ||
         injectedCurrentPrepay.changed ||
-        injectedCurrentTrade.changed)
+        injectedCurrentTrade.changed ||
+        injectedCurrentOtherDebtors.changed)
     ) {
       await db
         .update(planningDocs)
@@ -587,6 +629,16 @@ export async function getDebtorsScheduleAction(input: {
           TRADE_DEBTORS_LINE_ID_IN_DEBTORS,
           tradeDebtorsPriorTotalAsPriorColumn
         ).doc
+        const otherDebtorsPriorTotalAsPriorColumn =
+          await readOtherDebtorsTotalCurrent({
+            clientId,
+            periodId: prior.id
+          })
+        priorDoc = injectDerivedAmount(
+          priorDoc,
+          OTHER_DEBTORS_LINE_ID_IN_DEBTORS,
+          otherDebtorsPriorTotalAsPriorColumn
+        ).doc
       }
     }
 
@@ -643,6 +695,16 @@ export async function saveDebtorsScheduleAction(input: {
       docToSave,
       TRADE_DEBTORS_LINE_ID_IN_DEBTORS,
       tradeDebtorsTotalCurrent
+    ).doc
+
+    const otherDebtorsTotalCurrent = await readOtherDebtorsTotalCurrent({
+      clientId,
+      periodId
+    })
+    docToSave = injectDerivedAmount(
+      docToSave,
+      OTHER_DEBTORS_LINE_ID_IN_DEBTORS,
+      otherDebtorsTotalCurrent
     ).doc
 
     await db

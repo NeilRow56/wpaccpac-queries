@@ -456,7 +456,7 @@ export default function SimpleScheduleForm({
                       type='number'
                       disabled={isDerived}
                       className={`border-muted-foreground/30 focus-visible:ring-primary/30 w-full border bg-white text-right tabular-nums shadow-sm focus-visible:ring-2 ${uiInputClass(line.ui)} ${
-                        isDerived ? 'bg-muted/30 text-muted-foreground' : ''
+                        isDerived ? 'bg-muted/30 text-blue-600' : ''
                       }`}
                       {...form.register(field, {
                         setValueAs: v => (v === '' ? null : Number(v))
