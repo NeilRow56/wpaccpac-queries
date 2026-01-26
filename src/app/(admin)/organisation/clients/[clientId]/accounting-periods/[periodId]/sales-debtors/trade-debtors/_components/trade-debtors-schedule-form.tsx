@@ -45,7 +45,8 @@ export default function TradeDebtorsScheduleForm({
 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'rows'
+    name: 'rows',
+    keyName: 'fieldId'
   })
 
   /**
@@ -121,6 +122,8 @@ export default function TradeDebtorsScheduleForm({
           const priorAmount = priorRow?.amount ?? null
           const priorDescription = (priorRow?.description ?? '').trim()
           const hasPriorDescription = priorDescription.length > 0
+
+          console.log('field id', row.fieldId, 'domain id', row.id)
 
           return (
             <div

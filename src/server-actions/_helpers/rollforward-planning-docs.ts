@@ -52,8 +52,8 @@ export type RollForwardPlanningDocsInput = {
 const PERIOD_SETUP_CODE = 'B00-period_setup'
 
 const LINE_ITEM_SCHEDULE_CODES_TO_RESET = new Set<string>([
-  'B61-debtors_prepayments'
-  // add trade debtors schedule code later
+  'B61-debtors_prepayments',
+  'B61-trade_debtors'
 ])
 
 /**
@@ -200,12 +200,17 @@ export async function rollForwardPlanningDocsTx(
       updatedAt: now
     }
 
-    if (!overwrite) {
+    const mustUpsert =
+      overwrite ||
+      SIMPLE_SCHEDULE_CODES_TO_RESET.has(doc.code) ||
+      LINE_ITEM_SCHEDULE_CODES_TO_RESET.has(doc.code) ||
+      doc.code === PERIOD_SETUP_CODE
+
+    if (!mustUpsert) {
       await tx
         .insert(planningDocs)
         .values(values)
         .onConflictDoNothing({
-          // Must match uniqClientPeriodCode
           target: [
             planningDocs.clientId,
             planningDocs.periodId,
@@ -230,7 +235,7 @@ export async function rollForwardPlanningDocsTx(
           }
         })
 
-      overwrittenCount += 1
+      if (overwrite) overwrittenCount += 1
     }
   }
 

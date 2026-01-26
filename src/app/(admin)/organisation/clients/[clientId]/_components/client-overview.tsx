@@ -181,8 +181,8 @@ export function ClientOverview(props: ClientOverviewProps) {
                 No accounting periods yet
               </p>
               <p className='text-muted-foreground text-sm'>
-                Create an accounting period to start posting movements and
-                running depreciation.
+                Create an accounting period to start posting lead schedules,
+                asset movements and running depreciation.
               </p>
 
               <div className='flex flex-col gap-2'>

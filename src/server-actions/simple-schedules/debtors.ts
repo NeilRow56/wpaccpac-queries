@@ -176,6 +176,25 @@ function normalizeToV1WithKinds(raw: unknown): SimpleScheduleDocV1 | null {
           }
         }
 
+        if (l.kind === 'CALC') {
+          const add = Array.isArray(l.add)
+            ? l.add.filter(x => typeof x === 'string')
+            : []
+          const subtract = Array.isArray(l.subtract)
+            ? l.subtract.filter(x => typeof x === 'string')
+            : []
+
+          return {
+            kind: 'CALC',
+            id: lineId,
+            label,
+            add,
+            ...(subtract.length ? { subtract } : {}),
+            notes: typeof l.notes === 'string' ? l.notes : undefined,
+            ...(ui ? { ui } : {})
+          }
+        }
+
         if (l.kind === 'TOTAL') {
           const sumOf = Array.isArray(l.sumOf)
             ? l.sumOf.filter(x => typeof x === 'string')
@@ -224,8 +243,83 @@ function ensureDebtorsTotals(doc: SimpleScheduleDocV1): {
   doc: SimpleScheduleDocV1
   changed: boolean
 } {
-  // Keep parity with Taxation for future-proofing
-  return { doc, changed: false }
+  let changed = false
+
+  const SUMMARY_SECTION_ID = 'summary'
+  const LEGACY_TOTAL_ID = 'debtors-total'
+  const GROSS_TOTAL_ID = 'debtors-gross-total'
+  const NET_TOTAL_ID = 'debtors-net-total'
+
+  const GROSS_SUM_OF = [
+    'trade-debtors',
+    'other-debtors',
+    'prepayments'
+  ] as const
+
+  const next: SimpleScheduleDocV1 = {
+    ...doc,
+    sections: doc.sections.map(s => ({ ...s, lines: [...s.lines] }))
+  }
+
+  const summaryIdx = next.sections.findIndex(s => s.id === SUMMARY_SECTION_ID)
+  if (summaryIdx === -1) return { doc, changed: false }
+
+  const summary = next.sections[summaryIdx]
+  const lines = summary.lines
+
+  const hasId = (id: string) => lines.some(l => l.id === id)
+
+  // 1) Upgrade legacy total -> gross total
+  if (hasId(LEGACY_TOTAL_ID) && !hasId(GROSS_TOTAL_ID)) {
+    summary.lines = summary.lines.map(l => {
+      if (l.id !== LEGACY_TOTAL_ID) return l
+      if (l.kind !== 'TOTAL') return l
+
+      changed = true
+      return {
+        ...l,
+        id: GROSS_TOTAL_ID,
+        label: 'Debtors total (gross)',
+        sumOf: [...GROSS_SUM_OF],
+        ui: l.ui ?? { emphasis: 'strong', tone: 'info' }
+      }
+    })
+  }
+
+  // 2) Ensure gross total exists (if neither legacy nor gross exists)
+  if (!hasId(GROSS_TOTAL_ID) && !hasId(LEGACY_TOTAL_ID)) {
+    summary.lines.push({
+      kind: 'TOTAL',
+      id: GROSS_TOTAL_ID,
+      label: 'Debtors total (gross)',
+      sumOf: [...GROSS_SUM_OF],
+      ui: { emphasis: 'strong', tone: 'info' }
+    })
+    changed = true
+  }
+
+  // If legacy total still exists (because it wasn't TOTAL), remove it to avoid confusion
+  if (hasId(LEGACY_TOTAL_ID) && hasId(GROSS_TOTAL_ID)) {
+    const before = summary.lines.length
+    summary.lines = summary.lines.filter(l => l.id !== LEGACY_TOTAL_ID)
+    if (summary.lines.length !== before) changed = true
+  }
+
+  // 3) Ensure net total exists
+  if (!hasId(NET_TOTAL_ID)) {
+    summary.lines.push({
+      kind: 'CALC',
+      id: NET_TOTAL_ID,
+      label: 'Debtors total (net)',
+      add: [...GROSS_SUM_OF],
+      subtract: ['bad-debt-provision'],
+      notes: 'Net of provision for doubtful debts.',
+      ui: { emphasis: 'strong', tone: 'info' } // line UI cannot be "primary"
+    })
+    changed = true
+  }
+
+  return { doc: next, changed }
 }
 
 function ensureDebtorsAttachments(doc: SimpleScheduleDocV1): {

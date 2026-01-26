@@ -90,6 +90,8 @@ async function getPriorPeriod(clientId: string, currentPeriodId: string) {
   return { prior }
 }
 
+import { resetLineItemScheduleForNewPeriod } from '@/lib/schedules/reset-line-item-schedule'
+
 export async function getDebtorsPrepaymentsScheduleAction(input: {
   clientId: string
   periodId: string
@@ -104,6 +106,7 @@ export async function getDebtorsPrepaymentsScheduleAction(input: {
   try {
     const { clientId, periodId } = input
 
+    // 1) Look for existing current-period doc
     const existing = await db
       .select({ id: planningDocs.id, contentJson: planningDocs.contentJson })
       .from(planningDocs)
@@ -117,32 +120,11 @@ export async function getDebtorsPrepaymentsScheduleAction(input: {
       .limit(1)
       .then(r => r[0] ?? null)
 
-    const normalized = existing?.contentJson
+    const normalizedCurrent = existing?.contentJson
       ? normalizeDoc(existing.contentJson)
       : null
 
-    const current = normalized ?? debtorsPrepaymentsDefault
-
-    if (!existing) {
-      await db
-        .insert(planningDocs)
-        .values({
-          clientId,
-          periodId,
-          code: CODE,
-          content: '',
-          contentJson: current,
-          isComplete: false
-        })
-        .onConflictDoNothing({
-          target: [
-            planningDocs.clientId,
-            planningDocs.periodId,
-            planningDocs.code
-          ]
-        })
-    }
-
+    // 2) Resolve prior period + prior doc (needed for comparatives + seeding)
     const { prior } = await getPriorPeriod(clientId, periodId)
 
     let priorDoc: LineItemScheduleDocV1 | null = null
@@ -165,6 +147,36 @@ export async function getDebtorsPrepaymentsScheduleAction(input: {
         : null
     }
 
+    // 3) Decide what "current" doc should be
+    let current: LineItemScheduleDocV1
+
+    if (normalizedCurrent) {
+      current = normalizedCurrent
+    } else {
+      // ✅ If current doc is missing, seed from prior structure to preserve row ids
+      current = priorDoc
+        ? resetLineItemScheduleForNewPeriod(priorDoc)
+        : debtorsPrepaymentsDefault
+
+      await db
+        .insert(planningDocs)
+        .values({
+          clientId,
+          periodId,
+          code: CODE,
+          content: '',
+          contentJson: current,
+          isComplete: false
+        })
+        .onConflictDoNothing({
+          target: [
+            planningDocs.clientId,
+            planningDocs.periodId,
+            planningDocs.code
+          ]
+        })
+    }
+
     return {
       success: true,
       data: {
@@ -172,7 +184,7 @@ export async function getDebtorsPrepaymentsScheduleAction(input: {
         prior: priorDoc,
         totals: {
           current: sum(current.rows, 'current'),
-          prior: sum(priorDoc?.rows ?? [], 'current') // ✅ prior-year current
+          prior: sum(priorDoc?.rows ?? [], 'current') // prior-year current
         },
         priorPeriod: prior
           ? { startDate: prior.startDate, endDate: prior.endDate }

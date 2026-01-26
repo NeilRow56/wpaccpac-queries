@@ -206,6 +206,14 @@ export default function SimpleScheduleForm({
 
   const hasAttachments = (attachmentFields?.length ?? 0) > 0
 
+  function sumIds(map: Map<string, number>, ids: string[]) {
+    return ids.reduce((acc, id) => acc + (map.get(id) ?? 0), 0)
+  }
+
+  function sumIdsPrior(map: Map<string, number | null>, ids: string[]) {
+    return ids.reduce((acc, id) => acc + toFiniteNumberOrZero(map.get(id)), 0)
+  }
+
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit)}
@@ -365,6 +373,7 @@ export default function SimpleScheduleForm({
           </div>
 
           {/* Lines */}
+
           <div className='space-y-2'>
             {section.lines.map((line, lIdx) => {
               // TOTAL (computed)
@@ -378,6 +387,35 @@ export default function SimpleScheduleForm({
                   const v = priorMap.get(id)
                   return acc + toFiniteNumberOrZero(v)
                 }, 0)
+
+                return (
+                  <div
+                    key={line.id}
+                    className={`grid grid-cols-4 items-center gap-3 rounded-md px-2 py-1 ${uiRowClass(line.ui)}`}
+                  >
+                    <div className='text-sm font-bold'>{line.label}</div>
+
+                    <div className='focus-visible:ring-primary/30 bg-muted/20 col-span-2 flex h-10 w-full items-center justify-end rounded-md border border-gray-700 px-3 font-medium tabular-nums shadow-sm'>
+                      {total}
+                      <div className='w-3' />
+                    </div>
+
+                    <div className='bg-muted/40 text-muted-foreground flex h-10 w-full items-center justify-end rounded-md px-3 text-sm font-medium tabular-nums'>
+                      {prior ? priorTotal : '—'}
+                    </div>
+                  </div>
+                )
+              }
+
+              // CALC (computed: add - subtract)
+              if (line.kind === 'CALC') {
+                const add = sumIds(currentAmountMap, line.add)
+                const sub = sumIds(currentAmountMap, line.subtract ?? [])
+                const total = add - sub
+
+                const priorAdd = sumIdsPrior(priorMap, line.add)
+                const priorSub = sumIdsPrior(priorMap, line.subtract ?? [])
+                const priorTotal = priorAdd - priorSub
 
                 return (
                   <div
@@ -446,7 +484,11 @@ export default function SimpleScheduleForm({
 
               <div className='col-span-2'>
                 <Textarea
-                  placeholder='Notes'
+                  placeholder={
+                    section.id === 'provision'
+                      ? 'Bad debt provisions are typically deducted from trade debtors; however, provisions relating to other debtor balances may also be included. The above totals should be presented net of provisions for accounts disclosure as appropriate.'
+                      : 'Notes'
+                  }
                   className='border-muted-foreground/30 focus-visible:ring-primary/30 border bg-white shadow-sm focus-visible:ring-2'
                   {...form.register(`sections.${sIdx}.notes` as const)}
                 />

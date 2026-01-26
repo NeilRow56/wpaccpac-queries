@@ -45,7 +45,8 @@ export default function PrepaymentsScheduleForm({
 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'rows'
+    name: 'rows',
+    keyName: 'fieldId'
   })
 
   /**
@@ -127,7 +128,7 @@ export default function PrepaymentsScheduleForm({
               className='grid grid-cols-[180px_1fr_160px_220px_40px] items-start gap-3 rounded-md px-2 py-1 2xl:grid-cols-[200px_1.5fr_160px_260px_40px]'
             >
               <Input
-                placeholder='e.g. Rates'
+                placeholder='e.g. Rent'
                 className='border-muted-foreground/30 focus-visible:ring-primary/30 bg-white shadow-sm focus-visible:ring-2'
                 {...register(`rows.${idx}.name` as const)}
               />

@@ -17,6 +17,16 @@ export type ScheduleInputLine = {
   ui?: ScheduleLineUi // ✅ add
 }
 
+export type ScheduleCalcLine = {
+  kind: 'CALC'
+  id: string
+  label: string
+  add: string[]
+  subtract?: string[]
+  notes?: string
+  ui?: ScheduleLineUi
+}
+
 export type ScheduleTotalLine = {
   kind: 'TOTAL'
   id: string
@@ -25,7 +35,10 @@ export type ScheduleTotalLine = {
   ui?: ScheduleLineUi // ✅ add
 }
 
-export type ScheduleLine = ScheduleInputLine | ScheduleTotalLine
+export type ScheduleLine =
+  | ScheduleInputLine
+  | ScheduleTotalLine
+  | ScheduleCalcLine
 
 export type ScheduleAttachment = {
   id: string
@@ -136,6 +149,10 @@ export function isSimpleScheduleDocV1(v: unknown): v is SimpleScheduleDocV1 {
         if (l.notes !== undefined && typeof l.notes !== 'string') return false
       } else if (kind === 'TOTAL') {
         if (!isStringArray(l.sumOf)) return false
+      } else if (kind === 'CALC') {
+        if (!isStringArray(l.add)) return false
+        if (l.subtract !== undefined && !isStringArray(l.subtract)) return false
+        if (l.notes !== undefined && typeof l.notes !== 'string') return false
       } else {
         return false
       }

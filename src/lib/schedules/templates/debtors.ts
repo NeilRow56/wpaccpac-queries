@@ -40,9 +40,18 @@ export const debtorsDefault: SimpleScheduleDocV1 = {
         },
         {
           kind: 'TOTAL',
-          id: 'debtors-total',
-          label: 'Debtors total',
+          id: 'debtors-gross-total',
+          label: 'Debtors total (gross)',
           sumOf: ['trade-debtors', 'other-debtors', 'prepayments'],
+          ui: { emphasis: 'strong', tone: 'info' }
+        },
+        {
+          kind: 'CALC',
+          id: 'debtors-net-total',
+          label: 'Debtors total (net)',
+          add: ['trade-debtors', 'other-debtors', 'prepayments'],
+          subtract: ['bad-debt-provision'],
+          notes: 'Net of provision for doubtful debts.',
           ui: { emphasis: 'strong', tone: 'info' }
         }
       ],

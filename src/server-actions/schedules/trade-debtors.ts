@@ -10,6 +10,7 @@ import type {
   LineItemScheduleDocV1,
   LineItemScheduleRowV1
 } from '@/lib/schedules/lineItemScheduleTypes'
+import { resetLineItemScheduleForNewPeriod } from '@/lib/schedules/reset-line-item-schedule'
 
 // Keep consistent with your pattern: CODE is the planningDocs.code value
 const CODE = 'B61-trade_debtors'
@@ -105,6 +106,7 @@ export async function getTradeDebtorsScheduleAction(input: {
   try {
     const { clientId, periodId } = input
 
+    // 1) Read existing current-period doc (if any)
     const existing = await db
       .select({ id: planningDocs.id, contentJson: planningDocs.contentJson })
       .from(planningDocs)
@@ -118,32 +120,11 @@ export async function getTradeDebtorsScheduleAction(input: {
       .limit(1)
       .then(r => r[0] ?? null)
 
-    const normalized = existing?.contentJson
+    const normalizedCurrent = existing?.contentJson
       ? normalizeDoc(existing.contentJson)
       : null
 
-    const current = normalized ?? tradeDebtorsDefault
-
-    if (!existing) {
-      await db
-        .insert(planningDocs)
-        .values({
-          clientId,
-          periodId,
-          code: CODE,
-          content: '',
-          contentJson: current,
-          isComplete: false
-        })
-        .onConflictDoNothing({
-          target: [
-            planningDocs.clientId,
-            planningDocs.periodId,
-            planningDocs.code
-          ]
-        })
-    }
-
+    // 2) Load prior period + prior doc (needed for comparatives + seeding)
     const { prior } = await getPriorPeriod(clientId, periodId)
 
     let priorDoc: LineItemScheduleDocV1 | null = null
@@ -164,6 +145,35 @@ export async function getTradeDebtorsScheduleAction(input: {
       priorDoc = priorRow?.contentJson
         ? normalizeDoc(priorRow.contentJson)
         : null
+    }
+
+    // 3) Decide current doc
+    let current: LineItemScheduleDocV1
+    if (normalizedCurrent) {
+      current = normalizedCurrent
+    } else {
+      // ✅ Seed from prior structure (preserve row ids) so prior mapping works
+      current = priorDoc
+        ? resetLineItemScheduleForNewPeriod(priorDoc)
+        : tradeDebtorsDefault
+
+      await db
+        .insert(planningDocs)
+        .values({
+          clientId,
+          periodId,
+          code: CODE,
+          content: '',
+          contentJson: current,
+          isComplete: false
+        })
+        .onConflictDoNothing({
+          target: [
+            planningDocs.clientId,
+            planningDocs.periodId,
+            planningDocs.code
+          ]
+        })
     }
 
     return {
