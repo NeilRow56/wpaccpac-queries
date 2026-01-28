@@ -10,7 +10,7 @@ export const otherDebtorsDefault: LineItemScheduleDocV1 = {
   rows: [
     {
       id: 'other-debtors',
-      name: 'Other debtors',
+      name: '',
       description: '',
       current: null,
       prior: null

@@ -15,8 +15,9 @@ import {
 } from '@/components/ui/popover'
 
 import type { LineItemScheduleDocV1 } from '@/lib/schedules/lineItemScheduleTypes'
-import { saveDebtorsPrepaymentsScheduleAction } from '@/server-actions/schedules/debtors-prepayments'
+
 import { useUnsavedChangesWarning } from '@/hooks/use-unsaved-changes-warning'
+import { saveAccrualsAndDeferredIncomeScheduleAction } from '@/server-actions/schedules/accruals-and-deferred-income'
 
 type Props = {
   clientId: string
@@ -26,7 +27,7 @@ type Props = {
   priorPeriodLabel?: string
 }
 
-export default function PrepaymentsScheduleForm({
+export default function AccrualsAndDeferredIncomeScheduleForm({
   clientId,
   periodId,
   initial,
@@ -72,16 +73,17 @@ export default function PrepaymentsScheduleForm({
   }, [prior])
 
   async function onSubmit(values: LineItemScheduleDocV1) {
-    const res = await saveDebtorsPrepaymentsScheduleAction({
+    const res = await saveAccrualsAndDeferredIncomeScheduleAction({
       clientId,
       periodId,
       doc: values
     })
+
     if (res.success) {
-      toast.success('Prepayments saved')
+      toast.success('Accruals and deferred income saved')
       form.reset(values) // ✅ marks clean
     } else {
-      toast.error(res.message ?? 'Failed to save prepayments')
+      toast.error(res.message ?? 'Failed to save Accruals and deferred income')
     }
   }
 
@@ -134,7 +136,7 @@ export default function PrepaymentsScheduleForm({
               />
 
               <Textarea
-                placeholder='Notes / calculation...'
+                placeholder='Notes / detail...'
                 className='border-muted-foreground/30 focus-visible:ring-primary/30 min-h-10 bg-white shadow-sm focus-visible:ring-2'
                 {...register(`rows.${idx}.description` as const)}
               />
@@ -177,7 +179,7 @@ export default function PrepaymentsScheduleForm({
                         </button>
                       </PopoverTrigger>
 
-                      <PopoverContent className='w-90 text-sm'>
+                      <PopoverContent className='w-[360px] text-sm'>
                         <div className='font-medium'>Prior period notes</div>
                         <div className='text-muted-foreground mt-2 text-xs whitespace-pre-wrap'>
                           {priorDescription}

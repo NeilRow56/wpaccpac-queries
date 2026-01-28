@@ -6,8 +6,8 @@ import { getAccountingPeriodById } from '@/server-actions/accounting-periods'
 import { buildPeriodLeafBreadcrumbs } from '@/lib/period-breadcrumbs'
 
 import Link from 'next/link'
-import { getOtherDebtorsScheduleAction } from '@/server-actions/schedules/other-debtors'
-import OtherDebtorsScheduleForm from './_components/other-debtors-schedule-form'
+import { getVatAndOtherTaxesScheduleAction } from '@/server-actions/schedules/vat-and-other-taxes'
+import VatAndOtherTaxesScheduleForm from './_components/vat-and-other-taxes-schedule-form'
 
 function formatPeriodLabel(start: string, end: string) {
   const fmt = new Intl.DateTimeFormat('en-GB', {
@@ -17,7 +17,7 @@ function formatPeriodLabel(start: string, end: string) {
   return `${fmt.format(new Date(start))} – ${fmt.format(new Date(end))}`
 }
 
-export default async function OtherDebtorsPage({
+export default async function VatAndOtherTaxesPage({
   params
 }: {
   params: Promise<{ clientId: string; periodId: string }>
@@ -35,15 +35,15 @@ export default async function OtherDebtorsPage({
     periodName: period.periodName,
     parents: [
       {
-        label: 'Sales and Debtors',
-        href: `/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors`
+        label: 'Puchases and Creditors',
+        href: `/organisation/clients/${clientId}/accounting-periods/${periodId}/purchases-creditors`
       }
     ],
-    leafLabel: 'Other Debtors',
-    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors/other-debtors`
+    leafLabel: 'VAT and other taxes',
+    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/puchases-creditors/vat-and-other-taxes`
   })
 
-  const res = await getOtherDebtorsScheduleAction({ clientId, periodId })
+  const res = await getVatAndOtherTaxesScheduleAction({ clientId, periodId })
   if (!res.success) notFound()
 
   const priorLabel = res.data.priorPeriod
@@ -58,23 +58,25 @@ export default async function OtherDebtorsPage({
       <Breadcrumbs crumbs={crumbs} />
 
       <div>
-        <h1 className='text-primary text-lg font-semibold'>Other Debtors</h1>
+        <h1 className='text-primary text-lg font-semibold'>
+          VAT and other taxes
+        </h1>
         <p className='text-muted-foreground text-sm'>
-          Supporting schedules for other debtors.
+          Supporting schedules for VAT and other taxes.
         </p>
         <div className='text-muted-foreground mt-2 text-sm'>
           Supporting evidence should be attached on the{' '}
           <Link
-            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors`}
+            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/purchases-creditors`}
             className='hover:text-foreground underline underline-offset-2'
           >
-            Debtors lead schedule
+            Creditors lead schedule
           </Link>
           .
         </div>
       </div>
 
-      <OtherDebtorsScheduleForm
+      <VatAndOtherTaxesScheduleForm
         clientId={clientId}
         periodId={periodId}
         initial={res.data.current}

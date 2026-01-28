@@ -101,10 +101,10 @@ export default function PeriodSidebar(props: {
       enabled: true
     },
     {
-      key: 'cash-bank',
+      key: 'cash-at-bank',
       label: 'Cash at Bank and in hand',
-      href: 'cash-bank',
-      match: '/cash-bank',
+      href: 'cash-at-bank',
+      match: '/cash-at-bank',
       icon: <PoundSterling className='h-4 w-4' />,
       enabled: true
     },

@@ -62,6 +62,8 @@ export const taxationDefault: SimpleScheduleDocV1 = {
           id: 'ct-payable',
           label: 'Corporation tax payable/(repayable)',
           amount: null,
+          notes:
+            'Payable amounts automatically transferred to creditors. If repayable, include in Other debtors (not creditors).',
           ui: { emphasis: 'strong', tone: 'info' }
         },
         {

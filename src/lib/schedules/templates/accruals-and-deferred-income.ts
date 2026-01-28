@@ -1,12 +1,12 @@
 import { LineItemScheduleDocV1 } from '../lineItemScheduleTypes'
 
-export const debtorsPrepaymentsDefault: LineItemScheduleDocV1 = {
+export const accrualsAndDeferredIncomeDefault: LineItemScheduleDocV1 = {
   kind: 'LINE_ITEM_SCHEDULE',
   version: 1,
-  title: 'Prepayments',
+  title: 'Accruals and deferred income ',
   rows: [
     {
-      id: 'prepayments',
+      id: 'accruals',
       name: '',
       description: '',
       current: null,

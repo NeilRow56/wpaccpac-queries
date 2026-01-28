@@ -6,8 +6,9 @@ import { getAccountingPeriodById } from '@/server-actions/accounting-periods'
 import { buildPeriodLeafBreadcrumbs } from '@/lib/period-breadcrumbs'
 
 import Link from 'next/link'
-import { getOtherDebtorsScheduleAction } from '@/server-actions/schedules/other-debtors'
-import OtherDebtorsScheduleForm from './_components/other-debtors-schedule-form'
+
+import AccrualsAndDeferredIncomeScheduleForm from './_components/accruals-and-deferred-income-schedule-form'
+import { getAccrualsAndDeferredIncomeScheduleAction } from '@/server-actions/schedules/accruals-and-deferred-income'
 
 function formatPeriodLabel(start: string, end: string) {
   const fmt = new Intl.DateTimeFormat('en-GB', {
@@ -17,7 +18,7 @@ function formatPeriodLabel(start: string, end: string) {
   return `${fmt.format(new Date(start))} – ${fmt.format(new Date(end))}`
 }
 
-export default async function OtherDebtorsPage({
+export default async function AccrualsAndDeferredIncomePage({
   params
 }: {
   params: Promise<{ clientId: string; periodId: string }>
@@ -35,15 +36,18 @@ export default async function OtherDebtorsPage({
     periodName: period.periodName,
     parents: [
       {
-        label: 'Sales and Debtors',
-        href: `/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors`
+        label: 'Purchases and Creditors',
+        href: `/organisation/clients/${clientId}/accounting-periods/${periodId}/purchases-creditors`
       }
     ],
-    leafLabel: 'Other Debtors',
-    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors/other-debtors`
+    leafLabel: 'Accruals and deferred income',
+    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/purchases-creditors/accruals-and-deferred-income`
   })
 
-  const res = await getOtherDebtorsScheduleAction({ clientId, periodId })
+  const res = await getAccrualsAndDeferredIncomeScheduleAction({
+    clientId,
+    periodId
+  })
   if (!res.success) notFound()
 
   const priorLabel = res.data.priorPeriod
@@ -58,23 +62,25 @@ export default async function OtherDebtorsPage({
       <Breadcrumbs crumbs={crumbs} />
 
       <div>
-        <h1 className='text-primary text-lg font-semibold'>Other Debtors</h1>
+        <h1 className='text-primary text-lg font-semibold'>
+          Accruals and deferred income
+        </h1>
         <p className='text-muted-foreground text-sm'>
-          Supporting schedules for other debtors.
+          Supporting schedule for Accruals and deferred income.
         </p>
         <div className='text-muted-foreground mt-2 text-sm'>
-          Supporting evidence should be attached on the{' '}
+          Supporting evidence is attached on the{' '}
           <Link
-            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors`}
+            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/purchases-creditors`}
             className='hover:text-foreground underline underline-offset-2'
           >
-            Debtors lead schedule
+            Creditors lead schedule
           </Link>
           .
         </div>
       </div>
 
-      <OtherDebtorsScheduleForm
+      <AccrualsAndDeferredIncomeScheduleForm
         clientId={clientId}
         periodId={periodId}
         initial={res.data.current}

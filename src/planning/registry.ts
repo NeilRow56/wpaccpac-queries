@@ -501,5 +501,206 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
       ]
     },
     visibleWhen: () => true
+  },
+  {
+    code: 'B61-creditors_wp',
+    title: 'Creditors — work programme',
+    type: 'RICH_TEXT',
+    order: 6163, // pick something that sits near taxation/fixed assets WPs
+    defaultContentJson: {
+      type: 'doc',
+      content: [
+        {
+          type: 'heading',
+          attrs: { level: 1 },
+          content: [{ type: 'text', text: 'CREDITORS' }]
+        },
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    { type: 'text', text: 'Agree lead schedule to accounts.' }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Review invoices either side of year end for possible cut off adjustments.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Test post year-end payments for material balances.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Prepare schedule of accruals and other creditors.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Prepare / review hire purchase and loan accounts.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Agree list of balances to purchases control.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Review whether accrual needed for class 1A NIC.'
+                    }
+                  ]
+                }
+              ]
+            },
+            { type: 'paragraph', content: [] }
+          ]
+        },
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Notes / conclusions (add more work steps or findings below):'
+            }
+          ]
+        },
+        { type: 'paragraph', content: [] }
+      ]
+    },
+    visibleWhen: () => true
+  },
+  {
+    code: 'B61-stocks_wp',
+    title: 'Stocks — work programme',
+    type: 'RICH_TEXT',
+    order: 6164, // pick something that sits near taxation/fixed assets WPs
+    defaultContentJson: {
+      type: 'doc',
+      content: [
+        {
+          type: 'heading',
+          attrs: { level: 1 },
+          content: [{ type: 'text', text: 'STOCKS' }]
+        },
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    { type: 'text', text: 'Agree lead schedule to accounts.' }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Review stock calculations for obvious errors.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Review basis of any stock provision.'
+                    }
+                  ]
+                }
+              ]
+            },
+
+            { type: 'paragraph', content: [] }
+          ]
+        },
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Notes / conclusions (add more work steps or findings below):'
+            }
+          ]
+        },
+        { type: 'paragraph', content: [] }
+      ]
+    },
+    visibleWhen: () => true
   }
 ]

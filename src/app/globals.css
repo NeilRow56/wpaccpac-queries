@@ -127,6 +127,12 @@
   --color-sidebar: var(--sidebar);
 }
 
+@import 'tailwindcss';
+
+@theme {
+  --breakpoint-xl: 1400px;
+}
+
 /* ----------------------------------
    BASE LAYER OVERRIDES
 ----------------------------------- */

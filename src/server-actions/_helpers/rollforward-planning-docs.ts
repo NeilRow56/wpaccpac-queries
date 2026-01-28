@@ -54,7 +54,11 @@ const PERIOD_SETUP_CODE = 'B00-period_setup'
 const LINE_ITEM_SCHEDULE_CODES_TO_RESET = new Set<string>([
   'B61-debtors_prepayments',
   'B61-trade_debtors',
-  'B61-other_debtors'
+  'B61-other_debtors',
+  'B61-trade_creditors',
+  'B61-creditors_vat_other_taxes',
+  'B61-creditors_accruals_deferred_income',
+  'B61-cash_at_bank_accounts'
 ])
 
 /**
@@ -64,8 +68,8 @@ const LINE_ITEM_SCHEDULE_CODES_TO_RESET = new Set<string>([
 const SIMPLE_SCHEDULE_CODES_TO_RESET = new Set<string>([
   'B61-taxation',
   'B61-debtors',
-  'B61-trade_debtors',
-  'B61-other_debtors'
+  'B61-creditors',
+  'B61-stocks'
   // add more SIMPLE_SCHEDULE codes here as you implement them
 ])
 

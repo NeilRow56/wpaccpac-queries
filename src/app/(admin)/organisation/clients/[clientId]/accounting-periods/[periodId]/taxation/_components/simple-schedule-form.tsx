@@ -96,6 +96,27 @@ function toFiniteNumberOrZero(v: unknown): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : 0
 }
 
+// ✅ NEW: number formatting helpers (negatives: red + brackets)
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v)
+}
+
+function isNegativeAmount(v: unknown): boolean {
+  return isFiniteNumber(v) && v < 0
+}
+
+function formatNumberWithBrackets(v: unknown): string {
+  if (!isFiniteNumber(v)) return ''
+  const abs = Math.abs(v)
+  // Use locale grouping (e.g. 1,234) and show 2dp only if needed
+  const hasPence = Math.round(abs * 100) % 100 !== 0
+  const formatted = abs.toLocaleString('en-GB', {
+    minimumFractionDigits: hasPence ? 2 : 0,
+    maximumFractionDigits: hasPence ? 2 : 0
+  })
+  return v < 0 ? `(${formatted})` : formatted
+}
+
 function isLikelyUrl(v: string) {
   const s = v.trim()
   return s.startsWith('http://') || s.startsWith('https://')
@@ -200,8 +221,7 @@ export default function SimpleScheduleForm({
     if (res.success) {
       toast.success(`${title} saved`)
       form.reset(values)
-    } // ✅ marks clean
-    else toast.error(res.message ?? `Failed to save ${title}`)
+    } else toast.error(res.message ?? `Failed to save ${title}`)
   }
 
   const hasAttachments = (attachmentFields?.length ?? 0) > 0
@@ -246,7 +266,7 @@ export default function SimpleScheduleForm({
                         name: '',
                         url: ''
                       },
-                      { shouldFocus: true } // ✅ auto-focus first input in the appended row
+                      { shouldFocus: true }
                     )
                   }
                 >
@@ -273,7 +293,6 @@ export default function SimpleScheduleForm({
                   const nameField = `attachments.${idx}.name` as const
                   const urlField = `attachments.${idx}.url` as const
 
-                  // ✅ use watch so open button updates immediately as user types (no stale getValues)
                   const urlValue = (watch(urlField) ?? '').trim()
                   const canOpen = isLikelyUrl(urlValue)
 
@@ -283,7 +302,7 @@ export default function SimpleScheduleForm({
                       className='grid grid-cols-[220px_1fr_44px_44px] items-center gap-3'
                     >
                       <Input
-                        placeholder='Attachment name' // ✅ placeholder instead of hard-coded default
+                        placeholder='Attachment name'
                         className='border-muted-foreground/30 focus-visible:ring-primary/30 bg-white shadow-sm focus-visible:ring-2'
                         {...form.register(nameField)}
                       />
@@ -341,8 +360,7 @@ export default function SimpleScheduleForm({
             </CollapsibleContent>
           </div>
         </Collapsible>
-      ) : // If you ever want “Add attachment” even when empty, swap this null for a small panel.
-      null}
+      ) : null}
 
       {/* Sections */}
       {sections.map((section, sIdx) => (
@@ -373,7 +391,6 @@ export default function SimpleScheduleForm({
           </div>
 
           {/* Lines */}
-
           <div className='space-y-2'>
             {section.lines.map((line, lIdx) => {
               // TOTAL (computed)
@@ -388,6 +405,9 @@ export default function SimpleScheduleForm({
                   return acc + toFiniteNumberOrZero(v)
                 }, 0)
 
+                const totalIsNeg = total < 0
+                const priorIsNeg = priorTotal < 0
+
                 return (
                   <div
                     key={line.id}
@@ -395,13 +415,25 @@ export default function SimpleScheduleForm({
                   >
                     <div className='text-sm font-bold'>{line.label}</div>
 
-                    <div className='focus-visible:ring-primary/30 bg-muted/20 col-span-2 flex h-10 w-full items-center justify-end rounded-md border border-gray-700 px-3 font-medium tabular-nums shadow-sm'>
-                      {total}
+                    <div
+                      className={`focus-visible:ring-primary/30 bg-muted/20 col-span-2 flex h-10 w-full items-center justify-end rounded-md border border-gray-700 px-3 font-medium tabular-nums shadow-sm ${
+                        totalIsNeg ? 'text-red-600' : ''
+                      }`}
+                    >
+                      {formatNumberWithBrackets(total)}
                       <div className='w-3' />
                     </div>
 
-                    <div className='bg-muted/40 text-muted-foreground flex h-10 w-full items-center justify-end rounded-md px-3 text-sm font-medium tabular-nums'>
-                      {prior ? priorTotal : '—'}
+                    <div
+                      className={`bg-muted/40 flex h-10 w-full items-center justify-end rounded-md px-3 text-sm font-medium tabular-nums ${
+                        prior
+                          ? priorIsNeg
+                            ? 'text-red-600'
+                            : 'text-muted-foreground'
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      {prior ? formatNumberWithBrackets(priorTotal) : '—'}
                     </div>
                   </div>
                 )
@@ -417,6 +449,9 @@ export default function SimpleScheduleForm({
                 const priorSub = sumIdsPrior(priorMap, line.subtract ?? [])
                 const priorTotal = priorAdd - priorSub
 
+                const totalIsNeg = total < 0
+                const priorIsNeg = priorTotal < 0
+
                 return (
                   <div
                     key={line.id}
@@ -424,13 +459,25 @@ export default function SimpleScheduleForm({
                   >
                     <div className='text-sm font-bold'>{line.label}</div>
 
-                    <div className='focus-visible:ring-primary/30 bg-muted/20 col-span-2 flex h-10 w-full items-center justify-end rounded-md border border-gray-700 px-3 font-medium tabular-nums shadow-sm'>
-                      {total}
+                    <div
+                      className={`focus-visible:ring-primary/30 bg-muted/20 col-span-2 flex h-10 w-full items-center justify-end rounded-md border border-gray-700 px-3 font-medium tabular-nums shadow-sm ${
+                        totalIsNeg ? 'text-red-600' : ''
+                      }`}
+                    >
+                      {formatNumberWithBrackets(total)}
                       <div className='w-3' />
                     </div>
 
-                    <div className='bg-muted/40 text-muted-foreground flex h-10 w-full items-center justify-end rounded-md px-3 text-sm font-medium tabular-nums'>
-                      {prior ? priorTotal : '—'}
+                    <div
+                      className={`bg-muted/40 flex h-10 w-full items-center justify-end rounded-md px-3 text-sm font-medium tabular-nums ${
+                        prior
+                          ? priorIsNeg
+                            ? 'text-red-600'
+                            : 'text-muted-foreground'
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      {prior ? formatNumberWithBrackets(priorTotal) : '—'}
                     </div>
                   </div>
                 )
@@ -442,12 +489,18 @@ export default function SimpleScheduleForm({
               const isDerived = derivedLineIds?.includes(line.id) ?? false
               const help = derivedHelpByLineId?.[line.id]
 
+              const currentValue = watch(field)
+              const currentIsNeg = isNegativeAmount(currentValue)
+              const priorIsNeg = isNegativeAmount(priorAmount)
+
               return (
                 <div
                   key={line.id}
-                  className={`grid grid-cols-4 items-center gap-3 rounded-md px-2 py-0.5 ${uiRowClass(line.ui)}`}
+                  className={`grid grid-cols-4 items-start gap-3 rounded-md px-2 py-0.5 ${uiRowClass(line.ui)}`}
                 >
-                  <div className={`text-sm ${uiLabelClass(line.ui)}`}>
+                  <div
+                    className={`pr-2 text-sm leading-snug wrap-break-word ${uiLabelClass(line.ui)}`}
+                  >
                     {line.label}
                   </div>
 
@@ -457,21 +510,35 @@ export default function SimpleScheduleForm({
                       disabled={isDerived}
                       className={`border-muted-foreground/30 focus-visible:ring-primary/30 w-full border bg-white text-right tabular-nums shadow-sm focus-visible:ring-2 ${uiInputClass(line.ui)} ${
                         isDerived ? 'bg-muted/30 text-blue-600' : ''
-                      }`}
+                      } ${!isDerived && currentIsNeg ? 'text-red-600' : ''}`}
                       {...form.register(field, {
                         setValueAs: v => (v === '' ? null : Number(v))
                       })}
                     />
 
+                    {/* Derived help (locked fields) */}
                     {help ? (
-                      <div className='text-muted-foreground mt-1 text-xs'>
+                      <div className='text-muted-foreground mt-1 text-xs leading-snug'>
                         {help}
+                      </div>
+                    ) : null}
+
+                    {/* Line notes (template guidance) */}
+                    {line.notes ? (
+                      <div className='text-muted-foreground mt-1 text-xs leading-snug'>
+                        {line.notes}
                       </div>
                     ) : null}
                   </div>
 
-                  <div className='bg-muted/40 text-muted-foreground w-full rounded-md px-3 py-2 text-right text-sm tabular-nums'>
-                    {priorAmount}
+                  <div
+                    className={`bg-muted/40 w-full rounded-md px-3 py-2 text-right text-sm tabular-nums ${
+                      priorIsNeg ? 'text-red-600' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {priorAmount === null || priorAmount === undefined
+                      ? ''
+                      : formatNumberWithBrackets(priorAmount)}
                   </div>
                 </div>
               )

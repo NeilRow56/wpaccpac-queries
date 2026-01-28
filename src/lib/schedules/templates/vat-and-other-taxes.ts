@@ -1,13 +1,13 @@
 import { LineItemScheduleDocV1 } from '../lineItemScheduleTypes'
 
-export const debtorsPrepaymentsDefault: LineItemScheduleDocV1 = {
+export const vatAndOtherTaxesDefault: LineItemScheduleDocV1 = {
   kind: 'LINE_ITEM_SCHEDULE',
   version: 1,
-  title: 'Prepayments',
+  title: 'VAT and other taxes',
   rows: [
     {
-      id: 'prepayments',
-      name: '',
+      id: 'vat',
+      name: 'VAT outstanding',
       description: '',
       current: null,
       prior: null

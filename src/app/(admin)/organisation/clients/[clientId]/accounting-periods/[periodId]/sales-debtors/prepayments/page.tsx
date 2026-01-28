@@ -63,7 +63,7 @@ export default async function PrepaymentsPage({
           Supporting schedules for prepayments.
         </p>
         <div className='text-muted-foreground mt-2 text-sm'>
-          Supporting evidence is attached on the{' '}
+          Supporting evidence should be attached on the{' '}
           <Link
             href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors`}
             className='hover:text-foreground underline underline-offset-2'

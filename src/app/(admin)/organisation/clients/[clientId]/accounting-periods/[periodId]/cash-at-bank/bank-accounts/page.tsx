@@ -1,13 +1,12 @@
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 
 import { Breadcrumbs } from '@/components/navigation/breadcrumb'
 import { getClientById } from '@/server-actions/clients'
 import { getAccountingPeriodById } from '@/server-actions/accounting-periods'
 import { buildPeriodLeafBreadcrumbs } from '@/lib/period-breadcrumbs'
-
-import Link from 'next/link'
-import { getOtherDebtorsScheduleAction } from '@/server-actions/schedules/other-debtors'
-import OtherDebtorsScheduleForm from './_components/other-debtors-schedule-form'
+import { getCashAtBankAccountsScheduleAction } from '@/server-actions/schedules/cash-at-bank-accounts'
+import BankAccountsScheduleForm from './_components/bank-accounts-schedule-form'
 
 function formatPeriodLabel(start: string, end: string) {
   const fmt = new Intl.DateTimeFormat('en-GB', {
@@ -17,7 +16,7 @@ function formatPeriodLabel(start: string, end: string) {
   return `${fmt.format(new Date(start))} – ${fmt.format(new Date(end))}`
 }
 
-export default async function OtherDebtorsPage({
+export default async function BankAccountsPage({
   params
 }: {
   params: Promise<{ clientId: string; periodId: string }>
@@ -35,15 +34,18 @@ export default async function OtherDebtorsPage({
     periodName: period.periodName,
     parents: [
       {
-        label: 'Sales and Debtors',
-        href: `/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors`
+        label: 'Cash at bank',
+        href: `/organisation/clients/${clientId}/accounting-periods/${periodId}/cash-at-bank`
       }
     ],
-    leafLabel: 'Other Debtors',
-    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors/other-debtors`
+    leafLabel: 'Bank accounts',
+    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/cash-at-bank/bank-accounts`
   })
 
-  const res = await getOtherDebtorsScheduleAction({ clientId, periodId })
+  const res = await getCashAtBankAccountsScheduleAction({
+    clientId,
+    periodId
+  })
   if (!res.success) notFound()
 
   const priorLabel = res.data.priorPeriod
@@ -58,23 +60,27 @@ export default async function OtherDebtorsPage({
       <Breadcrumbs crumbs={crumbs} />
 
       <div>
-        <h1 className='text-primary text-lg font-semibold'>Other Debtors</h1>
+        <h1 className='text-primary text-lg font-semibold'>Bank accounts</h1>
         <p className='text-muted-foreground text-sm'>
-          Supporting schedules for other debtors.
+          Supporting schedule for cash at bank. Add a row for each bank account.
         </p>
+
         <div className='text-muted-foreground mt-2 text-sm'>
           Supporting evidence should be attached on the{' '}
           <Link
-            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/sales-debtors`}
+            href={`/organisation/clients/${clientId}/accounting-periods/${periodId}/cash-at-bank`}
             className='hover:text-foreground underline underline-offset-2'
           >
-            Debtors lead schedule
+            Cash at bank lead schedule
           </Link>
           .
         </div>
+        <span className='text-sm text-red-600/70'>
+          Enter overdraft figures as minus numbers
+        </span>
       </div>
 
-      <OtherDebtorsScheduleForm
+      <BankAccountsScheduleForm
         clientId={clientId}
         periodId={periodId}
         initial={res.data.current}
