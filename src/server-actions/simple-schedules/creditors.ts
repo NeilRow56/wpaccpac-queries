@@ -29,10 +29,25 @@ const TRADE_CREDITORS_LINE_ID_IN_CREDITORS = 'trade-creditors'
 const VAT_OTHER_TAXES_LINE_ID_IN_CREDITORS = 'vat-paye-nic'
 const ACCRUALS_DEFERRED_INCOME_LINE_ID_IN_CREDITORS = 'accruals-deferred-income'
 
+// Bank overdrafts in creditors
+const CASH_AT_BANK_CODE = 'B61-cash_at_bank'
+const BANK_ACCOUNTS_CODE = 'B61-cash_at_bank_accounts'
+
+const BANK_OVERDRAFTS_LINE_ID_IN_CREDITORS = 'bank-overdrafts'
+const RIGHT_OF_SET_OFF_LINE_ID_IN_CASH = 'right-of-set-off'
+
 // Taxation → corp tax payable
 const TAXATION_CODE = 'B61-taxation'
 const CT_PAYABLE_LINE_ID_IN_TAXATION = 'ct-payable'
 const CT_PAYABLE_LINE_ID_IN_CREDITORS = 'corp-tax-payable'
+
+type ActionResult<T> =
+  | { success: true; data: T }
+  | { success: false; message: string }
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null
+}
 
 async function readCorpTaxPayablePositiveOnly(params: {
   clientId: string
@@ -69,13 +84,7 @@ async function readCorpTaxPayablePositiveOnly(params: {
   return n > 0 ? n : 0
 }
 
-type ActionResult<T> =
-  | { success: true; data: T }
-  | { success: false; message: string }
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null
-}
+// ---- line item schedule helpers ----
 
 function isLineItemScheduleDocV1(v: unknown): v is LineItemScheduleDocV1 {
   if (!isRecord(v)) return false
@@ -105,6 +114,34 @@ function normalizeLineItemSchedule(raw: unknown): LineItemScheduleDocV1 | null {
 function sumLineItem(rows: LineItemScheduleRowV1[], key: 'current' | 'prior') {
   return rows.reduce((acc, r) => acc + (r[key] ?? 0), 0)
 }
+
+async function readLineItemScheduleTotalCurrent(params: {
+  clientId: string
+  periodId: string
+  code: string
+}): Promise<number> {
+  const { clientId, periodId, code } = params
+
+  const row = await db
+    .select({ contentJson: planningDocs.contentJson })
+    .from(planningDocs)
+    .where(
+      and(
+        eq(planningDocs.clientId, clientId),
+        eq(planningDocs.periodId, periodId),
+        eq(planningDocs.code, code)
+      )
+    )
+    .limit(1)
+    .then(r => r[0] ?? null)
+
+  const doc = row?.contentJson
+    ? normalizeLineItemSchedule(row.contentJson)
+    : null
+  return doc ? sumLineItem(doc.rows, 'current') : 0
+}
+
+// ---- simple schedule helpers ----
 
 function injectDerivedAmount(
   doc: SimpleScheduleDocV1,
@@ -283,6 +320,90 @@ function normalizeToV1WithKinds(raw: unknown): SimpleScheduleDocV1 | null {
   return { kind: 'SIMPLE_SCHEDULE', version: 1, sections, attachments }
 }
 
+// ---- cash at bank linkage (right of set-off + netting) ----
+
+async function readRightOfSetOffFlagFromCashLead(params: {
+  clientId: string
+  periodId: string
+}): Promise<boolean> {
+  const { clientId, periodId } = params
+
+  const row = await db
+    .select({ contentJson: planningDocs.contentJson })
+    .from(planningDocs)
+    .where(
+      and(
+        eq(planningDocs.clientId, clientId),
+        eq(planningDocs.periodId, periodId),
+        eq(planningDocs.code, CASH_AT_BANK_CODE)
+      )
+    )
+    .limit(1)
+    .then(r => r[0] ?? null)
+
+  const doc = row?.contentJson ? normalizeToV1WithKinds(row.contentJson) : null
+  if (!doc) return false
+
+  for (const section of doc.sections) {
+    for (const line of section.lines) {
+      if (
+        line.kind === 'INPUT' &&
+        line.id === RIGHT_OF_SET_OFF_LINE_ID_IN_CASH
+      ) {
+        const n =
+          typeof line.amount === 'number' && Number.isFinite(line.amount)
+            ? line.amount
+            : 0
+        return n === 1
+      }
+    }
+  }
+
+  return false
+}
+
+async function readBankAccountsTotals(params: {
+  clientId: string
+  periodId: string
+}): Promise<{ overdraftAbs: number; netTotal: number }> {
+  const { clientId, periodId } = params
+
+  const row = await db
+    .select({ contentJson: planningDocs.contentJson })
+    .from(planningDocs)
+    .where(
+      and(
+        eq(planningDocs.clientId, clientId),
+        eq(planningDocs.periodId, periodId),
+        eq(planningDocs.code, BANK_ACCOUNTS_CODE)
+      )
+    )
+    .limit(1)
+    .then(r => r[0] ?? null)
+
+  const doc = row?.contentJson
+    ? normalizeLineItemSchedule(row.contentJson)
+    : null
+
+  const rows = doc?.rows ?? []
+
+  let overdraftAbs = 0
+  let netTotal = 0
+
+  for (const r of rows) {
+    const n =
+      typeof r.current === 'number' && Number.isFinite(r.current)
+        ? r.current
+        : 0
+    netTotal += n
+    if (n < 0) overdraftAbs += Math.abs(n)
+  }
+
+  return { overdraftAbs, netTotal }
+}
+
+// ---- ensure totals/attachments ----
+
 function ensureCreditorsTotals(doc: SimpleScheduleDocV1): {
   doc: SimpleScheduleDocV1
   changed: boolean
@@ -296,6 +417,7 @@ function ensureCreditorsTotals(doc: SimpleScheduleDocV1): {
   const LONG_TERM_TOTAL_ID = 'creditors-long-term-gross-total'
 
   const WITHIN_SUM_OF = [
+    'bank-overdrafts',
     'trade-creditors',
     'corp-tax-payable',
     'vat-paye-nic',
@@ -417,6 +539,8 @@ function ensureCreditorsAttachments(doc: SimpleScheduleDocV1): {
   return { doc: next, changed }
 }
 
+// ---- periods ----
+
 async function getPriorPeriod(clientId: string, currentPeriodId: string) {
   const current = await db
     .select({
@@ -459,31 +583,7 @@ async function getPriorPeriod(clientId: string, currentPeriodId: string) {
   return { prior }
 }
 
-async function readLineItemScheduleTotalCurrent(params: {
-  clientId: string
-  periodId: string
-  code: string
-}): Promise<number> {
-  const { clientId, periodId, code } = params
-
-  const row = await db
-    .select({ contentJson: planningDocs.contentJson })
-    .from(planningDocs)
-    .where(
-      and(
-        eq(planningDocs.clientId, clientId),
-        eq(planningDocs.periodId, periodId),
-        eq(planningDocs.code, code)
-      )
-    )
-    .limit(1)
-    .then(r => r[0] ?? null)
-
-  const doc = row?.contentJson
-    ? normalizeLineItemSchedule(row.contentJson)
-    : null
-  return doc ? sumLineItem(doc.rows, 'current') : 0
-}
+// ---- actions ----
 
 export async function getCreditorsScheduleAction(input: {
   clientId: string
@@ -525,6 +625,24 @@ export async function getCreditorsScheduleAction(input: {
 
     const ensuredAttachments = ensureCreditorsAttachments(current)
     current = ensuredAttachments.doc
+
+    // ✅ bank overdrafts derived from bank accounts + right-ofn set-off toggle
+    const rightOfSetOff = await readRightOfSetOffFlagFromCashLead({
+      clientId,
+      periodId
+    })
+    const bankTotals = await readBankAccountsTotals({ clientId, periodId })
+
+    const overdraftsForCreditors = rightOfSetOff
+      ? Math.max(0, -bankTotals.netTotal)
+      : bankTotals.overdraftAbs
+
+    const injectedBankOverdrafts = injectDerivedAmount(
+      current,
+      BANK_OVERDRAFTS_LINE_ID_IN_CREDITORS,
+      overdraftsForCreditors
+    )
+    current = injectedBankOverdrafts.doc
 
     const tradeCreditorsTotalCurrent = await readLineItemScheduleTotalCurrent({
       clientId,
@@ -578,6 +696,7 @@ export async function getCreditorsScheduleAction(input: {
       existing &&
       (ensuredTotals.changed ||
         ensuredAttachments.changed ||
+        injectedBankOverdrafts.changed ||
         injectedCurrentTradeCreditors.changed ||
         injectedVatOtherTaxesCurrent.changed ||
         injectedAccrualsDeferredIncomeCurrent.changed ||
@@ -633,6 +752,26 @@ export async function getCreditorsScheduleAction(input: {
       if (priorDoc) {
         priorDoc = ensureCreditorsTotals(priorDoc).doc
         priorDoc = ensureCreditorsAttachments(priorDoc).doc
+
+        // ✅ prior bank overdrafts
+        const priorRightOfSetOff = await readRightOfSetOffFlagFromCashLead({
+          clientId,
+          periodId: prior.id
+        })
+        const priorBankTotals = await readBankAccountsTotals({
+          clientId,
+          periodId: prior.id
+        })
+
+        const priorOverdraftsForCreditors = priorRightOfSetOff
+          ? Math.max(0, -priorBankTotals.netTotal)
+          : priorBankTotals.overdraftAbs
+
+        priorDoc = injectDerivedAmount(
+          priorDoc,
+          BANK_OVERDRAFTS_LINE_ID_IN_CREDITORS,
+          priorOverdraftsForCreditors
+        ).doc
 
         const tradeCreditorsPriorTotalAsPriorColumn =
           await readLineItemScheduleTotalCurrent({
@@ -715,6 +854,23 @@ export async function saveCreditorsScheduleAction(input: {
 
     const ensuredAttachments = ensureCreditorsAttachments(docToSave)
     docToSave = ensuredAttachments.doc
+
+    // ✅ force bank overdrafts derived on save
+    const rightOfSetOff = await readRightOfSetOffFlagFromCashLead({
+      clientId,
+      periodId
+    })
+    const bankTotals = await readBankAccountsTotals({ clientId, periodId })
+
+    const overdraftsForCreditors = rightOfSetOff
+      ? Math.max(0, -bankTotals.netTotal)
+      : bankTotals.overdraftAbs
+
+    docToSave = injectDerivedAmount(
+      docToSave,
+      BANK_OVERDRAFTS_LINE_ID_IN_CREDITORS,
+      overdraftsForCreditors
+    ).doc
 
     const tradeCreditorsTotalCurrent = await readLineItemScheduleTotalCurrent({
       clientId,

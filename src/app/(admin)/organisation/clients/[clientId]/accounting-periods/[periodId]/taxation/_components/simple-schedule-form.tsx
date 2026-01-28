@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { ChevronDown, ExternalLink, Plus, Trash2 } from 'lucide-react'
 
+import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -121,6 +122,8 @@ function isLikelyUrl(v: string) {
   const s = v.trim()
   return s.startsWith('http://') || s.startsWith('https://')
 }
+
+const RIGHT_OF_SET_OFF_LINE_ID = 'right-of-set-off'
 
 type SaveFn = (args: {
   clientId: string
@@ -493,6 +496,13 @@ export default function SimpleScheduleForm({
               const currentIsNeg = isNegativeAmount(currentValue)
               const priorIsNeg = isNegativeAmount(priorAmount)
 
+              const isRightOfSetOff = line.id === RIGHT_OF_SET_OFF_LINE_ID
+
+              function formatYesNo(v: number | null | undefined): string {
+                const n = typeof v === 'number' && Number.isFinite(v) ? v : 0
+                return n === 1 ? 'Yes' : 'No'
+              }
+
               return (
                 <div
                   key={line.id}
@@ -505,16 +515,39 @@ export default function SimpleScheduleForm({
                   </div>
 
                   <div className='col-span-2'>
-                    <Input
-                      type='number'
-                      disabled={isDerived}
-                      className={`border-muted-foreground/30 focus-visible:ring-primary/30 w-full border bg-white text-right tabular-nums shadow-sm focus-visible:ring-2 ${uiInputClass(line.ui)} ${
-                        isDerived ? 'bg-muted/30 text-blue-600' : ''
-                      } ${!isDerived && currentIsNeg ? 'text-red-600' : ''}`}
-                      {...form.register(field, {
-                        setValueAs: v => (v === '' ? null : Number(v))
-                      })}
-                    />
+                    {line.id === RIGHT_OF_SET_OFF_LINE_ID ? (
+                      <div className='flex h-10 items-center justify-end rounded-md border border-gray-200 bg-white px-3 shadow-sm'>
+                        <div className='flex items-center gap-3'>
+                          <span className='text-muted-foreground text-xs'>
+                            {toFiniteNumberOrZero(currentValue) === 1
+                              ? 'Yes'
+                              : 'No'}
+                          </span>
+
+                          <Switch
+                            checked={toFiniteNumberOrZero(currentValue) === 1}
+                            onCheckedChange={checked => {
+                              form.setValue(field, checked ? 1 : 0, {
+                                shouldDirty: true,
+                                shouldTouch: true
+                              })
+                            }}
+                            className='bg-muted data-[state=unchecked]:bg-muted data-[state=checked]:bg-blue-600'
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <Input
+                        type='number'
+                        disabled={isDerived}
+                        className={`border-muted-foreground/30 focus-visible:ring-primary/30 w-full border bg-white text-right tabular-nums shadow-sm focus-visible:ring-2 ${uiInputClass(line.ui)} ${
+                          isDerived ? 'bg-muted/30 text-blue-600' : ''
+                        } ${!isDerived && currentIsNeg ? 'text-red-600' : ''}`}
+                        {...form.register(field, {
+                          setValueAs: v => (v === '' ? null : Number(v))
+                        })}
+                      />
+                    )}
 
                     {/* Derived help (locked fields) */}
                     {help ? (
@@ -533,12 +566,18 @@ export default function SimpleScheduleForm({
 
                   <div
                     className={`bg-muted/40 w-full rounded-md px-3 py-2 text-right text-sm tabular-nums ${
-                      priorIsNeg ? 'text-red-600' : 'text-muted-foreground'
+                      isRightOfSetOff
+                        ? 'text-muted-foreground'
+                        : priorIsNeg
+                          ? 'text-red-600'
+                          : 'text-muted-foreground'
                     }`}
                   >
                     {priorAmount === null || priorAmount === undefined
                       ? ''
-                      : formatNumberWithBrackets(priorAmount)}
+                      : isRightOfSetOff
+                        ? formatYesNo(priorAmount)
+                        : formatNumberWithBrackets(priorAmount)}
                   </div>
                 </div>
               )

@@ -18,6 +18,13 @@ export const cashAtBankLeadDefault: SimpleScheduleDocV1 = {
       lines: [
         {
           kind: 'INPUT',
+          id: 'right-of-set-off',
+          label: 'Right of set-off exists for bank balances (0 = No, 1 = Yes)',
+          amount: 0,
+          ui: { emphasis: 'soft', tone: 'muted' }
+        },
+        {
+          kind: 'INPUT',
           id: 'cash-at-bank',
           label: 'Cash at bank (positive balances only)',
           amount: null
@@ -30,7 +37,6 @@ export const cashAtBankLeadDefault: SimpleScheduleDocV1 = {
           amount: null,
           ui: { emphasis: 'soft', tone: 'muted' }
         },
-
         {
           kind: 'INPUT',
           id: 'cash-in-hand',
@@ -44,11 +50,10 @@ export const cashAtBankLeadDefault: SimpleScheduleDocV1 = {
           sumOf: ['cash-at-bank', 'cash-at-bank-special-cases', 'cash-in-hand'],
           ui: { emphasis: 'strong', tone: 'info' }
         },
-
         {
           kind: 'INPUT',
           id: 'bank-overdraft-memo',
-          label: 'Bank overdrafts (memo; no right of set-off)',
+          label: 'Bank overdrafts (net where right of set-off exists)',
           amount: null,
           ui: { emphasis: 'soft', tone: 'muted' }
         }

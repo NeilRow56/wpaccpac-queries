@@ -27,7 +27,7 @@ import {
 // -----------------------------
 // Constants to avoid “magic strings”
 // -----------------------------
-const CODE = 'B62-creditors'
+const CODE = 'B61-creditors'
 
 const TEMPLATE_ATTACHMENT_IDS = [
   'purc-ledger',
@@ -36,12 +36,14 @@ const TEMPLATE_ATTACHMENT_IDS = [
 ] as const
 
 // ✅ Derived lines (lock these on the form)
+const BANK_OVERDRAFTS_LINE_ID = 'bank-overdrafts' as const
 const TRADE_CREDITORS_LINE_ID = 'trade-creditors' as const
 const CORP_TAX_LINE_ID = 'corp-tax-payable' as const
 const VAT_OTHER_TAXES_LINE_ID = 'vat-paye-nic' as const
 const ACCRUALS_DEFERRED_INCOME_LINE_ID = 'accruals-deferred-income' as const
 
 const DERIVED_LINE_IDS = [
+  BANK_OVERDRAFTS_LINE_ID,
   TRADE_CREDITORS_LINE_ID,
   CORP_TAX_LINE_ID,
   VAT_OTHER_TAXES_LINE_ID,
@@ -52,6 +54,8 @@ const DERIVED_HELP_BY_LINE_ID: Record<
   (typeof DERIVED_LINE_IDS)[number],
   string
 > = {
+  [BANK_OVERDRAFTS_LINE_ID]:
+    'Derived from the Bank accounts schedule (net overdraft if right of set-off applies; otherwise gross overdrafts).',
   [TRADE_CREDITORS_LINE_ID]: 'Derived from the Trade Creditors schedule.',
   [CORP_TAX_LINE_ID]:
     'Derived from Taxation schedule (ct-payable; repayables excluded).',
@@ -86,7 +90,7 @@ export default async function CreditorsPage({
     periodId,
     periodName: period.periodName,
     leafLabel: 'Creditors',
-    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/puchases-creditors`
+    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/purchases-creditors`
   })
 
   const priorPeriod = await db

@@ -43,9 +43,9 @@ const DERIVED_HELP_BY_LINE_ID: Record<
   string
 > = {
   [CASH_AT_BANK_LINE_ID]:
-    'Derived from the Bank accounts schedule (positive balances only).',
+    'Derived from the Bank accounts schedule. If right of set-off is ON, this is the net bank position (positive only). Otherwise, positive balances only.',
   [BANK_OVERDRAFT_MEMO_LINE_ID]:
-    'Derived from the Bank accounts schedule (overdrawn balances only; no right of set-off).'
+    'Derived from the Bank accounts schedule. Shown only when right of set-off is OFF (overdrawn balances only; memo).'
 }
 
 // Attachments shown on the lead schedule

@@ -23,7 +23,8 @@ const CODE = 'B61-cash_at_bank'
 // supporting schedule
 const BANK_ACCOUNTS_CODE = 'B61-cash_at_bank_accounts'
 
-// derived line ids in lead
+// derived / input line ids in lead
+const RIGHT_OF_SET_OFF_LINE_ID = 'right-of-set-off'
 const CASH_AT_BANK_LINE_ID = 'cash-at-bank'
 const BANK_OVERDRAFT_MEMO_LINE_ID = 'bank-overdraft-memo'
 
@@ -299,6 +300,21 @@ function injectDerivedAmount(
   return { doc: next, changed }
 }
 
+function readRightOfSetOff(doc: SimpleScheduleDocV1): boolean {
+  for (const section of doc.sections) {
+    for (const line of section.lines) {
+      if (line.kind === 'INPUT' && line.id === RIGHT_OF_SET_OFF_LINE_ID) {
+        const n =
+          typeof line.amount === 'number' && Number.isFinite(line.amount)
+            ? line.amount
+            : 0
+        return n === 1
+      }
+    }
+  }
+  return false
+}
+
 // ---- read & normalize line-item schedule (bank accounts) ----
 
 function isLineItemScheduleDocV1(v: unknown): v is LineItemScheduleDocV1 {
@@ -329,7 +345,11 @@ function normalizeLineItemSchedule(raw: unknown): LineItemScheduleDocV1 | null {
 async function readBankTotals(params: {
   clientId: string
   periodId: string
-}): Promise<{ positiveTotal: number; overdraftMemo: number }> {
+}): Promise<{
+  positiveTotal: number
+  overdraftMemo: number
+  netTotal: number
+}> {
   const { clientId, periodId } = params
 
   const row = await db
@@ -352,17 +372,20 @@ async function readBankTotals(params: {
 
   let positiveTotal = 0
   let overdraftMemo = 0
+  let netTotal = 0
 
   for (const r of rows) {
     const n =
       typeof r.current === 'number' && Number.isFinite(r.current)
         ? r.current
         : 0
+
+    netTotal += n
     if (n >= 0) positiveTotal += n
     else overdraftMemo += Math.abs(n)
   }
 
-  return { positiveTotal, overdraftMemo }
+  return { positiveTotal, overdraftMemo, netTotal }
 }
 
 async function getPriorPeriod(clientId: string, currentPeriodId: string) {
@@ -445,21 +468,29 @@ export async function getCashAtBankLeadScheduleAction(input: {
     const ensuredAttachments = ensureLeadAttachments(current)
     current = ensuredAttachments.doc
 
-    // ✅ inject derived bank totals (positive + overdraft memo)
-    // NOTE: we DO NOT fold "special cases" into cash-at-bank anymore.
+    // ✅ inject derived bank totals depending on right-of-set-off
     const bankTotals = await readBankTotals({ clientId, periodId })
+    const rightOfSetOff = readRightOfSetOff(current)
+
+    const cashAtBankDerived = rightOfSetOff
+      ? Math.max(0, bankTotals.netTotal)
+      : bankTotals.positiveTotal
+
+    const overdraftMemoDerived = rightOfSetOff
+      ? Math.max(0, -bankTotals.netTotal) // net overdraft when set-off is YES
+      : bankTotals.overdraftMemo // gross overdrafts when set-off is NO
 
     const injectedBank = injectDerivedAmount(
       current,
       CASH_AT_BANK_LINE_ID,
-      bankTotals.positiveTotal
+      cashAtBankDerived
     )
     current = injectedBank.doc
 
     const injectedOverdraftMemo = injectDerivedAmount(
       current,
       BANK_OVERDRAFT_MEMO_LINE_ID,
-      bankTotals.overdraftMemo
+      overdraftMemoDerived
     )
     current = injectedOverdraftMemo.doc
 
@@ -525,15 +556,25 @@ export async function getCashAtBankLeadScheduleAction(input: {
           clientId,
           periodId: prior.id
         })
+        const priorRightOfSetOff = readRightOfSetOff(priorDoc)
+
+        const priorCashAtBankDerived = priorRightOfSetOff
+          ? Math.max(0, priorBankTotals.netTotal)
+          : priorBankTotals.positiveTotal
+
+        const priorOverdraftMemoDerived = priorRightOfSetOff
+          ? Math.max(0, -priorBankTotals.netTotal)
+          : priorBankTotals.overdraftMemo
+
         priorDoc = injectDerivedAmount(
           priorDoc,
           CASH_AT_BANK_LINE_ID,
-          priorBankTotals.positiveTotal
+          priorCashAtBankDerived
         ).doc
         priorDoc = injectDerivedAmount(
           priorDoc,
           BANK_OVERDRAFT_MEMO_LINE_ID,
-          priorBankTotals.overdraftMemo
+          priorOverdraftMemoDerived
         ).doc
       }
     }
@@ -573,17 +614,27 @@ export async function saveCashAtBankLeadScheduleAction(input: {
     const ensuredAttachments = ensureLeadAttachments(docToSave)
     docToSave = ensuredAttachments.doc
 
-    // ✅ force derived values on save (do not fold special-cases)
+    // ✅ force derived values on save (right-of-set-off aware)
     const bankTotals = await readBankTotals({ clientId, periodId })
+    const rightOfSetOff = readRightOfSetOff(docToSave)
+
+    const cashAtBankDerived = rightOfSetOff
+      ? Math.max(0, bankTotals.netTotal)
+      : bankTotals.positiveTotal
+
+    const overdraftMemoDerived = rightOfSetOff
+      ? Math.max(0, -bankTotals.netTotal)
+      : bankTotals.overdraftMemo
+
     docToSave = injectDerivedAmount(
       docToSave,
       CASH_AT_BANK_LINE_ID,
-      bankTotals.positiveTotal
+      cashAtBankDerived
     ).doc
     docToSave = injectDerivedAmount(
       docToSave,
       BANK_OVERDRAFT_MEMO_LINE_ID,
-      bankTotals.overdraftMemo
+      overdraftMemoDerived
     ).doc
 
     await db

@@ -22,6 +22,13 @@ export const creditorsDefault: SimpleScheduleDocV1 = {
       lines: [
         {
           kind: 'INPUT',
+          id: 'bank-overdrafts',
+          label: 'Bank overdrafts',
+          amount: null,
+          ui: { emphasis: 'soft', tone: 'muted' }
+        },
+        {
+          kind: 'INPUT',
           id: 'trade-creditors',
           label: 'Trade creditors',
           amount: null
@@ -67,6 +74,7 @@ export const creditorsDefault: SimpleScheduleDocV1 = {
           id: 'creditors-gross-total',
           label: 'Creditors falling due within one year - total',
           sumOf: [
+            'bank-overdrafts',
             'trade-creditors',
             'corp-tax-payable',
             'vat-paye-nic',
@@ -75,6 +83,7 @@ export const creditorsDefault: SimpleScheduleDocV1 = {
             'directors-loans-balance',
             'loans-within-one-year'
           ],
+
           ui: { emphasis: 'strong', tone: 'info' }
         }
       ],
