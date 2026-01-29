@@ -106,7 +106,7 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
   },
   {
     code: 'B14-2(a)',
-    title: 'Directors Remuneration and Related Parties',
+    title: 'Business ownership structure',
     type: 'RICH_TEXT',
     order: 1421,
     defaultContentJson: {
@@ -205,7 +205,7 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
     title: 'Fixed assets & investments — work programme',
     type: 'RICH_TEXT',
     // pick an order that sits in Section B near the other B6x docs
-    order: 6161,
+    order: 6163,
     defaultContentJson: {
       type: 'doc',
       content: [
@@ -420,7 +420,7 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
     code: 'B61-debtors_wp',
     title: 'Debtors — work programme',
     type: 'RICH_TEXT',
-    order: 6162, // pick something that sits near taxation/fixed assets WPs
+    order: 6165, // pick something that sits near taxation/fixed assets WPs
     defaultContentJson: {
       type: 'doc',
       content: [
@@ -506,7 +506,7 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
     code: 'B61-creditors_wp',
     title: 'Creditors — work programme',
     type: 'RICH_TEXT',
-    order: 6163, // pick something that sits near taxation/fixed assets WPs
+    order: 6167, // pick something that sits near taxation/fixed assets WPs
     defaultContentJson: {
       type: 'doc',
       content: [
@@ -680,6 +680,130 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
                     {
                       type: 'text',
                       text: 'Review basis of any stock provision.'
+                    }
+                  ]
+                }
+              ]
+            },
+
+            { type: 'paragraph', content: [] }
+          ]
+        },
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Notes / conclusions (add more work steps or findings below):'
+            }
+          ]
+        },
+        { type: 'paragraph', content: [] }
+      ]
+    },
+    visibleWhen: () => true
+  },
+  {
+    code: 'B61-related_parties_wp',
+    title: 'Related parties — work programme',
+    type: 'RICH_TEXT',
+    order: 6162, // pick something that sits near taxation/fixed assets WPs
+    defaultContentJson: {
+      type: 'doc',
+      content: [
+        {
+          type: 'heading',
+          attrs: { level: 1 },
+          content: [{ type: 'text', text: 'RELATED PARTIES' }]
+        },
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Prepare schedule of Directors remuneration, pension contribution, benefits in kind and related party transactions.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Obtain details of directors’ guarantees.'
+                    }
+                  ]
+                }
+              ]
+            },
+
+            { type: 'paragraph', content: [] }
+          ]
+        },
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Notes / conclusions (add more work steps or findings below):'
+            }
+          ]
+        },
+        { type: 'paragraph', content: [] }
+      ]
+    },
+    visibleWhen: () => true
+  },
+  {
+    code: 'B61-cash_at_bank_wp',
+    title: 'Cash at Bank — work programme',
+    type: 'RICH_TEXT',
+    order: 6166, // pick something that sits near taxation/fixed assets WPs
+    defaultContentJson: {
+      type: 'doc',
+      content: [
+        {
+          type: 'heading',
+          attrs: { level: 1 },
+          content: [{ type: 'text', text: 'CASH AT BANK' }]
+        },
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Agree lead schedule to accounts.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Prepare/review bank reconciliation.'
                     }
                   ]
                 }

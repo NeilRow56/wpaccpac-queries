@@ -69,7 +69,9 @@ const SIMPLE_SCHEDULE_CODES_TO_RESET = new Set<string>([
   'B61-taxation',
   'B61-debtors',
   'B61-creditors',
-  'B61-stocks'
+  'B61-stocks',
+  'B61-related_parties'
+
   // add more SIMPLE_SCHEDULE codes here as you implement them
 ])
 

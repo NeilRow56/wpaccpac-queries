@@ -16,7 +16,8 @@ import {
   DockIcon,
   PackageOpen,
   Van,
-  Landmark
+  Landmark,
+  UserCheck
 } from 'lucide-react'
 
 type Section = {
@@ -73,7 +74,7 @@ export default function PeriodSidebar(props: {
       label: 'Related Parties',
       href: 'related-parties',
       match: '/related-parties',
-      icon: <FileText className='h-4 w-4' />,
+      icon: <UserCheck className='h-4 w-4' />,
       enabled: true
     },
     {
