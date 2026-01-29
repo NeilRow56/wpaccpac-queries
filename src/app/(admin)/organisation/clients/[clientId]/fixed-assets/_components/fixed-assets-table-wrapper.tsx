@@ -66,7 +66,6 @@ export function FixedAssetsTableWrapper({
     React.useState<AssetWithPeriodCalculations | null>(null)
 
   const openMovementModal = (asset: AssetWithPeriodCalculations) => {
-    // Optional guard (recommended)
     if (!period?.id) {
       toast.error('No current accounting period available.')
       return
@@ -75,7 +74,6 @@ export function FixedAssetsTableWrapper({
       toast.error('You must open the period before posting movements.')
       return
     }
-
     if (periodStatus === 'CLOSED') {
       toast.error('Cannot post movements to a closed period.')
       return
@@ -99,7 +97,8 @@ export function FixedAssetsTableWrapper({
         originalCost: values.originalCost,
         costAdjustment: values.costAdjustment ?? '0',
         depreciationMethod: values.depreciationMethod,
-        depreciationRate: values.depreciationRate
+        depreciationRate: values.depreciationRate,
+        isFinanceLease: values.isFinanceLease
       })
 
       if (!result.success) {
@@ -147,7 +146,8 @@ export function FixedAssetsTableWrapper({
         originalCost: values.originalCost,
         costAdjustment: values.costAdjustment ?? '0',
         depreciationMethod: values.depreciationMethod,
-        depreciationRate: values.depreciationRate
+        depreciationRate: values.depreciationRate,
+        isFinanceLease: values.isFinanceLease
       })
 
       if (!result.success) {
@@ -225,7 +225,7 @@ export function FixedAssetsTableWrapper({
         }}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        onPostMovement={openMovementModal} // ✅ add this to table props
+        onPostMovement={openMovementModal}
         onViewSchedule={handleViewSchedule}
       />
 
@@ -294,7 +294,6 @@ export function FixedAssetsTableWrapper({
         />
       )}
 
-      {/* ✅ Movement modal */}
       {showMovementModal && movementAsset && (
         <AssetMovementModal
           open={showMovementModal}
@@ -303,8 +302,8 @@ export function FixedAssetsTableWrapper({
           period={{
             id: period.id,
             name: period.periodName,
-            startDate: period.startDate, // YYYY-MM-DD
-            endDate: period.endDate // YYYY-MM-DD
+            startDate: period.startDate,
+            endDate: period.endDate
           }}
           onClose={() => {
             setShowMovementModal(false)
@@ -361,7 +360,7 @@ function toEditableAsset(
     categoryId: asset.category?.id ?? null,
     categoryName: asset.category?.name ?? null,
     description: asset.description ?? '',
-
+    isFinanceLease: asset.isFinanceLease,
     acquisitionDate,
 
     originalCost,
@@ -372,7 +371,6 @@ function toEditableAsset(
 
     adjustedCost,
 
-    // This shape is for the edit form (master data), not period reporting:
     daysSinceAcquisition: calculateDaysSinceAcquisition(acquisitionDate),
     depreciationForPeriod: 0,
     netBookValue: adjustedCost

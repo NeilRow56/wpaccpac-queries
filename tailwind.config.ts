@@ -9,7 +9,7 @@ const config: Config = {
 
       // 👇 move "xl" collapse point to ~1400px
       xl: '1400px',
-
+      sidebar: '1800px',
       '2xl': '1536px'
     }
   }

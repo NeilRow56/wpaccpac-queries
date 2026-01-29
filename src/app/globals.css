@@ -131,6 +131,7 @@
 
 @theme {
   --breakpoint-xl: 1400px;
+  --breakpoint-sidebar: 1800px;
 }
 
 /* ----------------------------------

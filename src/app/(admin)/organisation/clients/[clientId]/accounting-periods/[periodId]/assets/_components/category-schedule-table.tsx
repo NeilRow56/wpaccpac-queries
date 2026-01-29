@@ -181,6 +181,12 @@ export default function CategoryScheduleTable(props: {
                         {r.depreciationMethod} @ {r.depreciationRate}%
                       </span>
 
+                      {r.isFinanceLease && (
+                        <span className='bg-muted/40 rounded-full border px-2 py-0.5'>
+                          finance lease
+                        </span>
+                      )}
+
                       {hasEntry && (
                         <span className='rounded-full border px-2 py-0.5'>
                           depn entry

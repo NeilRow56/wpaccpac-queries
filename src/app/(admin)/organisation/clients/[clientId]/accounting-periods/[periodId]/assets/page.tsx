@@ -88,7 +88,6 @@ function computeDisposalLines(rows: ScheduleRow[]): DisposalLine[] {
       const costDisposed = Number(r.disposalsCost ?? 0)
       const depreciationOnDisposal = Number(r.depreciationOnDisposals ?? 0)
 
-      // Only works if schedule rows include disposalProceeds; otherwise 0
       const proceeds =
         'disposalProceeds' in r
           ? Number((r as { disposalProceeds?: unknown }).disposalProceeds ?? 0)
@@ -218,6 +217,19 @@ export default async function FixedAssetsCurrentPeriodPage({
       l => Math.abs(l.costDisposed) > 0.00001 || Math.abs(l.proceeds) > 0.00001
     )
   const disposalTotals = sumDisposal(disposalLines)
+
+  // ✅ Finance lease totals (NBV c/f + depn charge for period)
+  // ✅ Finance lease totals (NBV c/f + depn charge for period)
+  const leased = scheduleRows.filter(r => r.isFinanceLease)
+
+  const leasedClosingNBV = leased.reduce((acc, r) => acc + (r.nbvCfwd ?? 0), 0)
+
+  const leasedDepCharge = leased.reduce(
+    (acc, r) => acc + (r.depreciationCharge ?? 0),
+    0
+  )
+
+  const hasLeased = leased.length > 0
 
   return (
     <div className='space-y-6'>
@@ -576,6 +588,32 @@ export default async function FixedAssetsCurrentPeriodPage({
             </div>
           </details>
         </section>
+      ) : null}
+
+      {/* ✅ Finance lease summary */}
+      {hasLeased ? (
+        <div className='bg-muted/20 rounded-md border px-3 py-2 text-sm'>
+          <div className='flex flex-wrap items-center gap-x-2 gap-y-1'>
+            <span className='font-medium'>Finance leased assets</span>
+            <span className='text-muted-foreground text-xs'>
+              ({leased.length} item{leased.length === 1 ? '' : 's'})
+            </span>
+            <span className='text-muted-foreground'>·</span>
+            <span className='text-muted-foreground'>
+              NBV c/fwd{' '}
+              <span className='tabular-nums'>
+                {formatMoneyNoSymbol(leasedClosingNBV)}
+              </span>
+            </span>
+            <span className='text-muted-foreground'>·</span>
+            <span className='text-muted-foreground'>
+              Dep&apos;n for period{' '}
+              <span className='tabular-nums'>
+                {formatMoneyNoSymbol(leasedDepCharge)}
+              </span>
+            </span>
+          </div>
+        </div>
       ) : null}
 
       {/* Supporting schedules (now rendered via client component with modal support) */}

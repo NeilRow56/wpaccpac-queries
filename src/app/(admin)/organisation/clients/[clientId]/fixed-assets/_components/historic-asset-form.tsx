@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import * as React from 'react'
@@ -18,8 +17,10 @@ import { Form, FormDescription } from '@/components/ui/form'
 
 import {
   createHistoricAssetSchema,
-  type CreateHistoricAssetInput
+  type CreateHistoricAssetInput,
+  type CreateHistoricAssetValues
 } from '@/zod-schemas/fixedAssets'
+
 import { FormInputNumberString } from '@/components/form/form-base'
 import { AssetFields } from './asset-fields'
 
@@ -30,13 +31,36 @@ type HistoricAssetFormProps = {
   periodId: string
   periodStartDate: Date
   categories: Array<{ id: string; name: string; clientId: string }>
-  onSubmit: (values: CreateHistoricAssetInput) => Promise<void> | void
+  onSubmit: (values: CreateHistoricAssetValues) => Promise<void> | void
 }
 
 function formatDate(d: Date) {
-  // keep simple; you can swap to date-fns/Intl if you prefer
-  return d.toLocaleDateString()
+  return d.toLocaleDateString('en-GB')
 }
+
+const emptyDefaults = (
+  clientId: string,
+  periodId: string
+): CreateHistoricAssetInput => ({
+  clientId,
+  periodId,
+
+  name: '',
+  categoryId: '',
+  description: '',
+
+  // ✅ NEW
+  isFinanceLease: false,
+
+  acquisitionDate: '',
+  originalCost: '',
+  costAdjustment: '0',
+
+  depreciationMethod: 'reducing_balance',
+  depreciationRate: '',
+
+  openingAccumulatedDepreciation: ''
+})
 
 export function HistoricAssetForm({
   open,
@@ -49,52 +73,31 @@ export function HistoricAssetForm({
 }: HistoricAssetFormProps) {
   const form = useForm<CreateHistoricAssetInput>({
     resolver: zodResolver(createHistoricAssetSchema),
-    defaultValues: {
-      clientId,
-      periodId,
-
-      name: '',
-      categoryId: '',
-      description: '',
-
-      acquisitionDate: '',
-      originalCost: '',
-      costAdjustment: '0',
-
-      depreciationMethod: 'reducing_balance',
-      depreciationRate: '',
-
-      openingAccumulatedDepreciation: ''
-    }
+    defaultValues: emptyDefaults(clientId, periodId)
   })
 
-  // If these props change (switching client/period), keep the form in sync.
+  // Keep IDs in sync if props change.
   React.useEffect(() => {
-    form.setValue('clientId', clientId)
-    form.setValue('periodId', periodId)
+    form.setValue('clientId', clientId, { shouldDirty: false })
+    form.setValue('periodId', periodId, { shouldDirty: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, periodId])
 
   const handleSubmit = async (values: CreateHistoricAssetInput) => {
-    await onSubmit(values)
-    form.reset({
-      clientId,
-      periodId,
-      name: '',
-      categoryId: '',
-      description: '',
-      acquisitionDate: '',
-      originalCost: '',
-      costAdjustment: '0',
-      depreciationMethod: 'reducing_balance',
-      depreciationRate: '',
-      openingAccumulatedDepreciation: ''
-    })
+    const parsed = createHistoricAssetSchema.parse(values) // ✅ defaults/transforms applied
+    await onSubmit(parsed)
+
+    form.reset(emptyDefaults(clientId, periodId))
     onClose()
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog
+      open={open}
+      onOpenChange={nextOpen => {
+        if (!nextOpen) onClose()
+      }}
+    >
       <DialogContent className='max-h-[90vh] w-full min-w-4xl overflow-y-auto'>
         <DialogHeader>
           <DialogTitle className='text-primary'>Add Historic Asset</DialogTitle>
@@ -110,7 +113,6 @@ export function HistoricAssetForm({
             onSubmit={form.handleSubmit(handleSubmit)}
             className='space-y-6'
           >
-            {/* Shared fields */}
             <AssetFields
               control={form.control}
               watchClientId={clientId}
@@ -118,27 +120,27 @@ export function HistoricAssetForm({
               categories={categories}
             />
 
-            {/* Opening balances */}
             <section className='space-y-3 pt-2'>
               <h3 className='text-primary text-sm font-semibold'>
                 Opening balances
               </h3>
 
-              <FormInputNumberString<any>
+              <FormInputNumberString<CreateHistoricAssetInput>
                 control={form.control}
-                name={'openingAccumulatedDepreciation' as any}
+                name='openingAccumulatedDepreciation'
                 label={`Opening accumulated depreciation (as at ${formatDate(
                   periodStartDate
                 )})`}
                 className='font-normal text-gray-900'
+                showErrorOnSubmit
               />
+
               <FormDescription className='text-muted-foreground font-light'>
                 Enter accumulated depreciation at the start of the current
                 period.
               </FormDescription>
             </section>
 
-            {/* Actions */}
             <div className='flex items-center justify-between gap-3 pt-2'>
               <Button
                 type='submit'
@@ -153,7 +155,8 @@ export function HistoricAssetForm({
               <Button
                 type='button'
                 variant='outline'
-                onClick={() => form.reset()}
+                onClick={() => form.reset(emptyDefaults(clientId, periodId))}
+                disabled={form.formState.isSubmitting}
               >
                 Reset
               </Button>

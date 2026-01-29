@@ -28,7 +28,7 @@ export type AssetScheduleRow = {
   acquisitionDate: string // ISO date or yyyy-mm-dd
   depreciationMethod: string
   depreciationRate: string // keep as string for display
-
+  isFinanceLease: boolean // ✅ NEW
   // schedule fields (numbers)
   costBfwd: number
   additions: number
@@ -97,6 +97,7 @@ export async function getFixedAssetPeriodSchedule(params: {
       acquisitionDate: fixedAssets.acquisitionDate,
       depreciationMethod: fixedAssets.depreciationMethod,
       depreciationRate: fixedAssets.depreciationRate,
+      isFinanceLease: fixedAssets.isFinanceLease,
 
       categoryId: assetCategories.id,
       categoryName: assetCategories.name,
@@ -188,6 +189,7 @@ export async function getFixedAssetPeriodSchedule(params: {
       assetName: r.assetName,
       categoryId: r.categoryId,
       categoryName: r.categoryName,
+      isFinanceLease: r.isFinanceLease === true,
 
       acquisitionDate: String(r.acquisitionDate),
       depreciationMethod: String(r.depreciationMethod),
@@ -264,5 +266,15 @@ export async function getFixedAssetPeriodSchedule(params: {
     a.categoryName.localeCompare(b.categoryName)
   )
 
-  return { period, scheduleRows, categoryTotals }
+  const leasedTotals = scheduleRows.reduce(
+    (acc, r) => {
+      if (!r.isFinanceLease) return acc
+      acc.nbvCfwd += r.nbvCfwd
+      acc.depreciationCharge += r.depreciationCharge
+      return acc
+    },
+    { nbvCfwd: 0, depreciationCharge: 0 }
+  )
+
+  return { period, scheduleRows, categoryTotals, leasedTotals }
 }

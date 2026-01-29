@@ -25,7 +25,8 @@ export const assetBaseSchema = z.object({
   name: z.string().min(1, 'Asset name is required'),
   categoryId: z.string().min(1, 'Category is required'),
   description: z.string().optional(),
-
+  // ✅ make it defaulted, not optional
+  isFinanceLease: z.boolean().default(false),
   acquisitionDate: z.string().min(1, 'Acquisition date is required'), // yyyy-mm-dd
   originalCost: requiredMoneyString,
   costAdjustment: moneyStringDefault0,
@@ -42,7 +43,8 @@ export const assetFormSchema = assetBaseSchema.extend({
   clientId: z.string().min(1) // keep as string; you can enforce uuid if you want
 })
 
-export type AssetFormValues = z.infer<typeof assetFormSchema>
+export type AssetFormInput = z.input<typeof assetFormSchema>
+export type AssetFormValues = z.output<typeof assetFormSchema>
 
 /**
  * Historic asset schema (Option B)
@@ -72,4 +74,7 @@ export const createHistoricAssetSchema = assetBaseSchema
     }
   )
 
-export type CreateHistoricAssetInput = z.infer<typeof createHistoricAssetSchema>
+export type CreateHistoricAssetInput = z.input<typeof createHistoricAssetSchema>
+export type CreateHistoricAssetValues = z.output<
+  typeof createHistoricAssetSchema
+>

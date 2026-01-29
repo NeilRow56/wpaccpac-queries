@@ -58,8 +58,6 @@ export function AppSidebar({ ui, ...props }: AppSidebarProps) {
   const { data: session } = authClient.useSession()
   const slots = useSidebarSlots()
 
-  console.log('AppSidebar slots:', slots) // Add this
-
   return (
     <Sidebar collapsible='offcanvas' {...props}>
       <SidebarHeader>

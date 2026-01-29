@@ -855,7 +855,7 @@ export function FixedAssetsTable({
             value={`${table.getState().pagination.pageSize}`}
             onValueChange={value => table.setPageSize(Number(value))}
           >
-            <SelectTrigger className='w-[130px]'>
+            <SelectTrigger className='w-32.5'>
               <SelectValue placeholder='Page size' />
             </SelectTrigger>
             <SelectContent>

@@ -168,9 +168,9 @@ export default function PeriodSidebar(props: {
 
   return (
     // ✅ Collapses to icon-rail under xl, expands on xl+
-    <aside className='w-14 shrink-0 space-y-4 xl:w-56 2xl:w-64'>
+    <aside className='sidebar:w-56 w-14 shrink-0 space-y-4 2xl:w-64'>
       {/* Status card: hidden when collapsed */}
-      <div className='hidden rounded-md border px-3 py-2 xl:block'>
+      <div className='sidebar:block hidden rounded-md border px-3 py-2'>
         <div className='text-xs'>
           <span className='text-muted-foreground'>Status:</span>{' '}
           <span
@@ -227,7 +227,7 @@ export default function PeriodSidebar(props: {
                 'flex items-center justify-center rounded-md py-2 text-sm transition-colors',
                 'px-2',
                 // expanded: normal row
-                'xl:justify-start xl:gap-2 xl:px-3',
+                'sidebar:justify-start sidebar:gap-2 sidebar:px-3',
                 isActive
                   ? 'bg-muted text-foreground font-medium dark:text-gray-800'
                   : 'text-muted-foreground hover:bg-muted'
@@ -235,12 +235,12 @@ export default function PeriodSidebar(props: {
             >
               <span className='inline-flex'>{section.icon}</span>
 
-              <span className='hidden min-w-0 truncate xl:block'>
+              <span className='sidebar:block hidden min-w-0 truncate'>
                 {section.label}
               </span>
 
               {section.key === 'planning' && (
-                <span className='text-muted-foreground ml-auto hidden text-xs tabular-nums xl:inline'>
+                <span className='text-muted-foreground sidebar:inline ml-auto hidden text-xs tabular-nums'>
                   {props.planningCompletion.completed} /{' '}
                   {props.planningCompletion.total}
                 </span>

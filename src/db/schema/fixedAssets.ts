@@ -1,4 +1,5 @@
 import {
+  boolean,
   date,
   decimal,
   index,
@@ -77,6 +78,7 @@ export const fixedAssets = pgTable('fixed_assets', {
     precision: 5,
     scale: 2
   }).notNull(),
+  isFinanceLease: boolean('is_finance_lease').notNull().default(false),
 
   usefulLifeYears: integer('useful_life_years'),
 
@@ -167,7 +169,7 @@ export const assetMovements = pgTable(
     periodId: text('period_id')
       .notNull()
       .references(() => accountingPeriods.id, { onDelete: 'restrict' }),
-    movementType: assetMovementsEnum('asset_movement_type').notNull(),
+    movementType: assetMovementsEnum('asset_movements_type').notNull(),
     postingDate: date('posting_date').notNull(),
     amountCost: decimal('amount_cost', { precision: 12, scale: 2 }).notNull(),
     amountDepreciation: decimal('amount_depreciation', {

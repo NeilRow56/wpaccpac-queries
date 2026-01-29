@@ -9,6 +9,7 @@ export function assetToFormValues(
     clientId: asset.clientId,
     categoryId: asset.categoryId ?? '',
     description: asset.description ?? '',
+    isFinanceLease: asset.isFinanceLease ?? false,
 
     originalCost: asset.originalCost.toString(),
     costAdjustment: asset.costAdjustment.toString(),

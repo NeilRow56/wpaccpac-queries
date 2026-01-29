@@ -28,7 +28,7 @@ export interface AssetWithCalculations {
 
   adjustedCost: number
   daysSinceAcquisition: number
-
+  isFinanceLease: boolean // ✅ ADD THIS
   // Placeholders for non-period contexts (edit forms etc)
   depreciationForPeriod: number
   netBookValue: number
@@ -235,7 +235,8 @@ export function enrichAssetWithCalculations(
 
     adjustedCost,
     daysSinceAcquisition: calculateDaysSinceAcquisition(acquisitionDate),
-
+    // ✅ NEW
+    isFinanceLease: asset.isFinanceLease ?? false,
     // Neutral placeholders — true values are period-based
     depreciationForPeriod: 0,
     netBookValue: adjustedCost

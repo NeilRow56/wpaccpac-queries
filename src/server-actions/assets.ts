@@ -34,6 +34,7 @@ export async function createAsset(data: {
   costAdjustment: string
   depreciationMethod: DepMethod
   depreciationRate: string
+  isFinanceLease: boolean // ✅ add
 }) {
   try {
     // 0) Get current open period FIRST (needed both for validation + seeding)
@@ -75,7 +76,8 @@ export async function createAsset(data: {
         acquisitionDate: data.acquisitionDate,
         costAdjustment: data.costAdjustment ?? '0',
         depreciationMethod: data.depreciationMethod,
-        depreciationRate: data.depreciationRate
+        depreciationRate: data.depreciationRate,
+        isFinanceLease: data.isFinanceLease // ✅ add
       })
       .returning({ id: fixedAssetsTable.id })
 
@@ -127,6 +129,7 @@ export async function updateAsset(data: {
   costAdjustment?: string
   depreciationMethod: 'straight_line' | 'reducing_balance'
   depreciationRate: string
+  isFinanceLease: boolean // ✅ add
 }) {
   try {
     // 0) Load current stored acquisitionDate (so we can detect change)
@@ -200,7 +203,8 @@ export async function updateAsset(data: {
         acquisitionDate: data.acquisitionDate,
         costAdjustment: data.costAdjustment ?? '0',
         depreciationMethod: data.depreciationMethod,
-        depreciationRate: data.depreciationRate
+        depreciationRate: data.depreciationRate,
+        isFinanceLease: data.isFinanceLease // ✅ add
       })
       .where(eq(fixedAssetsTable.id, data.id))
 
@@ -362,6 +366,7 @@ export async function createHistoricAsset(input: unknown) {
         categoryId: data.categoryId,
         name: data.name,
         description: data.description ?? null,
+        isFinanceLease: data.isFinanceLease ?? false,
 
         // fixedAssets.acquisitionDate is a `date` column -> string YYYY-MM-DD is OK
         acquisitionDate: data.acquisitionDate,

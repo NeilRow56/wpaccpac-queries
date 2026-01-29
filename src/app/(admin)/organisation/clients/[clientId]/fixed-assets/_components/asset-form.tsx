@@ -7,10 +7,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 
 import type { AssetWithCalculations } from '@/lib/asset-calculations'
 import {
+  AssetFormInput,
   assetFormSchema,
   type AssetFormValues
 } from '@/zod-schemas/fixedAssets'
 import { assetToFormValues } from '@/lib/asset-form-values'
+
+import { Controller } from 'react-hook-form'
+import { Checkbox } from '@/components/ui/checkbox'
 
 import {
   Dialog,
@@ -57,7 +61,7 @@ type EditProps = BaseProps & {
 
 export type AssetFormProps = CreateProps | EditProps
 
-const emptyDefaults = (clientId: string): AssetFormValues => ({
+const emptyDefaults = (clientId: string): AssetFormInput => ({
   name: '',
   clientId,
   categoryId: '',
@@ -66,14 +70,15 @@ const emptyDefaults = (clientId: string): AssetFormValues => ({
   costAdjustment: '0',
   acquisitionDate: '',
   depreciationMethod: 'reducing_balance',
-  depreciationRate: ''
+  depreciationRate: '',
+  isFinanceLease: false // ✅ NEW
 })
 
 export function AssetForm(props: AssetFormProps) {
   const { open, onClose, clientId, categories, mode } = props
   const asset = mode === 'edit' ? props.asset : null
 
-  const form = useForm<AssetFormValues>({
+  const form = useForm<AssetFormInput>({
     resolver: zodResolver(assetFormSchema),
     defaultValues: emptyDefaults(clientId)
   })
@@ -102,11 +107,12 @@ export function AssetForm(props: AssetFormProps) {
     }
   }, [open, mode, clientId, form])
 
-  const handleSubmit = async (values: AssetFormValues) => {
-    const result: SubmitResult =
+  const handleSubmit = async (values: AssetFormInput) => {
+    const parsed = assetFormSchema.parse(values) // ✅ output type applied
+    const result =
       props.mode === 'edit'
-        ? await props.onSubmit({ ...values, id: props.asset.id })
-        : await props.onSubmit(values)
+        ? await props.onSubmit({ ...parsed, id: props.asset.id })
+        : await props.onSubmit(parsed)
 
     // ✅ Only reset/close on success.
     if (result.success) {
@@ -185,8 +191,30 @@ export function AssetForm(props: AssetFormProps) {
                     </Button>
                   </div>
                 </div>
+                <Controller
+                  control={form.control}
+                  name='isFinanceLease'
+                  render={({ field }) => (
+                    <div className='bg-muted/10 flex items-start gap-3 rounded-md border p-3'>
+                      <Checkbox
+                        checked={!!field.value}
+                        onCheckedChange={v => field.onChange(v === true)}
+                      />
 
-                <FormInput<AssetFormValues>
+                      <div className='space-y-0.5'>
+                        <div className='text-foreground text-sm font-medium'>
+                          Finance lease
+                        </div>
+                        <div className='text-muted-foreground text-xs'>
+                          Mark this asset as held under a finance lease
+                          (included in finance lease totals and disclosures).
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                />
+
+                <FormInput<AssetFormInput>
                   control={form.control}
                   name='name'
                   className='font-normal text-gray-900'
@@ -208,7 +236,7 @@ export function AssetForm(props: AssetFormProps) {
                   Add a detailed description.
                 </FormDescription>
 
-                <FormInputDate<AssetFormValues>
+                <FormInputDate<AssetFormInput>
                   control={form.control}
                   className='font-normal text-gray-900'
                   name='acquisitionDate'
@@ -216,7 +244,7 @@ export function AssetForm(props: AssetFormProps) {
                   showErrorOnSubmit
                 />
 
-                <FormInputNumberString<AssetFormValues>
+                <FormInputNumberString<AssetFormInput>
                   control={form.control}
                   name='originalCost'
                   label='Original cost'
@@ -224,7 +252,7 @@ export function AssetForm(props: AssetFormProps) {
                   showErrorOnSubmit
                 />
 
-                <FormInputNumberString<AssetFormValues>
+                <FormInputNumberString<AssetFormInput>
                   control={form.control}
                   name='costAdjustment'
                   label='Cost adjustment'
@@ -260,7 +288,7 @@ export function AssetForm(props: AssetFormProps) {
                   higher charge in early years.
                 </FormDescription>
 
-                <FormInputNumberString<AssetFormValues>
+                <FormInputNumberString<AssetFormInput>
                   control={form.control}
                   name='depreciationRate'
                   label='Depreciation rate (%)'
