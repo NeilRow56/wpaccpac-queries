@@ -120,32 +120,25 @@ export default function PeriodSidebar(props: {
     {
       key: 'provisions-liabilities-charges',
       label: 'Provisions for Liabilities and Charges',
-      href: 'provisions',
-      match: '/provisions',
+      href: 'liabilities-and-charges',
+      match: '/liabilities-and-charges',
       icon: <CreativeCommons className='h-4 w-4' />,
       enabled: true
     },
-    {
-      key: 'share-capital',
-      label: 'Share Capital',
-      href: 'share-capital',
-      match: '/share-capital',
-      icon: <PoundSterling className='h-4 w-4' />,
-      enabled: true
-    },
+
     {
       key: 'wages-salaries',
       label: 'Wages and Salaries',
-      href: 'wages-salaries',
-      match: '/wages-salaries',
+      href: 'wages-and-salaries',
+      match: '/wages-and-salaries',
       icon: <User2Icon className='h-4 w-4' />,
       enabled: true
     },
     {
       key: 'trial-balance-journals',
-      label: 'Trial balance, Journals',
-      href: 'trial-balance-journals',
-      match: '/trial-balance-journals',
+      label: 'Trial balance and Journals',
+      href: 'trial-balance-and-journals',
+      match: '/trial-balance-and-journals',
       icon: <ScaleIcon className='h-4 w-4' />,
       enabled: true
     },

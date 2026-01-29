@@ -21,13 +21,13 @@ export const taxationDefault: SimpleScheduleDocV1 = {
   sections: [
     {
       id: 'charge-for-year',
-      title: 'Charge for year',
+      title: 'Charge for period',
       ui: { tone: 'primary', emphasis: 'strong' },
       lines: [
         {
           kind: 'INPUT',
           id: 'ct-current',
-          label: 'Corporation tax — Current year',
+          label: 'Corporation tax — Current period',
           amount: null
         },
         {
@@ -45,7 +45,7 @@ export const taxationDefault: SimpleScheduleDocV1 = {
         {
           kind: 'TOTAL',
           id: 'charge-total',
-          label: 'Charge for year total',
+          label: 'Charge for period total',
           sumOf: ['ct-current', 'ct-overunder', 'dt-charge'],
           ui: { emphasis: 'strong', tone: 'info' }
         }

@@ -60,7 +60,7 @@ export const creditorsDefault: SimpleScheduleDocV1 = {
         {
           kind: 'INPUT',
           id: 'directors-loans-balance',
-          label: 'Directors Loans',
+          label: 'Other creditors - Directors loans etc;',
           amount: null
         },
         {

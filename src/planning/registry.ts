@@ -115,6 +115,62 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
         {
           type: 'heading',
           attrs: { level: 1 },
+          content: [{ type: 'text', text: 'Share Capital' }]
+        },
+        {
+          type: 'heading',
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: 'Authorised Share Capital ' }]
+        },
+
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    { type: 'text', text: 'xxxx ordinary shares of £1 each' }
+                  ]
+                }
+              ]
+            },
+
+            // ✅ add this for any template that ends with a list
+            { type: 'paragraph', content: [] }
+          ]
+        },
+        {
+          type: 'heading',
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: 'Issued Share Capital ' }]
+        },
+
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    { type: 'text', text: 'xxxx ordinary shares of £1 each' }
+                  ]
+                }
+              ]
+            },
+
+            // ✅ add this for any template that ends with a list
+            { type: 'paragraph', content: [] }
+          ]
+        },
+
+        {
+          type: 'heading',
+          attrs: { level: 1 },
           content: [{ type: 'text', text: 'Ownership structure' }]
         },
         {
@@ -804,6 +860,124 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
                     {
                       type: 'text',
                       text: 'Prepare/review bank reconciliation.'
+                    }
+                  ]
+                }
+              ]
+            },
+
+            { type: 'paragraph', content: [] }
+          ]
+        },
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Notes / conclusions (add more work steps or findings below):'
+            }
+          ]
+        },
+        { type: 'paragraph', content: [] }
+      ]
+    },
+    visibleWhen: () => true
+  },
+  {
+    code: 'B61-other_areas',
+    title: 'Other areas — work programme',
+    type: 'RICH_TEXT',
+    order: 6168, // pick something that sits near creditors wp
+    defaultContentJson: {
+      type: 'doc',
+      content: [
+        {
+          type: 'heading',
+          attrs: { level: 1 },
+          content: [{ type: 'text', text: 'OTHER AREAS' }]
+        },
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Ensure liabilities and charges section is completed .'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Note any illegal dividends and highlight for reviewer.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Review companies house information and adjust accounts for statutory changes. Agree shareholdings and update schedule as required.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Prepare journals as required.'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Analyse nominal ledger accounts as required by materiality calculations, Draw reviewers attention to significant items .'
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Agree dividends to documentation if available e.g. in house dividend vouchers.'
                     }
                   ]
                 }
