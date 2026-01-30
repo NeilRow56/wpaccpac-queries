@@ -23,6 +23,12 @@ function formatShortDate(d: Date): string {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
 }
 
+export type ReviewedSignoffCopy = {
+  popoverTitle?: string
+  popoverBody?: React.ReactNode
+  confirmCtaLabel?: string
+}
+
 type Props = {
   clientId: string
   periodId: string
@@ -37,6 +43,9 @@ type Props = {
 
   // Compact mode for index rows: show ✓/— with tooltip details
   compact?: boolean
+
+  // Optional per-doc copy overrides (backward compatible)
+  copy?: ReviewedSignoffCopy
 }
 
 export default function ReviewedSignoffControl({
@@ -46,7 +55,8 @@ export default function ReviewedSignoffControl({
   reviewedAt,
   reviewedByMemberId,
   defaultReviewerId,
-  compact
+  compact,
+  copy
 }: Props) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
@@ -100,11 +110,15 @@ export default function ReviewedSignoffControl({
   // Compact display for index rows
   const compactDisplay = isReviewed ? '✓' : 'x'
 
-  // ✅ Always show full label; compact only changes the value display
-  const label = 'Reviewed'
+  // ✅ Make it obvious this is an action when not signed off
+  const label = isReviewed ? 'Reviewed' : 'Sign off: Reviewed'
 
   const tooltip =
     isReviewed && reviewedAt ? `Reviewed ${detailedDisplay}` : 'Not reviewed'
+
+  const popoverTitle = copy?.popoverTitle ?? 'Mark as reviewed'
+  const popoverBody = copy?.popoverBody
+  const confirmCtaLabel = copy?.confirmCtaLabel ?? 'Confirm'
 
   async function clearReviewed(e: React.MouseEvent) {
     e.preventDefault()
@@ -206,7 +220,7 @@ export default function ReviewedSignoffControl({
             setOpen(true)
           }}
           disabled={saving}
-          title={compact ? tooltip : 'Mark as reviewed'}
+          title={compact ? tooltip : 'Sign off as reviewed'}
         >
           <span
             className={
@@ -228,7 +242,11 @@ export default function ReviewedSignoffControl({
         onClick={e => e.stopPropagation()}
       >
         <div className='space-y-3 text-sm'>
-          <div className='font-medium'>Mark as reviewed</div>
+          <div className='font-medium'>{popoverTitle}</div>
+
+          {popoverBody ? (
+            <div className='text-muted-foreground text-sm'>{popoverBody}</div>
+          ) : null}
 
           <div className='space-y-1'>
             <div className='text-muted-foreground text-xs'>Reviewer</div>
@@ -267,7 +285,7 @@ export default function ReviewedSignoffControl({
               onClick={confirmReviewed}
               disabled={saving}
             >
-              Confirm
+              {confirmCtaLabel}
             </Button>
           </div>
         </div>

@@ -23,6 +23,12 @@ function formatShortDate(d: Date): string {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
 }
 
+export type CompletedSignoffCopy = {
+  popoverTitle?: string
+  popoverBody?: React.ReactNode
+  confirmCtaLabel?: string
+}
+
 type Props = {
   clientId: string
   periodId: string
@@ -37,6 +43,9 @@ type Props = {
 
   // Compact mode for index rows: show ✓/— with tooltip details
   compact?: boolean
+
+  // Optional per-doc copy overrides (backward compatible)
+  copy?: CompletedSignoffCopy
 }
 
 export default function CompletedSignoffControl({
@@ -46,7 +55,8 @@ export default function CompletedSignoffControl({
   completedAt,
   completedByMemberId,
   defaultCompletedById,
-  compact
+  compact,
+  copy
 }: Props) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
@@ -99,13 +109,17 @@ export default function CompletedSignoffControl({
 
   const compactDisplay = isCompleted ? '✓' : 'x'
 
-  // ✅ Always show full label; compact only changes the value display
-  const label = 'Completed'
+  // ✅ Make it obvious this is an action when not signed off
+  const label = isCompleted ? 'Completed' : 'Sign off: Completed'
 
   const tooltip =
     isCompleted && completedAt
       ? `Completed ${detailedDisplay}`
       : 'Not completed'
+
+  const popoverTitle = copy?.popoverTitle ?? 'Mark as completed'
+  const popoverBody = copy?.popoverBody
+  const confirmCtaLabel = copy?.confirmCtaLabel ?? 'Confirm'
 
   async function clearCompleted(e: React.MouseEvent) {
     e.preventDefault()
@@ -205,7 +219,7 @@ export default function CompletedSignoffControl({
             setOpen(true)
           }}
           disabled={saving}
-          title={compact ? tooltip : 'Mark as completed'}
+          title={compact ? tooltip : 'Sign off as completed'}
         >
           <span
             className={
@@ -222,12 +236,16 @@ export default function CompletedSignoffControl({
 
       <PopoverContent
         align='end'
-        className='w-64'
+        className='w-72'
         onOpenAutoFocus={e => e.preventDefault()}
         onClick={e => e.stopPropagation()}
       >
         <div className='space-y-3 text-sm'>
-          <div className='font-medium'>Mark as completed</div>
+          <div className='font-medium'>{popoverTitle}</div>
+
+          {popoverBody ? (
+            <div className='text-muted-foreground text-sm'>{popoverBody}</div>
+          ) : null}
 
           <div className='space-y-1'>
             <div className='text-muted-foreground text-xs'>Completed by</div>
@@ -266,7 +284,7 @@ export default function CompletedSignoffControl({
               onClick={confirmCompleted}
               disabled={saving}
             >
-              Confirm
+              {confirmCtaLabel}
             </Button>
           </div>
         </div>

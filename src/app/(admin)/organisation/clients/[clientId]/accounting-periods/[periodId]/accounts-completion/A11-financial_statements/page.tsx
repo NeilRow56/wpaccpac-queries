@@ -2,11 +2,25 @@
 import { notFound } from 'next/navigation'
 
 import { Breadcrumbs } from '@/components/navigation/breadcrumb'
+
+import { getClientById } from '@/server-actions/clients'
+import { getAccountingPeriodById } from '@/server-actions/accounting-periods'
+import { buildPeriodLeafBreadcrumbs } from '@/lib/period-breadcrumbs'
+import { getPeriodSetupAction } from '@/server-actions/period-setup'
+
+import { getDocSignoffHistory } from '@/lib/planning/doc-signoff-read'
+import DocSignoffStrip from '../../planning/_components/doc-signoff-strip'
+import SignoffHistoryPopover from '../../planning/_components/signoff-history-popover'
+
 import {
   getFinancialStatementsScheduleAction,
   saveFinancialStatementsScheduleAction
 } from '@/server-actions/simple-schedules/a11-financial-statements'
 import SimpleScheduleForm from '../../taxation/_components/simple-schedule-form'
+
+const DOC_CODE = 'A11-financial_statements'
+const ROUTE_HREF_SEGMENT = 'A11-financial_statements'
+const TEMPLATE_ATTACHMENT_IDS = ['financial-statements-pdf'] as const
 
 export default async function FinancialStatementsPage({
   params
@@ -15,23 +29,100 @@ export default async function FinancialStatementsPage({
 }) {
   const { clientId, periodId } = await params
 
+  const client = await getClientById(clientId)
+  const period = await getAccountingPeriodById(periodId)
+  if (!client || !period) notFound()
+
+  const signoff = await getDocSignoffHistory({
+    clientId,
+    periodId,
+    code: DOC_CODE
+  })
+  const row = signoff.row
+
+  const setupRes = await getPeriodSetupAction({ clientId, periodId })
+  if (!setupRes.success) notFound()
+  const defaultReviewerId = setupRes.data.assignments.reviewerId
+  const defaultCompletedById = setupRes.data.assignments.completedById
+
+  const crumbs = buildPeriodLeafBreadcrumbs({
+    clientId,
+    clientName: client.name,
+    periodId,
+    periodName: period.periodName,
+    leafLabel: 'Financial statements',
+    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/accounts-completion/${ROUTE_HREF_SEGMENT}`
+  })
+
+  // Defensive: if your period model has an "open/closed" concept, keep the same gate as your other page.
+  // You currently have a check in the [docCode] version that effectively always passes; leaving it out here.
+  // If you later add period status, this is where you’d enforce "must be open".
+
   const res = await getFinancialStatementsScheduleAction({ clientId, periodId })
   if (!res.success) notFound()
 
   return (
     <div className='container mx-auto space-y-6 py-10'>
-      <Breadcrumbs
-        crumbs={[
-          {
-            label: 'Financial statements',
-            href: `/organisation/clients/${clientId}/accounting-periods/${periodId}/accounts-completion/A11-financial_statements`
-          }
-        ]}
-      />
+      <Breadcrumbs crumbs={crumbs} />
 
-      <h1 className='text-primary text-lg font-semibold'>
-        Financial statements
-      </h1>
+      <div className='flex items-center justify-between gap-3'>
+        <h1 className='text-primary text-lg font-semibold'>
+          Financial statements
+        </h1>
+
+        <div className='flex flex-col items-start gap-2 pr-2 xl:flex-row'>
+          <DocSignoffStrip
+            clientId={clientId}
+            periodId={periodId}
+            code={DOC_CODE}
+            reviewedAt={row?.reviewedAt ?? null}
+            reviewedByMemberId={row?.reviewedByMemberId ?? null}
+            defaultReviewerId={defaultReviewerId}
+            completedAt={row?.completedAt ?? null}
+            completedByMemberId={row?.completedByMemberId ?? null}
+            defaultCompletedById={defaultCompletedById}
+            copy={{
+              helperText: (
+                <>
+                  <span className='text-foreground font-medium'>
+                    To sign off, use the menus above (Reviewed / Completed).
+                  </span>
+                  <br />
+                  <span className='text-foreground font-medium'>
+                    Sign-off confirms that the final accounts agree to the lead
+                    schedules.
+                  </span>
+                  <br />
+                  Draft accounts may be replaced until sign-off. Once signed
+                  off, this confirms that all final journals have been processed
+                  and reflected in the schedules.
+                </>
+              ),
+              completed: {
+                popoverTitle: 'Confirm final accounts agree to schedules',
+                popoverBody: (
+                  <div className='space-y-2'>
+                    <p>
+                      By signing off the financial statements, you confirm that:
+                    </p>
+                    <ul className='list-disc space-y-1 pl-5'>
+                      <li>all final journals have been processed, and</li>
+                      <li>the final accounts agree to the lead schedules.</li>
+                    </ul>
+                    <p>
+                      This sign-off indicates completion of the accounts
+                      position for this period.
+                    </p>
+                  </div>
+                ),
+                confirmCtaLabel: 'Confirm sign-off'
+              }
+            }}
+          />
+
+          <SignoffHistoryPopover events={signoff.history ?? []} />
+        </div>
+      </div>
 
       <SimpleScheduleForm
         title='Financial statements'
@@ -41,7 +132,7 @@ export default async function FinancialStatementsPage({
         onSave={saveFinancialStatementsScheduleAction}
         derivedLineIds={[]}
         derivedHelpByLineId={{}}
-        templateAttachmentIds={['financial-statements-pdf']}
+        templateAttachmentIds={[...TEMPLATE_ATTACHMENT_IDS]}
       />
     </div>
   )

@@ -102,6 +102,8 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
     incompleteCodes?: string[]
   }>(null)
 
+  const [confirmLock, setConfirmLock] = useState(false)
+
   function clearOverride() {
     setOverride(null)
   }
@@ -188,16 +190,32 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
     })
   }
 
+  const canSubmit =
+    !isPending &&
+    validation.ok &&
+    confirmLock &&
+    (!override || override != null)
+
   return (
     <div className='fixed inset-0 flex items-center justify-center bg-black/40'>
-      <div className='w-[540px] space-y-4 rounded-lg bg-white p-6'>
+      <div className='w-135 space-y-4 rounded-lg bg-white p-6'>
         <div className='space-y-1'>
           <h2 className='text-lg font-semibold'>Close Accounting Period</h2>
+
           <p className='text-sm text-gray-700'>
-            This will permanently close <strong>{period.periodName}</strong>.
+            This will close <strong>{period.periodName}</strong> and start the
+            next period.
           </p>
+
           <p className='text-sm text-red-600'>
-            You will not be able to post depreciation or make changes.
+            Once closed, this period will be{' '}
+            <strong>locked for normal editing</strong>. You will not be able to
+            post depreciation or make changes.
+          </p>
+
+          <p className='text-sm text-gray-700'>
+            Do not close the period until you are satisfied that all final
+            journals have been processed and the schedules are complete.
           </p>
         </div>
 
@@ -308,6 +326,20 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
                 {validation.message}
               </div>
             ) : null}
+
+            <label className='mt-1 flex items-start gap-2'>
+              <input
+                type='checkbox'
+                className='mt-1'
+                checked={confirmLock}
+                onChange={e => setConfirmLock(e.target.checked)}
+                disabled={isPending}
+              />
+              <span className='text-sm text-gray-700'>
+                I confirm that no further adjustments are expected for this
+                period.
+              </span>
+            </label>
           </div>
         </div>
 
@@ -339,7 +371,12 @@ export function ClosePeriodModal({ period, clientId, onClose }: Props) {
           <button
             className='rounded bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-60'
             onClick={() => handleConfirm(override != null)}
-            disabled={isPending || !validation.ok}
+            disabled={!canSubmit}
+            title={
+              !confirmLock
+                ? 'Please confirm that no further adjustments are expected.'
+                : undefined
+            }
           >
             {isPending
               ? 'Closing…'
