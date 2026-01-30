@@ -21,9 +21,9 @@ import SignoffHistoryPopover from '../planning/_components/signoff-history-popov
 import SimpleScheduleForm from '../taxation/_components/simple-schedule-form'
 
 import {
-  getTrialBalanceAndJournalsScheduleAction,
-  saveTrialBalanceAndJournalsScheduleAction
-} from '@/server-actions/simple-schedules/trial-balance-and-journals'
+  getSundryWorkingsScheduleAction,
+  saveSundryWorkingsScheduleAction
+} from '@/server-actions/simple-schedules/sundry-workings'
 
 const CODE = 'B61-wages_and_salaries'
 
@@ -32,7 +32,7 @@ const TEMPLATE_ATTACHMENT_IDS = [
   'paye-and-nic-control'
 ] as const
 
-export default async function TrialBalanceAndJournalsPage({
+export default async function SundrySchedulesPage({
   params
 }: {
   params: Promise<{ clientId: string; periodId: string }>
@@ -56,8 +56,8 @@ export default async function TrialBalanceAndJournalsPage({
     clientName: client.name,
     periodId,
     periodName: period.periodName,
-    leafLabel: 'Trial balance and journals',
-    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/trial-balance-and-journals`
+    leafLabel: 'Sundry schedules',
+    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/sundry-schedules`
   })
 
   const priorPeriod = await db
@@ -84,8 +84,8 @@ export default async function TrialBalanceAndJournalsPage({
               No open accounting period
             </p>
             <p className='text-muted-foreground text-sm'>
-              You must have the selected accounting period open to edit Trial
-              balance and journals
+              You must have the selected accounting period open to edit Sundry
+              schedules
             </p>
           </div>
         </div>
@@ -93,7 +93,7 @@ export default async function TrialBalanceAndJournalsPage({
     )
   }
 
-  const res = await getTrialBalanceAndJournalsScheduleAction({
+  const res = await getSundryWorkingsScheduleAction({
     clientId,
     periodId
   })
@@ -106,7 +106,7 @@ export default async function TrialBalanceAndJournalsPage({
       <div className='flex items-center justify-between gap-3'>
         <span>
           <h1 className='text-primary text-lg font-semibold'>
-            Trial balance and journals
+            Sundry schedules
           </h1>
         </span>
 
@@ -134,7 +134,7 @@ export default async function TrialBalanceAndJournalsPage({
         initial={res.data.current}
         prior={res.data.prior}
         priorPeriod={priorPeriod}
-        onSave={saveTrialBalanceAndJournalsScheduleAction}
+        onSave={saveSundryWorkingsScheduleAction}
         derivedLineIds={[]}
         derivedHelpByLineId={{}}
         templateAttachmentIds={[...TEMPLATE_ATTACHMENT_IDS]}

@@ -374,7 +374,7 @@ export default function SimpleScheduleForm({
           <div className='grid grid-cols-4 items-end gap-3 text-sm'>
             <div />
             <div className='text-muted-foreground col-span-2 grid justify-items-center'>
-              <span>Current year</span>
+              <span>Current period</span>
               <span className='text-[11px] leading-none'>£</span>
             </div>
 

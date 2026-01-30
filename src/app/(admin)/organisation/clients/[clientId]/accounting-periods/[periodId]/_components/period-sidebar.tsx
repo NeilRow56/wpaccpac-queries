@@ -13,11 +13,11 @@ import {
   User2Icon,
   ScaleIcon,
   CreditCardIcon,
-  DockIcon,
   PackageOpen,
   Van,
   Landmark,
-  UserCheck
+  UserCheck,
+  NotebookPen
 } from 'lucide-react'
 
 type Section = {
@@ -48,8 +48,8 @@ export default function PeriodSidebar(props: {
     {
       key: 'accounts',
       label: 'Accounts and Completion',
-      href: 'accounts',
-      match: '/accounts',
+      href: 'accounts-completion',
+      match: '/accounts-completion',
       icon: <FileText className='h-4 w-4' />,
       enabled: true
     },
@@ -144,18 +144,18 @@ export default function PeriodSidebar(props: {
     },
     {
       key: 'vat',
-      label: 'VAT',
-      href: 'vat',
-      match: '/vat',
+      label: 'VAT summary',
+      href: 'vat-summary',
+      match: '/vat-summary',
       icon: <CreditCardIcon className='h-4 w-4' />,
       enabled: true
     },
     {
       key: 'sundry',
-      label: 'Sundry Workings',
-      href: 'sundry',
-      match: '/sundry',
-      icon: <DockIcon className='h-4 w-4' />,
+      label: 'Sundry schedules',
+      href: 'sundry-schedules',
+      match: '/sundry-schedules',
+      icon: <NotebookPen className='h-4 w-4' />,
       enabled: true
     }
   ]
