@@ -17,7 +17,8 @@ import {
   Van,
   Landmark,
   UserCheck,
-  NotebookPen
+  NotebookPen,
+  FileQuestionMark
 } from 'lucide-react'
 
 type Section = {
@@ -51,6 +52,14 @@ export default function PeriodSidebar(props: {
       href: 'accounts-completion',
       match: '/accounts-completion',
       icon: <FileText className='h-4 w-4' />,
+      enabled: true
+    },
+    {
+      key: 'queries',
+      label: 'Queries',
+      href: 'accounts-completion/queries',
+      match: '/accounts-completion/queries',
+      icon: <FileQuestionMark className='h-4 w-4' />,
       enabled: true
     },
     {
