@@ -75,9 +75,11 @@ const SIMPLE_SCHEDULE_CODES_TO_RESET = new Set<string>([
   'B61-liabilities_and_charges',
   'B61-wages_and_salaries',
   'B61-trial_balance_and_journals',
-  'B61-vat_summary'
+  'B61-vat_summary',
+  'B61-sundry_workings',
 
-  // add more SIMPLE_SCHEDULE codes here as you implement them
+  // Accounts completion / accounts section
+  'A11-financial_statements'
 ])
 
 /**

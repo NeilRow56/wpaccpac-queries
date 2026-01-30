@@ -25,7 +25,7 @@ import {
   saveSundryWorkingsScheduleAction
 } from '@/server-actions/simple-schedules/sundry-workings'
 
-const CODE = 'B61-wages_and_salaries'
+const CODE = 'B61-sundry_workings'
 
 const TEMPLATE_ATTACHMENT_IDS = [
   'wages-and-salaries-summary',
@@ -128,7 +128,7 @@ export default async function SundrySchedulesPage({
       </div>
 
       <SimpleScheduleForm
-        title='Trial balance and journals'
+        title='Sundry schedules'
         clientId={clientId}
         periodId={periodId}
         initial={res.data.current}

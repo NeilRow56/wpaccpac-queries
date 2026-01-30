@@ -1,43 +1,49 @@
-// src/app/organisation/clients/[clientId]/accounting-periods/[periodId]/vat-summary/page.tsx
+// src/app/organisation/clients/[clientId]/accounting-periods/[periodId]/accounts-completion/[docCode]/page.tsx
 import { notFound } from 'next/navigation'
-import { and, desc, eq, lt } from 'drizzle-orm'
+
 import { Calendar } from 'lucide-react'
 
 import { Breadcrumbs } from '@/components/navigation/breadcrumb'
-import { db } from '@/db'
-import { accountingPeriods } from '@/db/schema'
 
 import { getClientById } from '@/server-actions/clients'
 import { getAccountingPeriodById } from '@/server-actions/accounting-periods'
-import { getPeriodSetupAction } from '@/server-actions/period-setup'
 import { buildPeriodLeafBreadcrumbs } from '@/lib/period-breadcrumbs'
+import { getPeriodSetupAction } from '@/server-actions/period-setup'
 
 import { getDocSignoffHistory } from '@/lib/planning/doc-signoff-read'
-import DocSignoffStrip from '../planning/_components/doc-signoff-strip'
-import SignoffHistoryPopover from '../planning/_components/signoff-history-popover'
+import DocSignoffStrip from '../../planning/_components/doc-signoff-strip'
+import SignoffHistoryPopover from '../../planning/_components/signoff-history-popover'
 
-import SimpleScheduleForm from '../taxation/_components/simple-schedule-form'
+import SimpleScheduleForm from '../../taxation/_components/simple-schedule-form'
 import {
-  getVatSummaryScheduleAction,
-  saveVatSummaryScheduleAction
-} from '@/server-actions/simple-schedules/vat-summary'
+  getFinancialStatementsScheduleAction,
+  saveFinancialStatementsScheduleAction
+} from '@/server-actions/simple-schedules/a11-financial-statements'
 
-const CODE = 'B61-vat_summary'
+const DOC_CODE = 'A11-financial_statements'
+const ROUTE_CODE = 'A11'
 
-const TEMPLATE_ATTACHMENT_IDS = ['vat-summary'] as const
+const TEMPLATE_ATTACHMENT_IDS = ['financial-statements-pdf'] as const
 
-export default async function VatSummaryPage({
+export default async function AccountsCompletionDocPage({
   params
 }: {
-  params: Promise<{ clientId: string; periodId: string }>
+  params: Promise<{ clientId: string; periodId: string; docCode: string }>
 }) {
-  const { clientId, periodId } = await params
+  const { clientId, periodId, docCode } = await params
+
+  // For now only A11 exists
+  if (docCode !== ROUTE_CODE) notFound()
 
   const client = await getClientById(clientId)
   const period = await getAccountingPeriodById(periodId)
   if (!client || !period) notFound()
 
-  const signoff = await getDocSignoffHistory({ clientId, periodId, code: CODE })
+  const signoff = await getDocSignoffHistory({
+    clientId,
+    periodId,
+    code: DOC_CODE
+  })
   const row = signoff.row
 
   const setupRes = await getPeriodSetupAction({ clientId, periodId })
@@ -50,24 +56,10 @@ export default async function VatSummaryPage({
     clientName: client.name,
     periodId,
     periodName: period.periodName,
-    leafLabel: 'VAT summary',
-    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/vat-summary`
+    leafLabel: 'Financial statements',
+    leafHref: `/organisation/clients/${clientId}/accounting-periods/${periodId}/accounts-completion/${ROUTE_CODE}`
   })
 
-  const priorPeriod = await db
-    .select()
-    .from(accountingPeriods)
-    .where(
-      and(
-        eq(accountingPeriods.clientId, clientId),
-        lt(accountingPeriods.endDate, period.startDate)
-      )
-    )
-    .orderBy(desc(accountingPeriods.endDate))
-    .limit(1)
-    .then(r => r[0] ?? null)
-
-  // If you have an "open period" concept, keep this guard; otherwise remove it.
   if (!period || period.id !== periodId) {
     return (
       <div className='mb-4 rounded-lg border p-4'>
@@ -79,8 +71,8 @@ export default async function VatSummaryPage({
               No open accounting period
             </p>
             <p className='text-muted-foreground text-sm'>
-              You must have the selected accounting period open to edit VAT
-              summary
+              You must have the selected accounting period open to edit
+              Financial statements.
             </p>
           </div>
         </div>
@@ -88,7 +80,7 @@ export default async function VatSummaryPage({
     )
   }
 
-  const res = await getVatSummaryScheduleAction({ clientId, periodId })
+  const res = await getFinancialStatementsScheduleAction({ clientId, periodId })
   if (!res.success) notFound()
 
   return (
@@ -96,13 +88,15 @@ export default async function VatSummaryPage({
       <Breadcrumbs crumbs={crumbs} />
 
       <div className='flex items-center justify-between gap-3'>
-        <h1 className='text-primary text-lg font-semibold'>VAT summary</h1>
+        <h1 className='text-primary text-lg font-semibold'>
+          Financial statements
+        </h1>
 
         <div className='flex flex-col items-start gap-2 pr-2 xl:flex-row'>
           <DocSignoffStrip
             clientId={clientId}
             periodId={periodId}
-            code={CODE}
+            code={DOC_CODE}
             reviewedAt={row?.reviewedAt ?? null}
             reviewedByMemberId={row?.reviewedByMemberId ?? null}
             defaultReviewerId={defaultReviewerId}
@@ -110,18 +104,17 @@ export default async function VatSummaryPage({
             completedByMemberId={row?.completedByMemberId ?? null}
             defaultCompletedById={defaultCompletedById}
           />
+
           <SignoffHistoryPopover events={signoff.history ?? []} />
         </div>
       </div>
 
       <SimpleScheduleForm
-        title='VAT summary'
+        title='Financial statements'
         clientId={clientId}
         periodId={periodId}
         initial={res.data.current}
-        prior={res.data.prior}
-        priorPeriod={priorPeriod}
-        onSave={saveVatSummaryScheduleAction}
+        onSave={saveFinancialStatementsScheduleAction}
         derivedLineIds={[]}
         derivedHelpByLineId={{}}
         templateAttachmentIds={[...TEMPLATE_ATTACHMENT_IDS]}

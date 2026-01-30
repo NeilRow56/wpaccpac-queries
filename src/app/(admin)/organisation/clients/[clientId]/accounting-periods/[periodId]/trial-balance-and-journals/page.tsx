@@ -25,12 +25,9 @@ import {
   saveTrialBalanceAndJournalsScheduleAction
 } from '@/server-actions/simple-schedules/trial-balance-and-journals'
 
-const CODE = 'B61-wages_and_salaries'
+const CODE = 'B61-trial_balance_and_journals'
 
-const TEMPLATE_ATTACHMENT_IDS = [
-  'wages-and-salaries-summary',
-  'paye-and-nic-control'
-] as const
+const TEMPLATE_ATTACHMENT_IDS = ['trial-balance', 'journals'] as const
 
 export default async function TrialBalanceAndJournalsPage({
   params
