@@ -14,6 +14,8 @@ import {
   type PeriodSetupDocV1
 } from '@/lib/periods/period-setup'
 
+import { generateMaterialityScheduleAction } from '@/server-actions/materiality'
+
 const CODE = 'B00-period_setup'
 
 type ActionResult<T> =
@@ -124,6 +126,16 @@ export async function savePeriodSetupAction(input: {
         ],
         set: { contentJson: docToSave, updatedAt: new Date() }
       })
+
+    // 🔁 Generate/update B41 materiality schedule (non-blocking)
+    const mat = await generateMaterialityScheduleAction({
+      clientId: input.clientId,
+      periodId: input.periodId
+    })
+    if (!mat.success) {
+      // Do not fail saving period setup; just log.
+      console.warn('Materiality generation failed:', mat.message)
+    }
 
     revalidatePath(
       `/organisation/clients/${input.clientId}/accounting-periods/${input.periodId}/planning`,

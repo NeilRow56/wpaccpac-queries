@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+
 import { B_DOCS } from '@/planning/registry'
 import { getPlanningDoc } from '@/server-actions/planning-docs'
 import PlanningDocClient from '../_components/planning-doc-client'
@@ -6,6 +7,7 @@ import PlanningDocClient from '../_components/planning-doc-client'
 import type { ChecklistDoc } from '@/lib/planning/checklist-types'
 import { buildChecklistDocFromDefaults } from '@/lib/planning/checklist-types'
 import type { JSONContent } from '@tiptap/core'
+
 import { getPeriodSetupAction } from '@/server-actions/period-setup'
 import DocSignoffStrip from '../_components/doc-signoff-strip'
 import { getDocSignoffHistory } from '@/lib/planning/doc-signoff-read'
@@ -63,8 +65,8 @@ export default async function PlanningDocPage({
 
   const setupRes = await getPeriodSetupAction({ clientId, periodId })
   if (!setupRes.success) notFound()
-  const defaultReviewerId = setupRes.data.assignments.reviewerId
 
+  const defaultReviewerId = setupRes.data.assignments.reviewerId
   const defaultCompletedById = setupRes.data.assignments.completedById
 
   // ----------------------------
@@ -80,7 +82,9 @@ export default async function PlanningDocPage({
       ? (savedChecklist ??
         buildChecklistDocFromDefaults(docDef.defaultChecklist))
       : null
+
   const shortCode = docDef.code.split('-')[0]
+
   // ----------------------------
   // RICH_TEXT lazy defaults
   // ----------------------------
@@ -89,6 +93,14 @@ export default async function PlanningDocPage({
       ? isNonEmptyTipTapDoc(existing?.contentJson)
         ? (existing!.contentJson as JSONContent)
         : docDef.defaultContentJson
+      : null
+
+  // ----------------------------
+  // B41 generated schedule JSON
+  // ----------------------------
+  const initialTextJsonForB41 =
+    docDef.type !== 'CHECKLIST' && docDef.type !== 'RICH_TEXT' && code === 'B41'
+      ? (existing?.contentJson ?? null)
       : null
 
   return (
@@ -146,6 +158,8 @@ export default async function PlanningDocPage({
           type={docDef.type}
           defaultText={docDef.defaultText ?? ''}
           initialContent={existing?.content ?? ''}
+          // ✅ only B41 uses contentJson for generated schedule
+          initialContentJson={initialTextJsonForB41}
           initialComplete={existing?.isComplete ?? false}
           updatedAt={updatedAtIso}
         />

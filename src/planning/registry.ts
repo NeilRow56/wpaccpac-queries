@@ -253,7 +253,9 @@ export const B_DOCS: ReadonlyArray<PlanningDocDef> = [
     title: 'Materiality',
     type: 'TEXT',
     order: 41,
-    defaultText: '...',
+    defaultText:
+      'Materiality will be generated automatically from Period setup (B00) once planning inputs are saved.',
+
     visibleWhen: cfg => cfgBool(cfg.materialityRequired)
   },
   {

@@ -274,7 +274,7 @@ export function ClientOverview(props: ClientOverviewProps) {
                   </div>
 
                   <Textarea
-                    className='mt-2 min-h-[180px]'
+                    className='mt-2 min-h-45 border-gray-200'
                     value={noteDraft}
                     onChange={e => setNoteDraft(e.target.value)}
                     placeholder={

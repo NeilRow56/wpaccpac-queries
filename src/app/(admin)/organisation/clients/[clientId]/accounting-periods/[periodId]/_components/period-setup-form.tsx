@@ -147,7 +147,7 @@ export default function PeriodSetupForm({
     <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
       <div className='flex flex-col gap-4 xl:flex-row xl:flex-wrap xl:items-start xl:justify-between'>
         {/* Materiality */}
-        <div className='w-full min-w-0 rounded-lg border p-4 xl:max-w-[520px] xl:flex-none'>
+        <div className='w-full min-w-0 rounded-lg border p-4 xl:max-w-130 xl:flex-none'>
           <div className='mb-3'>
             <div className='text-primary text-sm font-medium'>
               Planning inputs
